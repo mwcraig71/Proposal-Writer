@@ -376,7 +376,7 @@ def merge_employees():
             else:
                 db.session.delete(link)
         
-        for exp in merge_emp.project_experience:
+        for exp in merge_emp.project_experiences:
             existing = EmployeeProjectExperience.query.filter_by(
                 employee_id=primary_id,
                 project_title=exp.project_title,
