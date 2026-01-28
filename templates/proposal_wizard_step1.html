@@ -30,52 +30,178 @@
     </div>
 </div>
 
-<div class="bg-white rounded-lg shadow p-6 max-w-3xl mx-auto">
-    <form action="/proposals/new" method="POST" class="space-y-6">
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Proposal Name *</label>
-            <input type="text" name="name" required class="w-full p-3 border rounded-lg" placeholder="e.g., City Hall Renovation RFQ">
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+    <div class="lg:col-span-2 bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">
+            <i class="fas fa-keyboard text-blue-600 mr-2"></i> Contract Information
+        </h2>
+        <form action="/proposals/new" method="POST" id="proposal-form" class="space-y-6">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Proposal Name *</label>
+                <input type="text" name="name" id="name" required class="w-full p-3 border rounded-lg" placeholder="e.g., City Hall Renovation RFQ">
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Contract Title (Section A, Block 1)</label>
+                    <input type="text" name="contract_title" id="contract_title" class="w-full p-3 border rounded-lg" placeholder="Title as shown in solicitation">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Contract Location</label>
+                    <input type="text" name="contract_location" id="contract_location" class="w-full p-3 border rounded-lg" placeholder="City, State">
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Public Notice Date (Block 2)</label>
+                    <input type="date" name="public_notice_date" id="public_notice_date" class="w-full p-3 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Solicitation/Project Number (Block 3)</label>
+                    <input type="text" name="solicitation_number" id="solicitation_number" class="w-full p-3 border rounded-lg" placeholder="e.g., W912EQ-24-R-0001">
+                </div>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Select Firm (Part II)</label>
+                <select name="firm_id" class="w-full p-3 border rounded-lg">
+                    <option value="">-- Select a Firm --</option>
+                    {% for firm in firms %}
+                    <option value="{{ firm.id }}">{{ firm.name }} {% if firm.city %}({{ firm.city }}, {{ firm.state }}){% endif %}</option>
+                    {% endfor %}
+                </select>
+                <p class="text-sm text-gray-500 mt-1">The firm's Part II data will be included in the SF330.</p>
+            </div>
+            
+            <div class="flex justify-end space-x-4 pt-4 border-t">
+                <a href="/proposals" class="px-6 py-3 border rounded-lg text-gray-700 hover:bg-gray-50 transition">Cancel</a>
+                <button type="submit" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                    Next: Select Personnel <i class="fas fa-arrow-right ml-2"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">
+            <i class="fas fa-upload text-green-600 mr-2"></i> Upload RFP/RFQ
+        </h2>
+        <p class="text-gray-600 mb-4">Upload an RFP or RFQ document and let AI extract the contract information automatically.</p>
+        
+        <div id="rfp-drop-zone" class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-green-500 transition cursor-pointer">
+            <i class="fas fa-cloud-upload-alt text-gray-400 text-3xl mb-2"></i>
+            <p class="text-gray-600">Drag and drop RFP/RFQ here</p>
+            <p class="text-gray-400 text-sm">or click to browse</p>
+            <input type="file" id="rfp-file-input" class="hidden" accept=".pdf,.docx,.xlsx,.txt">
         </div>
         
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Contract Title (Section A, Block 1)</label>
-                <input type="text" name="contract_title" class="w-full p-3 border rounded-lg" placeholder="Title as shown in solicitation">
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Contract Location</label>
-                <input type="text" name="contract_location" class="w-full p-3 border rounded-lg" placeholder="City, State">
+        <div id="rfp-parsing-status" class="hidden mt-4">
+            <div class="flex items-center text-blue-600">
+                <i class="fas fa-spinner fa-spin mr-2"></i>
+                <span>Parsing document...</span>
             </div>
         </div>
         
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Public Notice Date (Block 2)</label>
-                <input type="date" name="public_notice_date" class="w-full p-3 border rounded-lg">
+        <div id="rfp-parsed-info" class="hidden mt-4 p-4 bg-green-50 rounded-lg">
+            <div class="flex items-center text-green-700 mb-2">
+                <i class="fas fa-check-circle mr-2"></i>
+                <span class="font-medium">RFP/RFQ Parsed Successfully!</span>
             </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Solicitation/Project Number (Block 3)</label>
-                <input type="text" name="solicitation_number" class="w-full p-3 border rounded-lg" placeholder="e.g., W912EQ-24-R-0001">
-            </div>
+            <p class="text-sm text-gray-600">Contract information has been filled in the form. Review and edit as needed.</p>
         </div>
         
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Select Firm (Part II)</label>
-            <select name="firm_id" class="w-full p-3 border rounded-lg">
-                <option value="">-- Select a Firm --</option>
-                {% for firm in firms %}
-                <option value="{{ firm.id }}">{{ firm.name }} {% if firm.city %}({{ firm.city }}, {{ firm.state }}){% endif %}</option>
-                {% endfor %}
-            </select>
-            <p class="text-sm text-gray-500 mt-1">The firm's Part II data will be included in the SF330.</p>
+        <div class="mt-6 p-4 bg-gray-50 rounded-lg">
+            <h3 class="font-medium text-gray-700 mb-2">AI will extract:</h3>
+            <ul class="text-sm text-gray-600 space-y-1">
+                <li><i class="fas fa-check text-green-500 mr-2"></i> Contract title & location</li>
+                <li><i class="fas fa-check text-green-500 mr-2"></i> Solicitation number</li>
+                <li><i class="fas fa-check text-green-500 mr-2"></i> Publication date</li>
+                <li><i class="fas fa-check text-green-500 mr-2"></i> Project description</li>
+            </ul>
         </div>
-        
-        <div class="flex justify-end space-x-4 pt-4 border-t">
-            <a href="/proposals" class="px-6 py-3 border rounded-lg text-gray-700 hover:bg-gray-50 transition">Cancel</a>
-            <button type="submit" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
-                Next: Select Personnel <i class="fas fa-arrow-right ml-2"></i>
-            </button>
-        </div>
-    </form>
+    </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const dropZone = document.getElementById('rfp-drop-zone');
+const fileInput = document.getElementById('rfp-file-input');
+const parsingStatus = document.getElementById('rfp-parsing-status');
+const parsedInfo = document.getElementById('rfp-parsed-info');
+
+dropZone.addEventListener('click', () => fileInput.click());
+
+dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('border-green-500', 'bg-green-50');
+});
+
+dropZone.addEventListener('dragleave', () => {
+    dropZone.classList.remove('border-green-500', 'bg-green-50');
+});
+
+dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('border-green-500', 'bg-green-50');
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+        handleRfpUpload(files[0]);
+    }
+});
+
+fileInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+        handleRfpUpload(e.target.files[0]);
+    }
+});
+
+async function handleRfpUpload(file) {
+    parsingStatus.classList.remove('hidden');
+    parsedInfo.classList.add('hidden');
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    try {
+        const response = await fetch('/proposals/parse-rfp', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        parsingStatus.classList.add('hidden');
+        
+        if (result.success && result.data) {
+            const data = result.data;
+            
+            if (data.contract_title) {
+                document.getElementById('name').value = data.contract_title;
+                document.getElementById('contract_title').value = data.contract_title;
+            }
+            if (data.contract_location) {
+                document.getElementById('contract_location').value = data.contract_location;
+            }
+            if (data.solicitation_number) {
+                document.getElementById('solicitation_number').value = data.solicitation_number;
+            }
+            if (data.public_notice_date) {
+                const dateInput = document.getElementById('public_notice_date');
+                const dateMatch = data.public_notice_date.match(/\d{4}-\d{2}-\d{2}/);
+                if (dateMatch) {
+                    dateInput.value = dateMatch[0];
+                }
+            }
+            
+            parsedInfo.classList.remove('hidden');
+        } else {
+            alert('Error parsing RFP: ' + (result.error || 'Unknown error'));
+        }
+    } catch (error) {
+        parsingStatus.classList.add('hidden');
+        alert('Error: ' + error.message);
+    }
+}
+</script>
 {% endblock %}

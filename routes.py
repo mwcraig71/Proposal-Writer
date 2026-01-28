@@ -355,6 +355,29 @@ def proposals():
     return render_template('proposals.html', proposals=proposals)
 
 
+@app.route('/proposals/parse-rfp', methods=['POST'])
+def parse_rfp():
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file uploaded'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+    
+    try:
+        from document_parser import extract_text_from_file
+        from gemini_service import parse_rfp_rfq
+        
+        text = extract_text_from_file(file)
+        if not text:
+            return jsonify({'error': 'Could not extract text from file'}), 400
+        
+        parsed_data = parse_rfp_rfq(text)
+        return jsonify({'success': True, 'data': parsed_data})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/proposals/new', methods=['GET', 'POST'])
 def new_proposal():
     if request.method == 'GET':

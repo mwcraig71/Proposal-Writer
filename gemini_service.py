@@ -248,3 +248,58 @@ Return ONLY the JSON object, no markdown formatting or explanation."""
     
     result = json.loads(response.text or "{}")
     return result
+
+
+RFP_SCHEMA = {
+    "contract_title": "string (the title or name of the contract/project being solicited)",
+    "contract_location": "string (city, state or location where work will be performed)",
+    "solicitation_number": "string (RFP/RFQ number, solicitation number, or project number)",
+    "public_notice_date": "string (date the RFP/RFQ was published, format: YYYY-MM-DD if possible)",
+    "submission_deadline": "string (deadline for proposal submission)",
+    "agency_name": "string (the agency or organization issuing the RFP/RFQ)",
+    "project_description": "string (brief description of the project scope and requirements)",
+    "estimated_budget": "string (estimated budget or cost range if mentioned)",
+    "required_disciplines": "list of strings (engineering disciplines or expertise required)",
+    "naics_codes": "list of strings (NAICS codes if mentioned)",
+    "set_aside": "string (small business set-aside type if mentioned: 8(a), HUBZone, SDVOSB, etc.)",
+    "evaluation_criteria": "list of strings (key evaluation factors or criteria)"
+}
+
+
+@retry(
+    stop=stop_after_attempt(5),
+    wait=wait_exponential(multiplier=1, min=2, max=60),
+    retry=retry_if_exception(is_rate_limit_error),
+    reraise=True
+)
+def parse_rfp_rfq(text: str) -> dict:
+    prompt = f"""You are a data extraction assistant for government RFP/RFQ documents.
+Extract key solicitation information from the following Request for Proposal (RFP) or Request for Qualifications (RFQ) document.
+
+Return ONLY valid JSON matching this schema:
+{json.dumps(RFP_SCHEMA, indent=2)}
+
+Focus on extracting:
+- The contract/project title and location
+- Solicitation or project number
+- Key dates (publication date, submission deadline)
+- Required disciplines and evaluation criteria
+- Any set-aside requirements
+
+If any field is not found, use null.
+
+RFP/RFQ text to parse:
+{text}
+
+Return ONLY the JSON object, no markdown formatting or explanation."""
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json"
+        )
+    )
+    
+    result = json.loads(response.text or "{}")
+    return result
