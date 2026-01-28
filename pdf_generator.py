@@ -52,12 +52,61 @@ def fill_pdf_form(data: Dict[str, str], output_path: Optional[str] = None) -> by
     return output.getvalue()
 
 
+def format_project_experience(experiences: List[Dict]) -> str:
+    """Format project experience entries for Section E Block 19"""
+    if not experiences:
+        return ""
+    
+    formatted_entries = []
+    for exp in experiences:
+        entry_parts = []
+        title = exp.get("project_title", "")
+        if title:
+            entry_parts.append(title)
+        
+        location = exp.get("location", "")
+        if location:
+            entry_parts.append(f"({location})")
+        
+        year = exp.get("year_completed", "")
+        if year:
+            entry_parts.append(f"[{year}]")
+        
+        header = " ".join(entry_parts)
+        
+        role = exp.get("role_performed", "")
+        owner = exp.get("owner_name", "")
+        cost = exp.get("project_cost", "")
+        firm = exp.get("firm_name", "")
+        
+        details = []
+        if role:
+            details.append(f"Role: {role}")
+        if owner:
+            details.append(f"Owner: {owner}")
+        if cost:
+            details.append(f"Cost: {cost}")
+        if firm:
+            details.append(f"Firm: {firm}")
+        
+        entry = header
+        if details:
+            entry += "\n  " + "; ".join(details)
+        
+        formatted_entries.append(entry)
+    
+    return "\n\n".join(formatted_entries)
+
+
 def generate_sf330_section_e(employee_data: Dict[str, Any], employee_number: int = 1) -> Dict[str, str]:
     prefix = f"E{employee_number}_" if employee_number > 1 else ""
     
     other_qual = employee_data.get("other_qualifications", "") or ""
     training = employee_data.get("training", "") or ""
     combined_other = f"{other_qual}\n{training}".strip() if training else other_qual
+    
+    project_experiences = employee_data.get("project_experiences", [])
+    formatted_experience = format_project_experience(project_experiences)
     
     return {
         f"{prefix}12_Name": employee_data.get("name", ""),
@@ -68,6 +117,7 @@ def generate_sf330_section_e(employee_data: Dict[str, Any], employee_number: int
         f"{prefix}16_Education": employee_data.get("education", ""),
         f"{prefix}17_Registration": employee_data.get("registrations", ""),
         f"{prefix}18_OtherQual": combined_other,
+        f"{prefix}19_RelevantProjects": formatted_experience,
     }
 
 

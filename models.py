@@ -51,6 +51,27 @@ class Employee(db.Model):
     project_links = db.relationship('EmployeeProjectLink', backref='employee', lazy=True)
 
 
+class EmployeeProjectExperience(db.Model):
+    """Stores project experience from employee resumes - may include projects from previous employers"""
+    __tablename__ = 'employee_project_experiences'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False)
+    project_title = db.Column(db.String(500), nullable=False)
+    location = db.Column(db.String(255))
+    owner_name = db.Column(db.String(255))
+    project_cost = db.Column(db.String(100))
+    year_completed = db.Column(db.String(50))
+    role_performed = db.Column(db.String(255))
+    brief_description = db.Column(db.Text)
+    firm_name = db.Column(db.String(255))
+    is_current_firm = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    employee = db.relationship('Employee', backref=db.backref('project_experiences', lazy=True, cascade='all, delete-orphan'))
+
+
 class Project(db.Model):
     __tablename__ = 'projects'
     

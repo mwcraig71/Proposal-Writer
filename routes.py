@@ -7,7 +7,7 @@ from database import db
 from models import (
     Firm, Employee, Project, EmployeeProjectLink, Proposal,
     ProposalSelectedEmployee, ProposalSelectedProject, ProposalEmployeeRelevantProject,
-    ProjectFirmInvolvement
+    ProjectFirmInvolvement, EmployeeProjectExperience
 )
 from document_parser import extract_text_from_file
 from gemini_service import detect_document_type, parse_employee_resume, parse_project_sheet, parse_firm_info
@@ -103,6 +103,26 @@ def save_parsed_data():
             )
             db.session.add(employee)
             db.session.commit()
+            
+            project_experiences = parsed_data.get('project_experience', [])
+            if project_experiences:
+                for proj in project_experiences:
+                    if proj.get('project_title'):
+                        exp = EmployeeProjectExperience(
+                            employee_id=employee.id,
+                            project_title=proj.get('project_title'),
+                            location=proj.get('location'),
+                            owner_name=proj.get('owner_name'),
+                            project_cost=proj.get('project_cost'),
+                            year_completed=proj.get('year_completed'),
+                            role_performed=proj.get('role_performed'),
+                            brief_description=proj.get('brief_description'),
+                            firm_name=proj.get('firm_name'),
+                            is_current_firm=False
+                        )
+                        db.session.add(exp)
+                db.session.commit()
+            
             return jsonify({'success': True, 'id': employee.id, 'message': 'Employee saved successfully'})
         
         elif doc_type == 'project':
@@ -201,8 +221,9 @@ def add_employee():
 def employee_detail(id):
     employee = Employee.query.get_or_404(id)
     projects = Project.query.join(EmployeeProjectLink).filter(EmployeeProjectLink.employee_id == id).all()
+    project_experiences = EmployeeProjectExperience.query.filter_by(employee_id=id).order_by(EmployeeProjectExperience.year_completed.desc()).all()
     firms = Firm.query.all()
-    return render_template('employee_detail.html', employee=employee, projects=projects, firms=firms)
+    return render_template('employee_detail.html', employee=employee, projects=projects, project_experiences=project_experiences, firms=firms)
 
 
 @app.route('/employees/<int:id>', methods=['PUT'])
@@ -221,6 +242,55 @@ def update_employee(id):
     employee.other_qualifications = data.get('other_qualifications', employee.other_qualifications)
     employee.firm_id = data.get('firm_id', employee.firm_id)
     
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/employees/<int:id>/project-experience', methods=['POST'])
+def add_project_experience(id):
+    employee = Employee.query.get_or_404(id)
+    data = request.json
+    
+    exp = EmployeeProjectExperience(
+        employee_id=employee.id,
+        project_title=data.get('project_title', ''),
+        location=data.get('location'),
+        owner_name=data.get('owner_name'),
+        project_cost=data.get('project_cost'),
+        year_completed=data.get('year_completed'),
+        role_performed=data.get('role_performed'),
+        brief_description=data.get('brief_description'),
+        firm_name=data.get('firm_name'),
+        is_current_firm=data.get('is_current_firm', False)
+    )
+    db.session.add(exp)
+    db.session.commit()
+    return jsonify({'success': True, 'id': exp.id})
+
+
+@app.route('/employees/<int:id>/project-experience/<int:exp_id>', methods=['PUT'])
+def update_project_experience(id, exp_id):
+    exp = EmployeeProjectExperience.query.filter_by(id=exp_id, employee_id=id).first_or_404()
+    data = request.json
+    
+    exp.project_title = data.get('project_title', exp.project_title)
+    exp.location = data.get('location', exp.location)
+    exp.owner_name = data.get('owner_name', exp.owner_name)
+    exp.project_cost = data.get('project_cost', exp.project_cost)
+    exp.year_completed = data.get('year_completed', exp.year_completed)
+    exp.role_performed = data.get('role_performed', exp.role_performed)
+    exp.brief_description = data.get('brief_description', exp.brief_description)
+    exp.firm_name = data.get('firm_name', exp.firm_name)
+    exp.is_current_firm = data.get('is_current_firm', exp.is_current_firm)
+    
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/employees/<int:id>/project-experience/<int:exp_id>', methods=['DELETE'])
+def delete_project_experience(id, exp_id):
+    exp = EmployeeProjectExperience.query.filter_by(id=exp_id, employee_id=id).first_or_404()
+    db.session.delete(exp)
     db.session.commit()
     return jsonify({'success': True})
 
@@ -568,6 +638,16 @@ def generate_proposal_pdf(id):
             'registrations': pse.employee.registrations,
             'training': pse.employee.training,
             'other_qualifications': pse.employee.other_qualifications,
+            'project_experiences': [{
+                'project_title': exp.project_title,
+                'location': exp.location,
+                'owner_name': exp.owner_name,
+                'project_cost': exp.project_cost,
+                'year_completed': exp.year_completed,
+                'role_performed': exp.role_performed,
+                'brief_description': exp.brief_description,
+                'firm_name': exp.firm_name,
+            } for exp in pse.employee.project_experiences],
         } for pse in selected_employees],
         'projects': [{
             'id': psp.project_id,

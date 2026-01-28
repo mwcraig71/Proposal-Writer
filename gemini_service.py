@@ -37,7 +37,19 @@ EMPLOYEE_SCHEMA = {
     "education": "string (STANDARDIZED FORMAT: Each degree on new line as 'Degree, Major, Institution (Year)' - Example: 'M.S., Civil Engineering, SUNY Buffalo (1999)\\nB.S., Civil Engineering, SUNY Buffalo (1997)')",
     "registrations": "string (STANDARDIZED FORMAT: Each license on new line as 'License Type #Number, State (Expiration if known)' - Example: 'PE #12345, New York (2025)\\nPE #67890, California')",
     "training": "string (STANDARDIZED FORMAT: Each course on new line as 'Course Name (Year, Course Code)' - Example: 'Safety Inspection of In-Service Bridges (2001, NHI 130055)\\nBridge Inspection Refresher (2020, NHI 130053)')",
-    "other_qualifications": "string (certifications, awards, publications - each on new line)"
+    "other_qualifications": "string (certifications, awards, publications - each on new line)",
+    "project_experience": [
+        {
+            "project_title": "string (name of the project)",
+            "location": "string (city, state)",
+            "owner_name": "string (project owner/client name)",
+            "project_cost": "string (project cost/budget if mentioned)",
+            "year_completed": "string (year completed or date range)",
+            "role_performed": "string (their specific role/function on this project)",
+            "brief_description": "string (brief description of the project scope and their contribution)",
+            "firm_name": "string (name of the firm/employer where this work was performed)"
+        }
+    ]
 }
 
 STANDARDIZED_FORMAT_INSTRUCTIONS = """
@@ -117,6 +129,19 @@ IMPORTANT: You MUST follow the standardized formats exactly. Each entry should b
 - Registrations: "License Type #Number, State"
 - Training: "Course Name (Year, Code)" - include NHI courses, FHWA training, certifications
 - Separate training/continuing education from formal education
+
+PROJECT EXPERIENCE EXTRACTION:
+Extract ALL projects mentioned in the resume with as much detail as available:
+- project_title: The name of the project
+- location: City, State where the project was located
+- owner_name: The client/owner organization
+- project_cost: Project cost/budget if mentioned (format as currency)
+- year_completed: Year completed or date range (e.g., "2020" or "2018-2020")
+- role_performed: Their specific role/function on this project (e.g., "Project Manager", "Lead Structural Engineer")
+- brief_description: Brief description of the project scope and their specific contribution
+- firm_name: The employer/firm where they worked on this project (may differ from current employer)
+
+Include projects from ALL employers mentioned in the resume, not just the current firm.
 
 Text to parse:
 {text}

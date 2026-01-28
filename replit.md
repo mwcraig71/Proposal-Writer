@@ -48,8 +48,9 @@ MVP implementation complete with:
 ## Database Schema
 - **Firms** - Company/branch office data (Part II)
 - **Employees** - Personnel resumes (Section E)
-- **Projects** - Example projects (Section F)
-- **EmployeeProjectLink** - Many-to-many for Section G matrix
+- **Projects** - Example projects (Section F - firm's project database)
+- **EmployeeProjectExperience** - Project experience from resumes (may include projects from previous employers)
+- **EmployeeProjectLink** - Many-to-many for Section G matrix (links employees to firm projects)
 - **Proposals** - SF330 submission containers
 - **ProposalSelectedEmployee/Project** - Junction tables
 
@@ -64,6 +65,11 @@ The AI parsing enforces consistent formats for personnel data:
 - **Other Qualifications:** Certifications, awards, publications - one per line
 
 ## Recent Changes
+- Added EmployeeProjectExperience model to track project history from resumes (Jan 2026)
+  - AI resume parsing now extracts detailed project experience with title, location, cost, owner, role, and firm
+  - Employee detail page shows and manages project experience with add/edit/delete functionality
+  - Project experience included in Section E (Block 19) of generated PDFs
+- Added RFP/RFQ upload parsing in proposal wizard Step 1 to auto-fill contract information (Jan 2026)
 - Added standardized formatting for education, registrations, training, and qualifications (Jan 2026)
 - Added separate "Training" field to store NHI courses, FHWA training, certifications
 - Initial MVP implementation (Jan 2026)
