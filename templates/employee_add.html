@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Add Personnel - SF330 AI{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <a href="/employees" class="text-blue-600 hover:underline mb-4 inline-block">
+        <i class="fas fa-arrow-left mr-2"></i> Back to Personnel
+    </a>
+    <h1 class="text-3xl font-bold text-gray-800">Add Personnel</h1>
+    <p class="text-gray-600 mt-2">Enter personnel information manually or upload a resume</p>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">
+            <i class="fas fa-keyboard text-blue-600 mr-2"></i> Manual Entry
+        </h2>
+        
+        <form action="/employees/add" method="POST" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+                    <input type="text" name="name" required class="w-full p-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                    <input type="text" name="title" class="w-full p-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Role/Discipline</label>
+                    <input type="text" name="role" class="w-full p-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Firm</label>
+                    <select name="firm_id" class="w-full p-2 border rounded-lg">
+                        <option value="">-- Select Firm --</option>
+                        {% for firm in firms %}
+                        <option value="{{ firm.id }}">{{ firm.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Total Years Experience</label>
+                    <input type="number" name="years_experience_total" class="w-full p-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Years with Firm</label>
+                    <input type="number" name="years_experience_firm" class="w-full p-2 border rounded-lg">
+                </div>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Education</label>
+                <p class="text-xs text-gray-500 mb-1">Format: Degree, Major, Institution (Year) - one per line</p>
+                <textarea name="education" rows="3" class="w-full p-2 border rounded-lg" placeholder="M.S., Civil Engineering, SUNY Buffalo (1999)&#10;B.S., Civil Engineering, SUNY Buffalo (1997)"></textarea>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Professional Registrations</label>
+                <p class="text-xs text-gray-500 mb-1">Format: License Type #Number, State (one per line)</p>
+                <textarea name="registrations" rows="3" class="w-full p-2 border rounded-lg" placeholder="PE #12345, New York (2025)&#10;PE #67890, California"></textarea>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Training & Certifications</label>
+                <p class="text-xs text-gray-500 mb-1">Format: Course Name (Year, Course Code)</p>
+                <textarea name="training" rows="3" class="w-full p-2 border rounded-lg" placeholder="Safety Inspection of In-Service Bridges (2001, NHI 130055)&#10;Bridge Inspection Refresher (2020, NHI 130053)"></textarea>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Other Qualifications</label>
+                <textarea name="other_qualifications" rows="3" class="w-full p-2 border rounded-lg" placeholder="Awards, certifications, publications..."></textarea>
+            </div>
+            
+            <button type="submit" class="w-full bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition">
+                <i class="fas fa-save mr-2"></i> Save Personnel
+            </button>
+        </form>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">
+            <i class="fas fa-upload text-green-600 mr-2"></i> Upload Resume
+        </h2>
+        <p class="text-gray-600 mb-4">Upload a resume file and let AI extract the information automatically.</p>
+        
+        <a href="/upload" class="block w-full bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition text-center">
+            <i class="fas fa-file-upload mr-2"></i> Go to Upload Page
+        </a>
+        
+        <div class="mt-6 p-4 bg-gray-50 rounded-lg">
+            <h3 class="font-medium text-gray-700 mb-2">Supported Formats</h3>
+            <ul class="text-sm text-gray-600 space-y-1">
+                <li><i class="fas fa-file-pdf text-red-500 mr-2"></i> PDF Documents</li>
+                <li><i class="fas fa-file-word text-blue-500 mr-2"></i> Word Documents (.docx)</li>
+                <li><i class="fas fa-file-excel text-green-500 mr-2"></i> Excel Files (.xlsx)</li>
+                <li><i class="fas fa-file-alt text-gray-500 mr-2"></i> Text Files (.txt)</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

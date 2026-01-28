@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Add Project - SF330 AI{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <a href="/projects" class="text-blue-600 hover:underline mb-4 inline-block">
+        <i class="fas fa-arrow-left mr-2"></i> Back to Projects
+    </a>
+    <h1 class="text-3xl font-bold text-gray-800">Add Project</h1>
+    <p class="text-gray-600 mt-2">Enter project information manually or upload a project sheet</p>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">
+            <i class="fas fa-keyboard text-blue-600 mr-2"></i> Manual Entry
+        </h2>
+        
+        <form action="/projects/add" method="POST" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Project Title *</label>
+                    <input type="text" name="title" required class="w-full p-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                    <input type="text" name="location" class="w-full p-2 border rounded-lg" placeholder="City, State">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Project Cost</label>
+                    <input type="text" name="project_cost" class="w-full p-2 border rounded-lg" placeholder="$1,000,000">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Year Completed (Professional)</label>
+                    <input type="text" name="year_completed_professional" class="w-full p-2 border rounded-lg" placeholder="2023">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Year Completed (Construction)</label>
+                    <input type="text" name="year_completed_construction" class="w-full p-2 border rounded-lg" placeholder="2024">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Delivery Method</label>
+                    <input type="text" name="project_delivery_method" class="w-full p-2 border rounded-lg" placeholder="Design-Build, Design-Bid-Build, etc.">
+                </div>
+            </div>
+            
+            <div class="border-t pt-4 mt-4">
+                <h3 class="font-medium text-gray-700 mb-3">Owner Information</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Owner Name</label>
+                        <input type="text" name="owner_name" class="w-full p-2 border rounded-lg" placeholder="Organization name">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Contact Name</label>
+                        <input type="text" name="owner_contact_name" class="w-full p-2 border rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Contact Phone</label>
+                        <input type="text" name="owner_contact_phone" class="w-full p-2 border rounded-lg">
+                    </div>
+                </div>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Project Description</label>
+                <textarea name="brief_description" rows="4" class="w-full p-2 border rounded-lg" placeholder="Describe the project scope, size, and key features..."></textarea>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Relevance Writeup</label>
+                <textarea name="relevance_writeup" rows="3" class="w-full p-2 border rounded-lg" placeholder="Why this project is relevant for proposals..."></textarea>
+            </div>
+            
+            <button type="submit" class="w-full bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition">
+                <i class="fas fa-save mr-2"></i> Save Project
+            </button>
+        </form>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">
+            <i class="fas fa-upload text-green-600 mr-2"></i> Upload Project Sheet
+        </h2>
+        <p class="text-gray-600 mb-4">Upload a project sheet and let AI extract the information automatically.</p>
+        
+        <a href="/upload" class="block w-full bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition text-center">
+            <i class="fas fa-file-upload mr-2"></i> Go to Upload Page
+        </a>
+        
+        <div class="mt-6 p-4 bg-gray-50 rounded-lg">
+            <h3 class="font-medium text-gray-700 mb-2">Supported Formats</h3>
+            <ul class="text-sm text-gray-600 space-y-1">
+                <li><i class="fas fa-file-pdf text-red-500 mr-2"></i> PDF Documents</li>
+                <li><i class="fas fa-file-word text-blue-500 mr-2"></i> Word Documents (.docx)</li>
+                <li><i class="fas fa-file-excel text-green-500 mr-2"></i> Excel Files (.xlsx)</li>
+                <li><i class="fas fa-file-alt text-gray-500 mr-2"></i> Text Files (.txt)</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}Add Firm - SF330 AI{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <a href="/firms" class="text-blue-600 hover:underline mb-4 inline-block">
+        <i class="fas fa-arrow-left mr-2"></i> Back to Firms
+    </a>
+    <h1 class="text-3xl font-bold text-gray-800">Add Firm</h1>
+    <p class="text-gray-600 mt-2">Enter firm information manually or upload a firm profile</p>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">
+            <i class="fas fa-keyboard text-blue-600 mr-2"></i> Manual Entry
+        </h2>
+        
+        <form action="/firms/add" method="POST" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Firm Name *</label>
+                    <input type="text" name="name" required class="w-full p-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">UEI (Unique Entity Identifier)</label>
+                    <input type="text" name="uei" class="w-full p-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Year Established</label>
+                    <input type="number" name="year_established" class="w-full p-2 border rounded-lg">
+                </div>
+            </div>
+            
+            <div class="border-t pt-4 mt-4">
+                <h3 class="font-medium text-gray-700 mb-3">Address</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Street Address</label>
+                        <input type="text" name="street_address" class="w-full p-2 border rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">City</label>
+                        <input type="text" name="city" class="w-full p-2 border rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">State</label>
+                        <input type="text" name="state" class="w-full p-2 border rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">ZIP Code</label>
+                        <input type="text" name="zip_code" class="w-full p-2 border rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                        <input type="text" name="country" value="USA" class="w-full p-2 border rounded-lg">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="border-t pt-4 mt-4">
+                <h3 class="font-medium text-gray-700 mb-3">Contact Information</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                        <input type="text" name="phone" class="w-full p-2 border rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Fax</label>
+                        <input type="text" name="fax" class="w-full p-2 border rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <input type="email" name="email" class="w-full p-2 border rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Point of Contact Name</label>
+                        <input type="text" name="point_of_contact_name" class="w-full p-2 border rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Point of Contact Title</label>
+                        <input type="text" name="point_of_contact_title" class="w-full p-2 border rounded-lg">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="border-t pt-4 mt-4">
+                <h3 class="font-medium text-gray-700 mb-3">Business Information</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Ownership Type</label>
+                        <input type="text" name="ownership_type" class="w-full p-2 border rounded-lg" placeholder="Corporation, Partnership, etc.">
+                    </div>
+                    <div class="flex items-center mt-6">
+                        <input type="checkbox" name="is_small_business" id="is_small_business" class="mr-2">
+                        <label for="is_small_business" class="text-sm text-gray-700">Small Business</label>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Small Business Categories</label>
+                        <input type="text" name="small_business_categories" class="w-full p-2 border rounded-lg" placeholder="8(a), HUBZone, SDVOSB, WOSB, etc.">
+                    </div>
+                </div>
+            </div>
+            
+            <button type="submit" class="w-full bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition">
+                <i class="fas fa-save mr-2"></i> Save Firm
+            </button>
+        </form>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">
+            <i class="fas fa-upload text-green-600 mr-2"></i> Upload Firm Profile
+        </h2>
+        <p class="text-gray-600 mb-4">Upload a firm profile and let AI extract the information automatically.</p>
+        
+        <a href="/upload" class="block w-full bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition text-center">
+            <i class="fas fa-file-upload mr-2"></i> Go to Upload Page
+        </a>
+        
+        <div class="mt-6 p-4 bg-gray-50 rounded-lg">
+            <h3 class="font-medium text-gray-700 mb-2">Supported Formats</h3>
+            <ul class="text-sm text-gray-600 space-y-1">
+                <li><i class="fas fa-file-pdf text-red-500 mr-2"></i> PDF Documents</li>
+                <li><i class="fas fa-file-word text-blue-500 mr-2"></i> Word Documents (.docx)</li>
+                <li><i class="fas fa-file-excel text-green-500 mr-2"></i> Excel Files (.xlsx)</li>
+                <li><i class="fas fa-file-alt text-gray-500 mr-2"></i> Text Files (.txt)</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

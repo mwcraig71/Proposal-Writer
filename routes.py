@@ -173,6 +173,30 @@ def employees():
     return render_template('employees.html', employees=employees)
 
 
+@app.route('/employees/add', methods=['GET', 'POST'])
+def add_employee():
+    if request.method == 'POST':
+        data = request.form
+        employee = Employee(
+            name=data.get('name', ''),
+            title=data.get('title'),
+            role=data.get('role'),
+            years_experience_total=int(data.get('years_experience_total') or 0) if data.get('years_experience_total') else None,
+            years_experience_firm=int(data.get('years_experience_firm') or 0) if data.get('years_experience_firm') else None,
+            education=data.get('education'),
+            registrations=data.get('registrations'),
+            training=data.get('training'),
+            other_qualifications=data.get('other_qualifications'),
+            firm_id=int(data.get('firm_id')) if data.get('firm_id') else None
+        )
+        db.session.add(employee)
+        db.session.commit()
+        return redirect(f'/employees/{employee.id}')
+    
+    firms = Firm.query.all()
+    return render_template('employee_add.html', firms=firms)
+
+
 @app.route('/employees/<int:id>')
 def employee_detail(id):
     employee = Employee.query.get_or_404(id)
@@ -205,6 +229,30 @@ def update_employee(id):
 def projects():
     projects = Project.query.order_by(Project.title).all()
     return render_template('projects.html', projects=projects)
+
+
+@app.route('/projects/add', methods=['GET', 'POST'])
+def add_project():
+    if request.method == 'POST':
+        data = request.form
+        project = Project(
+            title=data.get('title', ''),
+            location=data.get('location'),
+            year_completed_professional=data.get('year_completed_professional'),
+            year_completed_construction=data.get('year_completed_construction'),
+            owner_name=data.get('owner_name'),
+            owner_contact_name=data.get('owner_contact_name'),
+            owner_contact_phone=data.get('owner_contact_phone'),
+            project_cost=data.get('project_cost'),
+            project_delivery_method=data.get('project_delivery_method'),
+            brief_description=data.get('brief_description'),
+            relevance_writeup=data.get('relevance_writeup')
+        )
+        db.session.add(project)
+        db.session.commit()
+        return redirect(f'/projects/{project.id}')
+    
+    return render_template('project_add.html')
 
 
 @app.route('/projects/<int:id>')
@@ -264,6 +312,35 @@ def link_employee_to_project(project_id):
 def firms():
     firms = Firm.query.order_by(Firm.name).all()
     return render_template('firms.html', firms=firms)
+
+
+@app.route('/firms/add', methods=['GET', 'POST'])
+def add_firm():
+    if request.method == 'POST':
+        data = request.form
+        firm = Firm(
+            name=data.get('name', ''),
+            uei=data.get('uei'),
+            street_address=data.get('street_address'),
+            city=data.get('city'),
+            state=data.get('state'),
+            zip_code=data.get('zip_code'),
+            country=data.get('country', 'USA'),
+            year_established=int(data.get('year_established')) if data.get('year_established') else None,
+            ownership_type=data.get('ownership_type'),
+            is_small_business=data.get('is_small_business') == 'on',
+            small_business_categories=data.get('small_business_categories'),
+            phone=data.get('phone'),
+            fax=data.get('fax'),
+            email=data.get('email'),
+            point_of_contact_name=data.get('point_of_contact_name'),
+            point_of_contact_title=data.get('point_of_contact_title')
+        )
+        db.session.add(firm)
+        db.session.commit()
+        return redirect(f'/firms/{firm.id}')
+    
+    return render_template('firm_add.html')
 
 
 @app.route('/firms/<int:id>')
