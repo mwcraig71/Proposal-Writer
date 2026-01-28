@@ -188,3 +188,28 @@ class ProposalSelectedProject(db.Model):
     alternate_description = db.relationship('ProjectAlternateDescription')
     
     __table_args__ = (db.UniqueConstraint('proposal_id', 'project_id', name='unique_proposal_project'),)
+
+
+class AISettings(db.Model):
+    __tablename__ = 'ai_settings'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    setting_key = db.Column(db.String(100), unique=True, nullable=False)
+    setting_value = db.Column(db.Text)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    @staticmethod
+    def get_value(key, default=''):
+        setting = AISettings.query.filter_by(setting_key=key).first()
+        return setting.setting_value if setting else default
+    
+    @staticmethod
+    def set_value(key, value):
+        from database import db
+        setting = AISettings.query.filter_by(setting_key=key).first()
+        if setting:
+            setting.setting_value = value
+        else:
+            setting = AISettings(setting_key=key, setting_value=value)
+            db.session.add(setting)
+        db.session.commit()

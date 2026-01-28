@@ -66,6 +66,11 @@ The AI parsing enforces consistent formats for personnel data:
 - **Other Qualifications:** Certifications, awards, publications - one per line
 
 ## Recent Changes
+- Added AI Settings admin page and custom rewrite instructions popup (Jan 2026)
+  - Settings page (gear icon in nav) for global AI writing style and tone preferences
+  - AISettings model stores key-value preferences in database
+  - AI rewrite button now shows popup for custom instructions per use
+  - Global style/tone settings + custom instructions combined for rewrites
 - Added multiple alternate Brief Descriptions per project (Jan 2026)
   - Projects can now have multiple versions of Brief Description (Section F, Block 24)
   - Each alternate has a label and description text

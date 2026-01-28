@@ -7,7 +7,7 @@ from database import db
 from models import (
     Firm, Employee, Project, EmployeeProjectLink, Proposal,
     ProposalSelectedEmployee, ProposalSelectedProject, ProposalEmployeeRelevantProject,
-    ProjectFirmInvolvement, EmployeeProjectExperience, ProjectAlternateDescription
+    ProjectFirmInvolvement, EmployeeProjectExperience, ProjectAlternateDescription, AISettings
 )
 from document_parser import extract_text_from_file
 from gemini_service import detect_document_type, parse_employee_resume, parse_project_sheet, parse_firm_info, find_matching_employee, combine_and_rewrite_text
@@ -590,15 +590,28 @@ def delete_alternate_description(project_id, alt_id):
 def rewrite_description():
     data = request.json
     description = data.get('description', '')
+    custom_instructions = data.get('custom_instructions', '')
     
     if not description:
         return jsonify({'success': False, 'error': 'No description provided'})
+    
+    global_style = AISettings.get_value('ai_writing_style', '')
+    global_tone = AISettings.get_value('ai_writing_tone', '')
+    
+    style_guidance = ""
+    if global_style:
+        style_guidance += f"\nGlobal style preference: {global_style}"
+    if global_tone:
+        style_guidance += f"\nGlobal tone preference: {global_tone}"
+    if custom_instructions:
+        style_guidance += f"\nAdditional instructions for this rewrite: {custom_instructions}"
     
     prompt = f"""You are a senior structural engineer with extensive experience in bridge inspection and rehabilitation.
 Rewrite the following project description in a professional, technical tone appropriate for a federal SF330 proposal.
 Focus on structural engineering aspects, bridge inspection methodologies, load ratings, condition assessments, and any rehabilitation or repair work.
 Keep the same factual content but enhance the language to demonstrate technical expertise.
 Keep the description concise (under 300 words) and suitable for Block 24 of SF330 Section F.
+{style_guidance}
 
 Original description:
 {description}
@@ -1105,3 +1118,22 @@ def api_ai_combine():
         return jsonify({'combined': combined})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/settings')
+def settings():
+    ai_style = AISettings.get_value('ai_writing_style', '')
+    ai_tone = AISettings.get_value('ai_writing_tone', '')
+    return render_template('settings.html', ai_style=ai_style, ai_tone=ai_tone)
+
+
+@app.route('/settings', methods=['POST'])
+def save_settings():
+    ai_style = request.form.get('ai_writing_style', '')
+    ai_tone = request.form.get('ai_writing_tone', '')
+    
+    AISettings.set_value('ai_writing_style', ai_style)
+    AISettings.set_value('ai_writing_tone', ai_tone)
+    
+    flash('AI settings saved successfully!', 'success')
+    return redirect(url_for('settings'))

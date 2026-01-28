@@ -133,6 +133,29 @@
         </div>
     </div>
 </div>
+
+<div id="rewrite-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 p-6">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">
+            <i class="fas fa-magic text-purple-600 mr-2"></i>
+            AI Rewrite Description
+        </h3>
+        <p class="text-gray-600 text-sm mb-4">
+            The AI will rewrite this description in a professional structural engineering tone.
+            Add any additional instructions below (optional).
+        </p>
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Additional Instructions</label>
+            <textarea id="rewrite-instructions" rows="3" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500" placeholder="e.g., Focus on load rating analysis, emphasize rehabilitation work, mention specific bridge types..."></textarea>
+        </div>
+        <div class="flex justify-end space-x-3">
+            <button id="cancel-rewrite" class="px-4 py-2 text-gray-600 hover:text-gray-800">Cancel</button>
+            <button id="confirm-rewrite" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                <i class="fas fa-magic mr-2"></i>Rewrite
+            </button>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -252,8 +275,11 @@ document.querySelectorAll('.delete-alt-btn').forEach(btn => {
     });
 });
 
+let pendingRewriteBtn = null;
+let pendingRewriteTextarea = null;
+
 document.querySelectorAll('.ai-rewrite-btn').forEach(btn => {
-    btn.addEventListener('click', async function() {
+    btn.addEventListener('click', function() {
         const card = this.closest('[data-alt-id]');
         const textarea = card.querySelector('.alt-description');
         const description = textarea.value;
@@ -263,30 +289,52 @@ document.querySelectorAll('.ai-rewrite-btn').forEach(btn => {
             return;
         }
         
-        this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-        this.disabled = true;
-        
-        try {
-            const response = await fetch('/api/rewrite-description', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ description })
-            });
-            const result = await response.json();
-            if (result.success) {
-                textarea.value = result.rewritten;
-                textarea.classList.add('ring-2', 'ring-purple-500');
-                setTimeout(() => { textarea.classList.remove('ring-2', 'ring-purple-500'); }, 2000);
-            } else {
-                alert('AI rewrite failed: ' + result.error);
-            }
-        } catch (error) {
-            alert('Error: ' + error.message);
-        } finally {
-            this.innerHTML = '<i class="fas fa-magic"></i>';
-            this.disabled = false;
-        }
+        pendingRewriteBtn = this;
+        pendingRewriteTextarea = textarea;
+        document.getElementById('rewrite-instructions').value = '';
+        document.getElementById('rewrite-modal').classList.remove('hidden');
     });
+});
+
+document.getElementById('cancel-rewrite').addEventListener('click', function() {
+    document.getElementById('rewrite-modal').classList.add('hidden');
+    pendingRewriteBtn = null;
+    pendingRewriteTextarea = null;
+});
+
+document.getElementById('confirm-rewrite').addEventListener('click', async function() {
+    if (!pendingRewriteBtn || !pendingRewriteTextarea) return;
+    
+    const description = pendingRewriteTextarea.value;
+    const customInstructions = document.getElementById('rewrite-instructions').value;
+    
+    document.getElementById('rewrite-modal').classList.add('hidden');
+    
+    pendingRewriteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    pendingRewriteBtn.disabled = true;
+    
+    try {
+        const response = await fetch('/api/rewrite-description', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ description, custom_instructions: customInstructions })
+        });
+        const result = await response.json();
+        if (result.success) {
+            pendingRewriteTextarea.value = result.rewritten;
+            pendingRewriteTextarea.classList.add('ring-2', 'ring-purple-500');
+            setTimeout(() => { pendingRewriteTextarea.classList.remove('ring-2', 'ring-purple-500'); }, 2000);
+        } else {
+            alert('AI rewrite failed: ' + result.error);
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    } finally {
+        pendingRewriteBtn.innerHTML = '<i class="fas fa-magic"></i>';
+        pendingRewriteBtn.disabled = false;
+        pendingRewriteBtn = null;
+        pendingRewriteTextarea = null;
+    }
 });
 </script>
 {% endblock %}
