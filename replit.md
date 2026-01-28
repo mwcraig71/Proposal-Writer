@@ -65,6 +65,12 @@ The AI parsing enforces consistent formats for personnel data:
 - **Other Qualifications:** Certifications, awards, publications - one per line
 
 ## Recent Changes
+- Added merge and delete functionality for existing database records (Jan 2026)
+  - Multi-select checkboxes on Personnel and Projects pages
+  - "Merge Selected" button appears when 2+ items are selected
+  - Merge page shows side-by-side comparison with field selection
+  - AI "Combine" option for text fields
+  - Delete buttons with confirmation dialogs
 - Added duplicate employee detection and merge functionality (Jan 2026)
   - When uploading a resume for someone already in the database, system detects the duplicate by name
   - Side-by-side comparison page shows existing vs new data for each field

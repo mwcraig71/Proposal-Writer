@@ -8,9 +8,14 @@
         <h1 class="text-3xl font-bold text-gray-800 mb-2">Projects Database</h1>
         <p class="text-gray-600">Manage example projects for SF330 Section F</p>
     </div>
-    <a href="/projects/add" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
-        <i class="fas fa-plus mr-2"></i> Add Project
-    </a>
+    <div class="flex gap-3">
+        <button id="mergeSelectedBtn" onclick="mergeSelected()" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition hidden">
+            <i class="fas fa-code-merge mr-2"></i> Merge Selected
+        </button>
+        <a href="/projects/add" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+            <i class="fas fa-plus mr-2"></i> Add Project
+        </a>
+    </div>
 </div>
 
 {% if projects %}
@@ -18,6 +23,9 @@
     <table class="w-full">
         <thead class="bg-gray-50">
             <tr>
+                <th class="px-4 py-3 text-left">
+                    <input type="checkbox" id="selectAll" onchange="toggleSelectAll()" class="w-4 h-4 text-blue-600 rounded">
+                </th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Owner</th>
@@ -28,6 +36,9 @@
         <tbody class="divide-y divide-gray-200">
             {% for project in projects %}
             <tr class="hover:bg-gray-50">
+                <td class="px-4 py-4">
+                    <input type="checkbox" class="project-checkbox w-4 h-4 text-blue-600 rounded" value="{{ project.id }}" onchange="updateMergeButton()">
+                </td>
                 <td class="px-6 py-4">
                     <div class="font-medium text-gray-900">{{ project.title }}</div>
                 </td>
@@ -35,9 +46,14 @@
                 <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ project.owner_name or '-' }}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ project.year_completed_professional or '-' }}</td>
                 <td class="px-6 py-4 whitespace-nowrap">
-                    <a href="/projects/{{ project.id }}" class="text-blue-600 hover:text-blue-800">
-                        <i class="fas fa-edit"></i> Edit
-                    </a>
+                    <div class="flex gap-3">
+                        <a href="/projects/{{ project.id }}" class="text-blue-600 hover:text-blue-800" title="Edit">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        <button onclick="deleteProject({{ project.id }}, '{{ project.title | e }}')" class="text-red-600 hover:text-red-800" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
                 </td>
             </tr>
             {% endfor %}
@@ -54,4 +70,55 @@
     </a>
 </div>
 {% endif %}
+
+<script>
+function toggleSelectAll() {
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.project-checkbox');
+    checkboxes.forEach(cb => cb.checked = selectAll.checked);
+    updateMergeButton();
+}
+
+function updateMergeButton() {
+    const checked = document.querySelectorAll('.project-checkbox:checked');
+    const mergeBtn = document.getElementById('mergeSelectedBtn');
+    if (checked.length >= 2) {
+        mergeBtn.classList.remove('hidden');
+        mergeBtn.textContent = `Merge ${checked.length} Selected`;
+    } else {
+        mergeBtn.classList.add('hidden');
+    }
+}
+
+function mergeSelected() {
+    const checked = document.querySelectorAll('.project-checkbox:checked');
+    const ids = Array.from(checked).map(cb => cb.value);
+    if (ids.length < 2) {
+        alert('Please select at least 2 projects to merge.');
+        return;
+    }
+    window.location.href = `/projects/merge-duplicates?ids=${ids.join(',')}`;
+}
+
+async function deleteProject(id, title) {
+    if (!confirm(`Are you sure you want to delete "${title}"? This action cannot be undone.`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/projects/${id}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            location.reload();
+        } else {
+            const data = await response.json();
+            alert(data.error || 'Failed to delete project');
+        }
+    } catch (error) {
+        alert('Error deleting project: ' + error.message);
+    }
+}
+</script>
 {% endblock %}

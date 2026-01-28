@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block title %}Merge Projects - SF330 AI{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <div class="flex items-center gap-4 mb-4">
+        <a href="/projects" class="text-blue-600 hover:text-blue-800">
+            <i class="fas fa-arrow-left"></i> Back to Projects
+        </a>
+    </div>
+    <h1 class="text-3xl font-bold text-gray-800 mb-2">Merge Duplicate Projects</h1>
+    <p class="text-gray-600">Select a primary record and choose which values to keep for each field. Other records will be merged into the primary.</p>
+</div>
+
+<div class="bg-white rounded-lg shadow p-6 mb-6">
+    <h3 class="font-semibold text-lg mb-4">Select Primary Record</h3>
+    <p class="text-sm text-gray-500 mb-4">The primary record will be kept. All linked personnel and proposals will be transferred to it.</p>
+    <div class="flex flex-wrap gap-4">
+        {% for proj in projects %}
+        <label class="flex items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 primary-option">
+            <input type="radio" name="primary" value="{{ proj.id }}" onchange="updatePrimary({{ proj.id }})" 
+                   class="text-blue-600" {% if loop.first %}checked{% endif %}>
+            <span class="font-medium">{{ proj.title }}</span>
+            <span class="text-sm text-gray-500">(ID: {{ proj.id }})</span>
+        </label>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="bg-white rounded-lg shadow overflow-hidden mb-6">
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-4 py-3 text-left font-medium text-gray-700 sticky left-0 bg-gray-50">Field</th>
+                    {% for proj in projects %}
+                    <th class="px-4 py-3 text-left font-medium text-gray-700 min-w-[200px]">
+                        <span class="project-header" data-id="{{ proj.id }}">{{ proj.title[:30] }}...</span>
+                    </th>
+                    {% endfor %}
+                    <th class="px-4 py-3 text-left font-medium text-gray-700 min-w-[200px] bg-purple-50">
+                        <i class="fas fa-magic text-purple-600 mr-2"></i>AI Combined
+                    </th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+                {% set fields = [
+                    ('title', 'Title'),
+                    ('location', 'Location'),
+                    ('year_completed_professional', 'Year Completed (Prof.)'),
+                    ('year_completed_construction', 'Year Completed (Const.)'),
+                    ('owner_name', 'Owner Name'),
+                    ('owner_contact_name', 'Owner Contact'),
+                    ('owner_contact_phone', 'Owner Phone'),
+                    ('project_cost', 'Project Cost'),
+                    ('project_delivery_method', 'Delivery Method'),
+                    ('brief_description', 'Brief Description'),
+                    ('relevance_writeup', 'Relevance Writeup')
+                ] %}
+                {% for field_key, field_label in fields %}
+                <tr class="field-row" data-field="{{ field_key }}">
+                    <td class="px-4 py-3 font-medium text-gray-700 sticky left-0 bg-white">{{ field_label }}</td>
+                    {% for proj in projects %}
+                    <td class="px-4 py-3">
+                        <label class="flex items-start gap-2 cursor-pointer">
+                            <input type="radio" name="field_{{ field_key }}" value="{{ proj.id }}" 
+                                   data-value="{{ proj[field_key] or '' }}"
+                                   class="mt-1 text-blue-600 field-radio"
+                                   {% if loop.first %}checked{% endif %}>
+                            <span class="text-gray-600 whitespace-pre-wrap text-xs">{{ (proj[field_key] or '-')[:200] }}{% if proj[field_key] and proj[field_key]|length > 200 %}...{% endif %}</span>
+                        </label>
+                    </td>
+                    {% endfor %}
+                    <td class="px-4 py-3 bg-purple-50">
+                        {% if field_key in ['brief_description', 'relevance_writeup'] %}
+                        <button onclick="aiCombine('{{ field_key }}')" class="text-purple-600 hover:text-purple-800 mb-2">
+                            <i class="fas fa-wand-magic-sparkles"></i> Combine
+                        </button>
+                        <label class="flex items-start gap-2 cursor-pointer mt-2" id="ai_label_{{ field_key }}" style="display: none;">
+                            <input type="radio" name="field_{{ field_key }}" value="ai" data-value="" 
+                                   id="ai_radio_{{ field_key }}" class="mt-1 text-purple-600 field-radio">
+                            <span class="text-gray-600 whitespace-pre-wrap text-xs" id="ai_text_{{ field_key }}"></span>
+                        </label>
+                        {% else %}
+                        <span class="text-gray-400 text-xs">N/A</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="flex gap-4 justify-end">
+    <a href="/projects" class="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+        Cancel
+    </a>
+    <button onclick="performMerge()" class="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition">
+        <i class="fas fa-code-merge mr-2"></i> Merge Projects
+    </button>
+</div>
+
+<script>
+const projectData = {{ projects_json | tojson | safe }};
+
+function updatePrimary(id) {
+    document.querySelectorAll('.project-header').forEach(el => {
+        const baseText = el.textContent.replace(' PRIMARY', '').trim();
+        if (parseInt(el.dataset.id) === id) {
+            el.innerHTML = baseText + ' <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded ml-2">PRIMARY</span>';
+        } else {
+            el.textContent = baseText;
+        }
+    });
+}
+
+async function aiCombine(fieldKey) {
+    const values = projectData.map(proj => proj[fieldKey]).filter(v => v);
+    if (values.length < 2) {
+        alert('Need at least 2 non-empty values to combine');
+        return;
+    }
+    
+    const btn = event.target.closest('button');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Combining...';
+    
+    try {
+        const response = await fetch('/api/ai-combine', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                field_name: fieldKey,
+                values: values
+            })
+        });
+        
+        const result = await response.json();
+        if (result.combined) {
+            const aiLabel = document.getElementById(`ai_label_${fieldKey}`);
+            const aiText = document.getElementById(`ai_text_${fieldKey}`);
+            const aiRadio = document.getElementById(`ai_radio_${fieldKey}`);
+            aiText.textContent = result.combined;
+            aiRadio.dataset.value = result.combined;
+            aiLabel.style.display = 'flex';
+            aiRadio.checked = true;
+        }
+    } catch (error) {
+        alert('Error combining: ' + error.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i> Combine';
+    }
+}
+
+async function performMerge() {
+    const primaryId = parseInt(document.querySelector('input[name="primary"]:checked').value);
+    const mergeIds = projectData.map(p => p.id);
+    
+    const mergedData = {};
+    document.querySelectorAll('.field-row').forEach(row => {
+        const fieldKey = row.dataset.field;
+        const selected = row.querySelector(`input[name="field_${fieldKey}"]:checked`);
+        if (selected) {
+            mergedData[fieldKey] = selected.dataset.value;
+        }
+    });
+    
+    if (!confirm(`This will merge ${mergeIds.length} projects into one. This cannot be undone. Continue?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/projects/merge-duplicates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                primary_id: primaryId,
+                merge_ids: mergeIds,
+                merged_data: mergedData
+            })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            window.location.href = result.redirect;
+        } else {
+            alert(result.error || 'Failed to merge');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+updatePrimary({{ projects[0].id }});
+</script>
+{% endblock %}

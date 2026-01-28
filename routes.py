@@ -309,6 +309,92 @@ def delete_project_experience(id, exp_id):
     return jsonify({'success': True})
 
 
+@app.route('/employees/<int:id>', methods=['DELETE'])
+def delete_employee(id):
+    employee = Employee.query.get_or_404(id)
+    EmployeeProjectExperience.query.filter_by(employee_id=id).delete()
+    EmployeeProjectLink.query.filter_by(employee_id=id).delete()
+    ProposalSelectedEmployee.query.filter_by(employee_id=id).delete()
+    db.session.delete(employee)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/employees/merge-duplicates')
+def merge_employees_page():
+    ids = request.args.get('ids', '')
+    id_list = [int(x) for x in ids.split(',') if x.isdigit()]
+    if len(id_list) < 2:
+        return redirect('/employees')
+    
+    employees = Employee.query.filter(Employee.id.in_(id_list)).all()
+    if len(employees) < 2:
+        return redirect('/employees')
+    
+    employees_data = [{
+        'id': e.id,
+        'name': e.name,
+        'title': e.title,
+        'role': e.role,
+        'years_experience_firm': e.years_experience_firm,
+        'years_experience_total': e.years_experience_total,
+        'education': e.education,
+        'registrations': e.registrations,
+        'training': e.training,
+        'other_qualifications': e.other_qualifications
+    } for e in employees]
+    
+    return render_template('employee_merge_duplicates.html', employees=employees, employees_json=employees_data)
+
+
+@app.route('/employees/merge-duplicates', methods=['POST'])
+def merge_employees():
+    data = request.json
+    primary_id = data.get('primary_id')
+    merge_ids = data.get('merge_ids', [])
+    merged_data = data.get('merged_data', {})
+    
+    primary = Employee.query.get_or_404(primary_id)
+    
+    for key, value in merged_data.items():
+        if hasattr(primary, key):
+            setattr(primary, key, value)
+    
+    for merge_id in merge_ids:
+        if merge_id == primary_id:
+            continue
+        merge_emp = Employee.query.get(merge_id)
+        if not merge_emp:
+            continue
+        
+        for link in EmployeeProjectLink.query.filter_by(employee_id=merge_id).all():
+            existing = EmployeeProjectLink.query.filter_by(
+                employee_id=primary_id, project_id=link.project_id
+            ).first()
+            if not existing:
+                link.employee_id = primary_id
+            else:
+                db.session.delete(link)
+        
+        for exp in merge_emp.project_experience:
+            existing = EmployeeProjectExperience.query.filter_by(
+                employee_id=primary_id,
+                project_title=exp.project_title,
+                owner_name=exp.owner_name,
+                firm_name=exp.firm_name
+            ).first()
+            if not existing:
+                exp.employee_id = primary_id
+            else:
+                db.session.delete(exp)
+        
+        ProposalSelectedEmployee.query.filter_by(employee_id=merge_id).delete()
+        db.session.delete(merge_emp)
+    
+    db.session.commit()
+    return jsonify({'success': True, 'redirect': f'/employees/{primary_id}'})
+
+
 @app.route('/projects')
 def projects():
     projects = Project.query.order_by(Project.title).all()
@@ -365,6 +451,83 @@ def update_project(id):
     
     db.session.commit()
     return jsonify({'success': True})
+
+
+@app.route('/projects/<int:id>', methods=['DELETE'])
+def delete_project(id):
+    project = Project.query.get_or_404(id)
+    EmployeeProjectLink.query.filter_by(project_id=id).delete()
+    ProposalEmployeeRelevantProject.query.filter_by(project_id=id).delete()
+    ProposalSelectedProject.query.filter_by(project_id=id).delete()
+    db.session.delete(project)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/projects/merge-duplicates')
+def merge_projects_page():
+    ids = request.args.get('ids', '')
+    id_list = [int(x) for x in ids.split(',') if x.isdigit()]
+    if len(id_list) < 2:
+        return redirect('/projects')
+    
+    projects = Project.query.filter(Project.id.in_(id_list)).all()
+    if len(projects) < 2:
+        return redirect('/projects')
+    
+    projects_data = [{
+        'id': p.id,
+        'title': p.title,
+        'location': p.location,
+        'year_completed_professional': p.year_completed_professional,
+        'year_completed_construction': p.year_completed_construction,
+        'owner_name': p.owner_name,
+        'owner_contact_name': p.owner_contact_name,
+        'owner_contact_phone': p.owner_contact_phone,
+        'project_cost': p.project_cost,
+        'project_delivery_method': p.project_delivery_method,
+        'brief_description': p.brief_description,
+        'relevance_writeup': p.relevance_writeup
+    } for p in projects]
+    
+    return render_template('project_merge_duplicates.html', projects=projects, projects_json=projects_data)
+
+
+@app.route('/projects/merge-duplicates', methods=['POST'])
+def merge_projects():
+    data = request.json
+    primary_id = data.get('primary_id')
+    merge_ids = data.get('merge_ids', [])
+    merged_data = data.get('merged_data', {})
+    
+    primary = Project.query.get_or_404(primary_id)
+    
+    for key, value in merged_data.items():
+        if hasattr(primary, key):
+            setattr(primary, key, value)
+    
+    for merge_id in merge_ids:
+        if merge_id == primary_id:
+            continue
+        merge_proj = Project.query.get(merge_id)
+        if not merge_proj:
+            continue
+        
+        for link in EmployeeProjectLink.query.filter_by(project_id=merge_id).all():
+            existing = EmployeeProjectLink.query.filter_by(
+                employee_id=link.employee_id, project_id=primary_id
+            ).first()
+            if not existing:
+                link.project_id = primary_id
+            else:
+                db.session.delete(link)
+        
+        ProposalEmployeeRelevantProject.query.filter_by(project_id=merge_id).update({'project_id': primary_id})
+        ProposalSelectedProject.query.filter_by(project_id=merge_id).delete()
+        db.session.delete(merge_proj)
+    
+    db.session.commit()
+    return jsonify({'success': True, 'redirect': f'/projects/{primary_id}'})
 
 
 @app.route('/projects/<int:project_id>/link-employee', methods=['POST'])
@@ -854,3 +1017,21 @@ def api_ai_combine_text():
         return jsonify({'success': True, 'combined_text': combined})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/ai-combine', methods=['POST'])
+def api_ai_combine():
+    data = request.json
+    values = data.get('values', [])
+    field_name = data.get('field_name', 'description')
+    
+    if len(values) < 2:
+        return jsonify({'error': 'Need at least 2 values to combine'}), 400
+    
+    try:
+        combined = values[0]
+        for i in range(1, len(values)):
+            combined = combine_and_rewrite_text(combined, values[i], field_name)
+        return jsonify({'combined': combined})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
