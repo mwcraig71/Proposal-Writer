@@ -49,12 +49,20 @@
             
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Education</label>
+                <p class="text-xs text-gray-500 mb-1">Format: Degree, Major, Institution (Year) - one per line</p>
                 <textarea name="education" rows="3" class="w-full p-2 border rounded-lg">{{ employee.education or '' }}</textarea>
             </div>
             
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Professional Registrations</label>
+                <p class="text-xs text-gray-500 mb-1">Format: License Type #Number, State (one per line)</p>
                 <textarea name="registrations" rows="3" class="w-full p-2 border rounded-lg">{{ employee.registrations or '' }}</textarea>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Training & Certifications</label>
+                <p class="text-xs text-gray-500 mb-1">Format: Course Name (Year, Course Code) - e.g., NHI courses</p>
+                <textarea name="training" rows="3" class="w-full p-2 border rounded-lg">{{ employee.training or '' }}</textarea>
             </div>
             
             <div>

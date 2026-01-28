@@ -98,6 +98,7 @@ def save_parsed_data():
                 years_experience_firm=parsed_data.get('years_experience_firm'),
                 education=parsed_data.get('education'),
                 registrations=parsed_data.get('registrations'),
+                training=parsed_data.get('training'),
                 other_qualifications=parsed_data.get('other_qualifications')
             )
             db.session.add(employee)
@@ -192,6 +193,7 @@ def update_employee(id):
     employee.years_experience_firm = data.get('years_experience_firm', employee.years_experience_firm)
     employee.education = data.get('education', employee.education)
     employee.registrations = data.get('registrations', employee.registrations)
+    employee.training = data.get('training', employee.training)
     employee.other_qualifications = data.get('other_qualifications', employee.other_qualifications)
     employee.firm_id = data.get('firm_id', employee.firm_id)
     
@@ -464,6 +466,7 @@ def generate_proposal_pdf(id):
             'firm_name': pse.employee.firm.name if pse.employee.firm else '',
             'education': pse.employee.education,
             'registrations': pse.employee.registrations,
+            'training': pse.employee.training,
             'other_qualifications': pse.employee.other_qualifications,
         } for pse in selected_employees],
         'projects': [{

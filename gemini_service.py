@@ -34,10 +34,45 @@ EMPLOYEE_SCHEMA = {
     "role": "string (professional role/discipline)",
     "years_experience_total": "integer (total years of experience)",
     "years_experience_firm": "integer (years with current firm)",
-    "education": "string (degrees, schools, years - combine all into one text field)",
-    "registrations": "string (professional licenses/registrations with states)",
-    "other_qualifications": "string (certifications, awards, publications, etc.)"
+    "education": "string (STANDARDIZED FORMAT: Each degree on new line as 'Degree, Major, Institution (Year)' - Example: 'M.S., Civil Engineering, SUNY Buffalo (1999)\\nB.S., Civil Engineering, SUNY Buffalo (1997)')",
+    "registrations": "string (STANDARDIZED FORMAT: Each license on new line as 'License Type #Number, State (Expiration if known)' - Example: 'PE #12345, New York (2025)\\nPE #67890, California')",
+    "training": "string (STANDARDIZED FORMAT: Each course on new line as 'Course Name (Year, Course Code)' - Example: 'Safety Inspection of In-Service Bridges (2001, NHI 130055)\\nBridge Inspection Refresher (2020, NHI 130053)')",
+    "other_qualifications": "string (certifications, awards, publications - each on new line)"
 }
+
+STANDARDIZED_FORMAT_INSTRUCTIONS = """
+CRITICAL: Apply these EXACT standardized formats:
+
+1. EDUCATION - Each degree on its own line:
+   Format: "Degree, Major/Field, Institution (Year)"
+   Examples:
+   - "Ph.D., Structural Engineering, MIT (2005)"
+   - "M.S., Civil Engineering, SUNY Buffalo (1999)"
+   - "B.S., Civil Engineering, University of Texas (1995)"
+
+2. REGISTRATIONS/LICENSES - Each license on its own line:
+   Format: "License Type #Number, State (Expiration if known)"
+   Examples:
+   - "PE #12345, New York (2025)"
+   - "PE #67890, California"
+   - "SE #11111, Illinois (2024)"
+
+3. TRAINING/CERTIFICATIONS - Each course on its own line:
+   Format: "Course Name (Year, Course/NHI Code)"
+   Examples:
+   - "Safety Inspection of In-Service Bridges (2001, NHI 130055)"
+   - "Fracture Critical Inspection Techniques (2019, NHI 130078)"
+   - "OSHA 30-Hour Construction Safety (2020)"
+
+4. OTHER QUALIFICATIONS - Each item on its own line, grouped by type:
+   Format: Free text but organized by category
+   Examples:
+   - "LEED AP BD+C"
+   - "AWS Certified Welding Inspector"
+   - "Published: 'Bridge Design Innovations' ASCE Journal, 2018"
+
+Use newline characters (\\n) to separate entries within each field.
+"""
 
 PROJECT_SCHEMA = {
     "title": "string (project name)",
@@ -73,8 +108,15 @@ Extract employee/personnel information from the following resume or CV text.
 Return ONLY valid JSON matching this schema:
 {json.dumps(EMPLOYEE_SCHEMA, indent=2)}
 
-If any field is not found, use null. Extract education as a combined string with all degrees.
-Extract registrations/licenses as a combined string.
+{STANDARDIZED_FORMAT_INSTRUCTIONS}
+
+If any field is not found, use null.
+
+IMPORTANT: You MUST follow the standardized formats exactly. Each entry should be on its own line (using \\n).
+- Education: "Degree, Major, Institution (Year)"
+- Registrations: "License Type #Number, State"
+- Training: "Course Name (Year, Code)" - include NHI courses, FHWA training, certifications
+- Separate training/continuing education from formal education
 
 Text to parse:
 {text}

@@ -55,6 +55,10 @@ def fill_pdf_form(data: Dict[str, str], output_path: Optional[str] = None) -> by
 def generate_sf330_section_e(employee_data: Dict[str, Any], employee_number: int = 1) -> Dict[str, str]:
     prefix = f"E{employee_number}_" if employee_number > 1 else ""
     
+    other_qual = employee_data.get("other_qualifications", "") or ""
+    training = employee_data.get("training", "") or ""
+    combined_other = f"{other_qual}\n{training}".strip() if training else other_qual
+    
     return {
         f"{prefix}12_Name": employee_data.get("name", ""),
         f"{prefix}13_Role": employee_data.get("role_in_contract", ""),
@@ -63,7 +67,7 @@ def generate_sf330_section_e(employee_data: Dict[str, Any], employee_number: int
         f"{prefix}15_FirmName": employee_data.get("firm_name", ""),
         f"{prefix}16_Education": employee_data.get("education", ""),
         f"{prefix}17_Registration": employee_data.get("registrations", ""),
-        f"{prefix}18_OtherQual": employee_data.get("other_qualifications", ""),
+        f"{prefix}18_OtherQual": combined_other,
     }
 
 

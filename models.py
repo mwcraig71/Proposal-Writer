@@ -43,6 +43,7 @@ class Employee(db.Model):
     years_experience_firm = db.Column(db.Integer)
     education = db.Column(db.Text)
     registrations = db.Column(db.Text)
+    training = db.Column(db.Text)
     other_qualifications = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

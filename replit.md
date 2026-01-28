@@ -56,5 +56,14 @@ MVP implementation complete with:
 ## Running the Application
 The app runs on port 5000. Access via the webview.
 
+## Standardized Data Formats
+The AI parsing enforces consistent formats for personnel data:
+- **Education:** "Degree, Major, Institution (Year)" - one per line
+- **Registrations:** "License Type #Number, State (Expiration)" - one per line
+- **Training:** "Course Name (Year, Course Code)" - e.g., "Safety Inspection of In-Service Bridges (2001, NHI 130055)"
+- **Other Qualifications:** Certifications, awards, publications - one per line
+
 ## Recent Changes
+- Added standardized formatting for education, registrations, training, and qualifications (Jan 2026)
+- Added separate "Training" field to store NHI courses, FHWA training, certifications
 - Initial MVP implementation (Jan 2026)
