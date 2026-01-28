@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}SF330 AI Automation{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .drag-over { border-color: #3b82f6 !important; background-color: #eff6ff !important; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <nav class="bg-blue-900 text-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex justify-between items-center h-16">
+                <a href="/" class="flex items-center space-x-2">
+                    <i class="fas fa-file-alt text-2xl"></i>
+                    <span class="font-bold text-xl">SF330 AI</span>
+                </a>
+                <div class="hidden md:flex space-x-6">
+                    <a href="/" class="hover:text-blue-200 transition">Dashboard</a>
+                    <a href="/upload" class="hover:text-blue-200 transition">Upload Data</a>
+                    <a href="/firms" class="hover:text-blue-200 transition">Firms</a>
+                    <a href="/employees" class="hover:text-blue-200 transition">Personnel</a>
+                    <a href="/projects" class="hover:text-blue-200 transition">Projects</a>
+                    <a href="/proposals" class="hover:text-blue-200 transition">Proposals</a>
+                </div>
+                <div class="md:hidden">
+                    <button id="mobile-menu-btn" class="text-white">
+                        <i class="fas fa-bars text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div id="mobile-menu" class="hidden md:hidden bg-blue-800 pb-4">
+            <a href="/" class="block px-4 py-2 hover:bg-blue-700">Dashboard</a>
+            <a href="/upload" class="block px-4 py-2 hover:bg-blue-700">Upload Data</a>
+            <a href="/firms" class="block px-4 py-2 hover:bg-blue-700">Firms</a>
+            <a href="/employees" class="block px-4 py-2 hover:bg-blue-700">Personnel</a>
+            <a href="/projects" class="block px-4 py-2 hover:bg-blue-700">Projects</a>
+            <a href="/proposals" class="block px-4 py-2 hover:bg-blue-700">Proposals</a>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 py-8">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="mb-4 p-4 rounded-lg {% if category == 'error' %}bg-red-100 text-red-700{% else %}bg-green-100 text-green-700{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="bg-gray-800 text-gray-400 py-6 mt-12">
+        <div class="max-w-7xl mx-auto px-4 text-center">
+            <p>SF330 AI Automation System</p>
+        </div>
+    </footer>
+
+    <script>
+        document.getElementById('mobile-menu-btn')?.addEventListener('click', function() {
+            document.getElementById('mobile-menu').classList.toggle('hidden');
+        });
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project.title }} - SF330 AI{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <a href="/projects" class="text-blue-600 hover:underline mb-4 inline-block">
+        <i class="fas fa-arrow-left mr-2"></i> Back to Projects
+    </a>
+    <h1 class="text-3xl font-bold text-gray-800">{{ project.title }}</h1>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div class="lg:col-span-2 bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">Project Information</h2>
+        
+        <form id="project-form" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Project Title</label>
+                    <input type="text" name="title" value="{{ project.title }}" class="w-full p-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                    <input type="text" name="location" value="{{ project.location or '' }}" class="w-full p-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Project Cost</label>
+                    <input type="text" name="project_cost" value="{{ project.project_cost or '' }}" class="w-full p-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Year Completed (Professional)</label>
+                    <input type="text" name="year_completed_professional" value="{{ project.year_completed_professional or '' }}" class="w-full p-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Year Completed (Construction)</label>
+                    <input type="text" name="year_completed_construction" value="{{ project.year_completed_construction or '' }}" class="w-full p-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Owner Name</label>
+                    <input type="text" name="owner_name" value="{{ project.owner_name or '' }}" class="w-full p-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Owner Contact Name</label>
+                    <input type="text" name="owner_contact_name" value="{{ project.owner_contact_name or '' }}" class="w-full p-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Owner Contact Phone</label>
+                    <input type="text" name="owner_contact_phone" value="{{ project.owner_contact_phone or '' }}" class="w-full p-2 border rounded-lg">
+                </div>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Brief Description (Section F, Block 24)</label>
+                <textarea name="brief_description" rows="6" class="w-full p-2 border rounded-lg">{{ project.brief_description or '' }}</textarea>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Relevance Writeup</label>
+                <textarea name="relevance_writeup" rows="4" class="w-full p-2 border rounded-lg">{{ project.relevance_writeup or '' }}</textarea>
+            </div>
+            
+            <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">
+                <i class="fas fa-save mr-2"></i> Save Changes
+            </button>
+        </form>
+    </div>
+    
+    <div class="space-y-6">
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">Team Members</h2>
+            
+            {% if employees %}
+            <ul class="space-y-2 mb-4">
+                {% for employee in employees %}
+                <li class="p-3 bg-gray-50 rounded-lg">
+                    <a href="/employees/{{ employee.id }}" class="text-blue-600 hover:underline font-medium">{{ employee.name }}</a>
+                    <p class="text-sm text-gray-500">{{ employee.role }}</p>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="text-gray-500 mb-4">No team members linked yet.</p>
+            {% endif %}
+            
+            <div class="border-t pt-4">
+                <h3 class="text-sm font-medium text-gray-700 mb-2">Link Employee</h3>
+                <select id="employee-select" class="w-full p-2 border rounded-lg mb-2">
+                    <option value="">-- Select Employee --</option>
+                    {% for emp in all_employees %}
+                    <option value="{{ emp.id }}">{{ emp.name }}</option>
+                    {% endfor %}
+                </select>
+                <input type="text" id="role-input" placeholder="Role on this project" class="w-full p-2 border rounded-lg mb-2">
+                <button id="link-btn" class="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition">
+                    <i class="fas fa-link mr-2"></i> Link Employee
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('project-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData.entries());
+    
+    try {
+        const response = await fetch('/projects/{{ project.id }}', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            alert('Changes saved successfully!');
+        } else {
+            alert('Error saving changes');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+});
+
+document.getElementById('link-btn').addEventListener('click', async () => {
+    const employeeId = document.getElementById('employee-select').value;
+    const role = document.getElementById('role-input').value;
+    
+    if (!employeeId) {
+        alert('Please select an employee');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/projects/{{ project.id }}/link-employee', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ employee_id: employeeId, role: role })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            location.reload();
+        } else {
+            alert('Error linking employee');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+});
+</script>
+{% endblock %}

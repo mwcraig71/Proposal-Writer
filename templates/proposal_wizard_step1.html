@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}New Proposal - Step 1 - SF330 AI{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <h1 class="text-3xl font-bold text-gray-800 mb-2">New SF330 Proposal</h1>
+    <p class="text-gray-600">Step 1: Contract Information & Firm Selection</p>
+</div>
+
+<div class="flex items-center justify-center mb-8">
+    <div class="flex items-center">
+        <div class="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">1</div>
+        <span class="ml-2 text-blue-600 font-medium">Contract Info</span>
+    </div>
+    <div class="w-16 h-1 bg-gray-300 mx-2"></div>
+    <div class="flex items-center">
+        <div class="w-10 h-10 bg-gray-300 text-gray-600 rounded-full flex items-center justify-center font-bold">2</div>
+        <span class="ml-2 text-gray-500">Personnel</span>
+    </div>
+    <div class="w-16 h-1 bg-gray-300 mx-2"></div>
+    <div class="flex items-center">
+        <div class="w-10 h-10 bg-gray-300 text-gray-600 rounded-full flex items-center justify-center font-bold">3</div>
+        <span class="ml-2 text-gray-500">Projects</span>
+    </div>
+    <div class="w-16 h-1 bg-gray-300 mx-2"></div>
+    <div class="flex items-center">
+        <div class="w-10 h-10 bg-gray-300 text-gray-600 rounded-full flex items-center justify-center font-bold">4</div>
+        <span class="ml-2 text-gray-500">Review</span>
+    </div>
+</div>
+
+<div class="bg-white rounded-lg shadow p-6 max-w-3xl mx-auto">
+    <form action="/proposals/new" method="POST" class="space-y-6">
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Proposal Name *</label>
+            <input type="text" name="name" required class="w-full p-3 border rounded-lg" placeholder="e.g., City Hall Renovation RFQ">
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Contract Title (Section A, Block 1)</label>
+                <input type="text" name="contract_title" class="w-full p-3 border rounded-lg" placeholder="Title as shown in solicitation">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Contract Location</label>
+                <input type="text" name="contract_location" class="w-full p-3 border rounded-lg" placeholder="City, State">
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Public Notice Date (Block 2)</label>
+                <input type="date" name="public_notice_date" class="w-full p-3 border rounded-lg">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Solicitation/Project Number (Block 3)</label>
+                <input type="text" name="solicitation_number" class="w-full p-3 border rounded-lg" placeholder="e.g., W912EQ-24-R-0001">
+            </div>
+        </div>
+        
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Select Firm (Part II)</label>
+            <select name="firm_id" class="w-full p-3 border rounded-lg">
+                <option value="">-- Select a Firm --</option>
+                {% for firm in firms %}
+                <option value="{{ firm.id }}">{{ firm.name }} {% if firm.city %}({{ firm.city }}, {{ firm.state }}){% endif %}</option>
+                {% endfor %}
+            </select>
+            <p class="text-sm text-gray-500 mt-1">The firm's Part II data will be included in the SF330.</p>
+        </div>
+        
+        <div class="flex justify-end space-x-4 pt-4 border-t">
+            <a href="/proposals" class="px-6 py-3 border rounded-lg text-gray-700 hover:bg-gray-50 transition">Cancel</a>
+            <button type="submit" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                Next: Select Personnel <i class="fas fa-arrow-right ml-2"></i>
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

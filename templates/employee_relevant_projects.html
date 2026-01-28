@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}{{ employee.name }} - Relevant Projects - SF330 AI{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <a href="/proposals/{{ proposal.id }}/step4" class="text-blue-600 hover:underline mb-4 inline-block">
+        <i class="fas fa-arrow-left mr-2"></i> Back to Proposal
+    </a>
+    <h1 class="text-3xl font-bold text-gray-800 mb-2">{{ employee.name }}</h1>
+    <p class="text-gray-600">Select up to 5 relevant projects for Block 19 of this employee's resume (Section E)</p>
+</div>
+
+<div class="bg-white rounded-lg shadow p-6">
+    <div class="mb-6">
+        <p class="text-gray-600">These projects will appear on {{ employee.name }}'s individual resume page in the SF330.</p>
+        <span id="selected-count" class="inline-block mt-2 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">0 / 5 selected</span>
+    </div>
+    
+    {% if projects %}
+    <div class="space-y-3 mb-6" id="project-list">
+        {% for project in projects %}
+        <div class="flex items-center p-4 border rounded-lg hover:bg-gray-50">
+            <input type="checkbox" id="proj-{{ project.id }}" value="{{ project.id }}" 
+                   {% if project.id in selected_ids %}checked{% endif %}
+                   class="project-checkbox w-5 h-5 text-blue-600 rounded mr-4">
+            <label for="proj-{{ project.id }}" class="flex-1 cursor-pointer">
+                <span class="font-medium text-gray-800">{{ project.title }}</span>
+                <p class="text-sm text-gray-500">{{ project.location or '-' }} | {{ project.year_completed_professional or '-' }}</p>
+            </label>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-gray-500">No projects available.</p>
+    {% endif %}
+    
+    <div class="flex justify-end pt-4 border-t">
+        <button id="save-btn" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+            <i class="fas fa-save mr-2"></i> Save Selection
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const checkboxes = document.querySelectorAll('.project-checkbox');
+const countDisplay = document.getElementById('selected-count');
+
+function updateCount() {
+    const count = document.querySelectorAll('.project-checkbox:checked').length;
+    countDisplay.textContent = `${count} / 5 selected`;
+    
+    if (count >= 5) {
+        checkboxes.forEach(cb => {
+            if (!cb.checked) cb.disabled = true;
+        });
+    } else {
+        checkboxes.forEach(cb => cb.disabled = false);
+    }
+}
+
+checkboxes.forEach(cb => cb.addEventListener('change', updateCount));
+updateCount();
+
+document.getElementById('save-btn').addEventListener('click', async () => {
+    const selectedProjects = [];
+    
+    document.querySelectorAll('.project-checkbox:checked').forEach(cb => {
+        selectedProjects.push(parseInt(cb.value));
+    });
+    
+    try {
+        const response = await fetch('/proposals/{{ proposal.id }}/employee/{{ employee.id }}/relevant-projects', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ project_ids: selectedProjects })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            alert('Selection saved!');
+            window.location.href = '/proposals/{{ proposal.id }}/step4';
+        } else {
+            alert('Error saving selection');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+});
+</script>
+{% endblock %}

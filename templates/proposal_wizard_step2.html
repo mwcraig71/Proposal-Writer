@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}{{ proposal.name }} - Step 2 - SF330 AI{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <h1 class="text-3xl font-bold text-gray-800 mb-2">{{ proposal.name }}</h1>
+    <p class="text-gray-600">Step 2: Select Key Personnel (Section E)</p>
+</div>
+
+<div class="flex items-center justify-center mb-8">
+    <div class="flex items-center">
+        <div class="w-10 h-10 bg-green-600 text-white rounded-full flex items-center justify-center font-bold"><i class="fas fa-check"></i></div>
+        <span class="ml-2 text-green-600 font-medium">Contract Info</span>
+    </div>
+    <div class="w-16 h-1 bg-blue-600 mx-2"></div>
+    <div class="flex items-center">
+        <div class="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">2</div>
+        <span class="ml-2 text-blue-600 font-medium">Personnel</span>
+    </div>
+    <div class="w-16 h-1 bg-gray-300 mx-2"></div>
+    <div class="flex items-center">
+        <div class="w-10 h-10 bg-gray-300 text-gray-600 rounded-full flex items-center justify-center font-bold">3</div>
+        <span class="ml-2 text-gray-500">Projects</span>
+    </div>
+    <div class="w-16 h-1 bg-gray-300 mx-2"></div>
+    <div class="flex items-center">
+        <div class="w-10 h-10 bg-gray-300 text-gray-600 rounded-full flex items-center justify-center font-bold">4</div>
+        <span class="ml-2 text-gray-500">Review</span>
+    </div>
+</div>
+
+<div class="bg-white rounded-lg shadow p-6">
+    <div class="mb-6">
+        <p class="text-gray-600">Select the key personnel to include in Section E of the SF330. You can also specify each person's role in this contract.</p>
+    </div>
+    
+    {% if employees %}
+    <div class="space-y-4 mb-6" id="personnel-list">
+        {% for employee in employees %}
+        <div class="flex items-center p-4 border rounded-lg hover:bg-gray-50">
+            <input type="checkbox" id="emp-{{ employee.id }}" value="{{ employee.id }}" 
+                   {% if employee.id in selected_ids %}checked{% endif %}
+                   class="employee-checkbox w-5 h-5 text-blue-600 rounded mr-4">
+            <div class="flex-1">
+                <label for="emp-{{ employee.id }}" class="font-medium text-gray-800 cursor-pointer">{{ employee.name }}</label>
+                <p class="text-sm text-gray-500">{{ employee.role or employee.title or 'No role specified' }} | {{ employee.years_experience_total or '-' }} years exp.</p>
+            </div>
+            <div class="w-64">
+                <input type="text" placeholder="Role in this contract" 
+                       data-emp-id="{{ employee.id }}" 
+                       class="role-input w-full p-2 border rounded text-sm"
+                       value="{{ employee.role or '' }}">
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-8">
+        <p class="text-gray-500">No personnel in database. <a href="/upload" class="text-blue-600 hover:underline">Upload resumes</a> first.</p>
+    </div>
+    {% endif %}
+    
+    <div class="flex justify-between pt-4 border-t">
+        <a href="/proposals/new" class="px-6 py-3 border rounded-lg text-gray-700 hover:bg-gray-50 transition">
+            <i class="fas fa-arrow-left mr-2"></i> Back
+        </a>
+        <button id="next-btn" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+            Next: Select Projects <i class="fas fa-arrow-right ml-2"></i>
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('next-btn').addEventListener('click', async () => {
+    const selectedEmployees = [];
+    const roles = {};
+    
+    document.querySelectorAll('.employee-checkbox:checked').forEach(cb => {
+        selectedEmployees.push(parseInt(cb.value));
+    });
+    
+    document.querySelectorAll('.role-input').forEach(input => {
+        if (input.value) {
+            roles[input.dataset.empId] = input.value;
+        }
+    });
+    
+    if (selectedEmployees.length === 0) {
+        alert('Please select at least one employee.');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/proposals/{{ proposal.id }}/step2', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ employee_ids: selectedEmployees, roles: roles })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            window.location.href = result.redirect;
+        } else {
+            alert('Error saving selection');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+});
+</script>
+{% endblock %}

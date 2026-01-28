@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Documents - SF330 AI{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <h1 class="text-3xl font-bold text-gray-800 mb-2">Upload Documents</h1>
+    <p class="text-gray-600">Upload resumes, project sheets, or firm profiles. AI will parse the data automatically.</p>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">Upload File</h2>
+        
+        <div id="drop-zone" class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-blue-500 transition">
+            <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-4"></i>
+            <p class="text-gray-600 mb-2">Drag and drop files here, or click to browse</p>
+            <p class="text-sm text-gray-400">Supported: PDF, DOCX, XLSX, TXT</p>
+            <input type="file" id="file-input" class="hidden" accept=".pdf,.docx,.doc,.xlsx,.xls,.txt">
+        </div>
+        
+        <div id="file-info" class="hidden mt-4 p-4 bg-blue-50 rounded-lg">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <i class="fas fa-file text-blue-600 mr-3"></i>
+                    <span id="file-name" class="font-medium"></span>
+                </div>
+                <button id="remove-file" class="text-red-600 hover:text-red-800">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        
+        <button id="upload-btn" class="w-full mt-4 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>
+            <span id="upload-text">Parse with AI</span>
+            <span id="upload-spinner" class="hidden">
+                <i class="fas fa-spinner fa-spin mr-2"></i> Processing...
+            </span>
+        </button>
+    </div>
+    
+    <div id="results-section" class="hidden bg-white rounded-lg shadow p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-semibold text-gray-800">Parsed Data</h2>
+            <span id="doc-type-badge" class="px-3 py-1 rounded-full text-sm font-medium"></span>
+        </div>
+        
+        <div id="parsed-form" class="space-y-4">
+        </div>
+        
+        <div class="flex space-x-4 mt-6">
+            <button id="save-btn" class="flex-1 bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition">
+                <i class="fas fa-save mr-2"></i> Save to Database
+            </button>
+            <button id="discard-btn" class="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-300 transition">
+                <i class="fas fa-trash mr-2"></i> Discard
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+const fileInfo = document.getElementById('file-info');
+const fileName = document.getElementById('file-name');
+const removeFile = document.getElementById('remove-file');
+const uploadBtn = document.getElementById('upload-btn');
+const uploadText = document.getElementById('upload-text');
+const uploadSpinner = document.getElementById('upload-spinner');
+const resultsSection = document.getElementById('results-section');
+const parsedForm = document.getElementById('parsed-form');
+const docTypeBadge = document.getElementById('doc-type-badge');
+const saveBtn = document.getElementById('save-btn');
+const discardBtn = document.getElementById('discard-btn');
+
+let selectedFile = null;
+let parsedData = null;
+let docType = null;
+
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', (e) => { if (e.target.files.length) handleFile(e.target.files[0]); });
+
+function handleFile(file) {
+    selectedFile = file;
+    fileName.textContent = file.name;
+    fileInfo.classList.remove('hidden');
+    uploadBtn.disabled = false;
+}
+
+removeFile.addEventListener('click', () => {
+    selectedFile = null;
+    fileInput.value = '';
+    fileInfo.classList.add('hidden');
+    uploadBtn.disabled = true;
+});
+
+uploadBtn.addEventListener('click', async () => {
+    if (!selectedFile) return;
+    
+    uploadText.classList.add('hidden');
+    uploadSpinner.classList.remove('hidden');
+    uploadBtn.disabled = true;
+    
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+    
+    try {
+        const response = await fetch('/upload', { method: 'POST', body: formData });
+        const data = await response.json();
+        
+        if (data.error) {
+            alert('Error: ' + data.error);
+            return;
+        }
+        
+        docType = data.doc_type;
+        parsedData = data.parsed_data;
+        
+        displayResults(data);
+        
+    } catch (error) {
+        alert('Error parsing file: ' + error.message);
+    } finally {
+        uploadText.classList.remove('hidden');
+        uploadSpinner.classList.add('hidden');
+        uploadBtn.disabled = false;
+    }
+});
+
+function displayResults(data) {
+    resultsSection.classList.remove('hidden');
+    
+    const typeColors = {
+        'employee': 'bg-green-100 text-green-800',
+        'project': 'bg-purple-100 text-purple-800',
+        'firm': 'bg-blue-100 text-blue-800',
+        'unknown': 'bg-gray-100 text-gray-800'
+    };
+    
+    docTypeBadge.className = `px-3 py-1 rounded-full text-sm font-medium ${typeColors[data.doc_type]}`;
+    docTypeBadge.textContent = data.doc_type.charAt(0).toUpperCase() + data.doc_type.slice(1);
+    
+    parsedForm.innerHTML = '';
+    
+    if (data.doc_type === 'unknown') {
+        parsedForm.innerHTML = `
+            <div class="bg-yellow-50 p-4 rounded-lg">
+                <p class="text-yellow-800">Could not determine document type. Raw text preview:</p>
+                <pre class="mt-2 text-sm text-gray-600 whitespace-pre-wrap">${data.raw_text}</pre>
+            </div>
+        `;
+        saveBtn.classList.add('hidden');
+        return;
+    }
+    
+    saveBtn.classList.remove('hidden');
+    
+    for (const [key, value] of Object.entries(data.parsed_data)) {
+        if (key === 'team_members' && Array.isArray(value)) continue;
+        
+        const isLong = typeof value === 'string' && value.length > 100;
+        parsedForm.innerHTML += `
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">${formatLabel(key)}</label>
+                ${isLong ? 
+                    `<textarea class="w-full p-2 border rounded-lg" rows="3" data-field="${key}">${value || ''}</textarea>` :
+                    `<input type="text" class="w-full p-2 border rounded-lg" data-field="${key}" value="${value || ''}">`
+                }
+            </div>
+        `;
+    }
+}
+
+function formatLabel(key) {
+    return key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
+
+saveBtn.addEventListener('click', async () => {
+    const updatedData = {};
+    document.querySelectorAll('[data-field]').forEach(input => {
+        updatedData[input.dataset.field] = input.value;
+    });
+    
+    try {
+        const response = await fetch('/save-parsed-data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ doc_type: docType, parsed_data: updatedData })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(result.message);
+            location.reload();
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        alert('Error saving data: ' + error.message);
+    }
+});
+
+discardBtn.addEventListener('click', () => {
+    resultsSection.classList.add('hidden');
+    parsedData = null;
+    docType = null;
+});
+</script>
+{% endblock %}

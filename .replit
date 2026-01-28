@@ -1,2 +1,42 @@
+modules = ["python-3.11"]
 [agent]
 expertMode = true
+integrations = ["python_gemini_ai_integrations:1.0.0", "python_database:1.0.0"]
+
+[userenv]
+
+[userenv.shared]
+AI_INTEGRATIONS_GEMINI_BASE_URL = "http://localhost:1106/modelfarm/gemini"
+AI_INTEGRATIONS_GEMINI_API_KEY = "_DUMMY_API_KEY_"
+
+[nix]
+channel = "stable-25_05"
+packages = ["file"]
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "SF330 Web Server"
+
+[[workflows.workflow]]
+name = "SF330 Web Server"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python main.py"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[ports]]
+localPort = 5000
+externalPort = 80

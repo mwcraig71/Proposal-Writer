@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}{{ proposal.name }} - Review - SF330 AI{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <h1 class="text-3xl font-bold text-gray-800 mb-2">{{ proposal.name }}</h1>
+    <p class="text-gray-600">Step 4: Review & Section G Matrix</p>
+</div>
+
+<div class="flex items-center justify-center mb-8">
+    <div class="flex items-center">
+        <div class="w-10 h-10 bg-green-600 text-white rounded-full flex items-center justify-center font-bold"><i class="fas fa-check"></i></div>
+        <span class="ml-2 text-green-600 font-medium">Contract Info</span>
+    </div>
+    <div class="w-16 h-1 bg-green-600 mx-2"></div>
+    <div class="flex items-center">
+        <div class="w-10 h-10 bg-green-600 text-white rounded-full flex items-center justify-center font-bold"><i class="fas fa-check"></i></div>
+        <span class="ml-2 text-green-600 font-medium">Personnel</span>
+    </div>
+    <div class="w-16 h-1 bg-green-600 mx-2"></div>
+    <div class="flex items-center">
+        <div class="w-10 h-10 bg-green-600 text-white rounded-full flex items-center justify-center font-bold"><i class="fas fa-check"></i></div>
+        <span class="ml-2 text-green-600 font-medium">Projects</span>
+    </div>
+    <div class="w-16 h-1 bg-blue-600 mx-2"></div>
+    <div class="flex items-center">
+        <div class="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">4</div>
+        <span class="ml-2 text-blue-600 font-medium">Review</span>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Contract Info</h2>
+        <dl class="space-y-2 text-sm">
+            <div>
+                <dt class="text-gray-500">Title</dt>
+                <dd class="font-medium">{{ proposal.contract_title or '-' }}</dd>
+            </div>
+            <div>
+                <dt class="text-gray-500">Location</dt>
+                <dd class="font-medium">{{ proposal.contract_location or '-' }}</dd>
+            </div>
+            <div>
+                <dt class="text-gray-500">Solicitation #</dt>
+                <dd class="font-medium">{{ proposal.solicitation_number or '-' }}</dd>
+            </div>
+            <div>
+                <dt class="text-gray-500">Firm</dt>
+                <dd class="font-medium">{{ proposal.firm.name if proposal.firm else '-' }}</dd>
+            </div>
+        </dl>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Selected Personnel ({{ selected_employees|length }})</h2>
+        <ul class="space-y-2 text-sm">
+            {% for pse in selected_employees %}
+            <li class="flex justify-between items-center">
+                <span class="font-medium">{{ pse.employee.name }}</span>
+                <a href="/proposals/{{ proposal.id }}/employee/{{ pse.employee_id }}/relevant-projects" class="text-blue-600 hover:underline text-xs">
+                    Block 19 Projects
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Selected Projects ({{ selected_projects|length }})</h2>
+        <ol class="space-y-2 text-sm list-decimal list-inside">
+            {% for psp in selected_projects %}
+            <li class="font-medium">{{ psp.project.title }}</li>
+            {% endfor %}
+        </ol>
+    </div>
+</div>
+
+<div class="bg-white rounded-lg shadow p-6 mb-8">
+    <h2 class="text-xl font-semibold text-gray-800 mb-4">Section G: Key Personnel Participation Matrix</h2>
+    <p class="text-gray-600 mb-4">This matrix shows which personnel worked on which projects. "X" marks are based on your Employee-Project links.</p>
+    
+    <div class="overflow-x-auto">
+        <table class="min-w-full border">
+            <thead>
+                <tr class="bg-gray-100">
+                    <th class="border px-4 py-2 text-left text-sm font-medium text-gray-700">Name</th>
+                    <th class="border px-4 py-2 text-left text-sm font-medium text-gray-700">Role</th>
+                    {% for psp in selected_projects %}
+                    <th class="border px-2 py-2 text-center text-sm font-medium text-gray-700 w-10">{{ loop.index }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for pse in selected_employees %}
+                <tr class="hover:bg-gray-50">
+                    <td class="border px-4 py-2 text-sm">{{ pse.employee.name }}</td>
+                    <td class="border px-4 py-2 text-sm text-gray-600">{{ pse.role_in_contract or pse.employee.role or '-' }}</td>
+                    {% for psp in selected_projects %}
+                    <td class="border px-2 py-2 text-center">
+                        {% if matrix[pse.employee_id][psp.project_id] %}
+                        <span class="text-green-600 font-bold">X</span>
+                        {% else %}
+                        <span class="text-gray-300">-</span>
+                        {% endif %}
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="mt-4 p-4 bg-gray-50 rounded-lg">
+        <h3 class="font-medium text-gray-800 mb-2">Project Key</h3>
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm">
+            {% for psp in selected_projects %}
+            <div><span class="font-medium">{{ loop.index }}.</span> {{ psp.project.title[:30] }}{% if psp.project.title|length > 30 %}...{% endif %}</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="flex justify-between">
+    <a href="/proposals/{{ proposal.id }}/step3" class="px-6 py-3 border rounded-lg text-gray-700 hover:bg-gray-50 transition">
+        <i class="fas fa-arrow-left mr-2"></i> Back to Projects
+    </a>
+    <div class="space-x-4">
+        <a href="/proposals/{{ proposal.id }}/generate-pdf" class="inline-block px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
+            <i class="fas fa-file-pdf mr-2"></i> Generate SF330 PDF
+        </a>
+    </div>
+</div>
+{% endblock %}

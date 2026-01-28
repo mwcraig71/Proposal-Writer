@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}{{ employee.name }} - SF330 AI{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <a href="/employees" class="text-blue-600 hover:underline mb-4 inline-block">
+        <i class="fas fa-arrow-left mr-2"></i> Back to Personnel
+    </a>
+    <h1 class="text-3xl font-bold text-gray-800">{{ employee.name }}</h1>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div class="lg:col-span-2 bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">Personnel Information</h2>
+        
+        <form id="employee-form" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                    <input type="text" name="name" value="{{ employee.name }}" class="w-full p-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                    <input type="text" name="title" value="{{ employee.title or '' }}" class="w-full p-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Role/Discipline</label>
+                    <input type="text" name="role" value="{{ employee.role or '' }}" class="w-full p-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Firm</label>
+                    <select name="firm_id" class="w-full p-2 border rounded-lg">
+                        <option value="">-- Select Firm --</option>
+                        {% for firm in firms %}
+                        <option value="{{ firm.id }}" {% if employee.firm_id == firm.id %}selected{% endif %}>{{ firm.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Total Years Experience</label>
+                    <input type="number" name="years_experience_total" value="{{ employee.years_experience_total or '' }}" class="w-full p-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Years with Firm</label>
+                    <input type="number" name="years_experience_firm" value="{{ employee.years_experience_firm or '' }}" class="w-full p-2 border rounded-lg">
+                </div>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Education</label>
+                <textarea name="education" rows="3" class="w-full p-2 border rounded-lg">{{ employee.education or '' }}</textarea>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Professional Registrations</label>
+                <textarea name="registrations" rows="3" class="w-full p-2 border rounded-lg">{{ employee.registrations or '' }}</textarea>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Other Qualifications</label>
+                <textarea name="other_qualifications" rows="3" class="w-full p-2 border rounded-lg">{{ employee.other_qualifications or '' }}</textarea>
+            </div>
+            
+            <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">
+                <i class="fas fa-save mr-2"></i> Save Changes
+            </button>
+        </form>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">Linked Projects</h2>
+        
+        {% if projects %}
+        <ul class="space-y-2">
+            {% for project in projects %}
+            <li class="p-3 bg-gray-50 rounded-lg">
+                <a href="/projects/{{ project.id }}" class="text-blue-600 hover:underline font-medium">{{ project.title }}</a>
+                <p class="text-sm text-gray-500">{{ project.location }}</p>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-gray-500">No projects linked yet.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('employee-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData.entries());
+    
+    try {
+        const response = await fetch('/employees/{{ employee.id }}', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            alert('Changes saved successfully!');
+        } else {
+            alert('Error saving changes');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+});
+</script>
+{% endblock %}

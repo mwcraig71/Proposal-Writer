@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Firms - SF330 AI{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-8">
+    <div>
+        <h1 class="text-3xl font-bold text-gray-800 mb-2">Firms Database</h1>
+        <p class="text-gray-600">Manage firms for SF330 Part II</p>
+    </div>
+    <a href="/upload" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+        <i class="fas fa-plus mr-2"></i> Add Firm
+    </a>
+</div>
+
+{% if firms %}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    {% for firm in firms %}
+    <div class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition">
+        <div class="flex items-start justify-between">
+            <div>
+                <h3 class="text-lg font-semibold text-gray-800">{{ firm.name }}</h3>
+                <p class="text-gray-600">{{ firm.city }}, {{ firm.state }}</p>
+            </div>
+            {% if firm.is_branch %}
+            <span class="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">Branch</span>
+            {% endif %}
+        </div>
+        
+        <div class="mt-4 space-y-2 text-sm text-gray-600">
+            {% if firm.year_established %}
+            <p><i class="fas fa-calendar mr-2"></i> Est. {{ firm.year_established }}</p>
+            {% endif %}
+            {% if firm.uei %}
+            <p><i class="fas fa-id-card mr-2"></i> UEI: {{ firm.uei }}</p>
+            {% endif %}
+            {% if firm.is_small_business %}
+            <p><i class="fas fa-check-circle text-green-600 mr-2"></i> Small Business</p>
+            {% endif %}
+        </div>
+        
+        <a href="/firms/{{ firm.id }}" class="mt-4 inline-block text-blue-600 hover:underline">
+            View Details <i class="fas fa-arrow-right"></i>
+        </a>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="bg-white rounded-lg shadow p-12 text-center">
+    <i class="fas fa-building text-gray-300 text-6xl mb-4"></i>
+    <h3 class="text-xl font-semibold text-gray-600 mb-2">No Firms Yet</h3>
+    <p class="text-gray-500 mb-4">Upload firm profiles to add firms to your database.</p>
+    <a href="/upload" class="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition">
+        Upload Firm Profile
+    </a>
+</div>
+{% endif %}
+{% endblock %}

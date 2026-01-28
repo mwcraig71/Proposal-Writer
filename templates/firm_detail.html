@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}{{ firm.name }} - SF330 AI{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <a href="/firms" class="text-blue-600 hover:underline mb-4 inline-block">
+        <i class="fas fa-arrow-left mr-2"></i> Back to Firms
+    </a>
+    <h1 class="text-3xl font-bold text-gray-800">{{ firm.name }}</h1>
+</div>
+
+<div class="bg-white rounded-lg shadow p-6">
+    <h2 class="text-xl font-semibold text-gray-800 mb-4">Firm Information (Part II)</h2>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div>
+            <h3 class="text-sm font-medium text-gray-500 uppercase mb-2">Address</h3>
+            <p class="text-gray-800">{{ firm.street_address or '-' }}</p>
+            <p class="text-gray-800">{{ firm.city or '' }}, {{ firm.state or '' }} {{ firm.zip_code or '' }}</p>
+            <p class="text-gray-800">{{ firm.country or 'USA' }}</p>
+        </div>
+        
+        <div>
+            <h3 class="text-sm font-medium text-gray-500 uppercase mb-2">Identification</h3>
+            <p class="text-gray-800"><span class="font-medium">UEI:</span> {{ firm.uei or '-' }}</p>
+            <p class="text-gray-800"><span class="font-medium">Year Est:</span> {{ firm.year_established or '-' }}</p>
+            <p class="text-gray-800"><span class="font-medium">Type:</span> {{ firm.ownership_type or '-' }}</p>
+        </div>
+        
+        <div>
+            <h3 class="text-sm font-medium text-gray-500 uppercase mb-2">Contact</h3>
+            <p class="text-gray-800"><span class="font-medium">Contact:</span> {{ firm.point_of_contact_name or '-' }}</p>
+            <p class="text-gray-800"><span class="font-medium">Phone:</span> {{ firm.phone or '-' }}</p>
+            <p class="text-gray-800"><span class="font-medium">Email:</span> {{ firm.email or '-' }}</p>
+        </div>
+        
+        <div>
+            <h3 class="text-sm font-medium text-gray-500 uppercase mb-2">Small Business Status</h3>
+            {% if firm.is_small_business %}
+            <span class="inline-block px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
+                <i class="fas fa-check mr-1"></i> Small Business
+            </span>
+            {% if firm.small_business_categories %}
+            <p class="text-gray-600 mt-2">{{ firm.small_business_categories }}</p>
+            {% endif %}
+            {% else %}
+            <span class="inline-block px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm">
+                Not Small Business
+            </span>
+            {% endif %}
+        </div>
+    </div>
+    
+    {% if firm.employees %}
+    <div class="mt-8 border-t pt-6">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">Employees at this Firm</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {% for employee in firm.employees %}
+            <a href="/employees/{{ employee.id }}" class="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                <p class="font-medium text-gray-800">{{ employee.name }}</p>
+                <p class="text-sm text-gray-600">{{ employee.role or employee.title or '-' }}</p>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
