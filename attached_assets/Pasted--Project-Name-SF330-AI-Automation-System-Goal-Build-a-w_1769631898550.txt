@@ -1,0 +1,49 @@
+# Project Name: SF330 AI Automation System
+
+## Goal
+Build a web application using Python (Flask/FastAPI) and a persistent database (SQLite/PostgreSQL) that automates the creation of Federal Standard Form 330 (SF330) Architect-Engineer Qualifications.
+
+The app must allow users to upload raw data (Resumes, Project Sheets) in Word/PDF/Excel formats, use Google Gemini AI to parse that data into a structured database, and then allow the user to visually "build" a proposal by selecting specific employees and projects. Finally, it must generate a filled SF330 PDF.
+
+## 1. Database Schema Requirements
+Create a robust schema using SQLAlchemy to handle the following relationships:
+* **Firms:** Stores Part II data (UEI, Address, Year Est, Branch Offices).
+* **Employees:** Stores Section E data (Name, Role, Education, Registrations).
+* **Projects:** Stores Section F data (Title, Location, Owner, Cost, Scope, detailed description).
+    * *Note:* Need a field for "Project Writeup" that can be edited per proposal.
+* **Employee_Project_Link:** A many-to-many link tracking which employee worked on which project and their specific role (Crucial for Section G Matrix).
+* **Proposals:** A specific SF330 submission container.
+* **Proposal_Selected_Employees:** Junction table for Section E.
+* **Proposal_Selected_Projects:** Junction table for Section F (ordered 1-10).
+
+## 2. Core Features & User Flow
+
+### A. AI Data Ingestion (The "Parser")
+* Create an upload interface for PDF, Docx, and Excel files.
+* **Integration:** Use Google Gemini API (`google.generativeai`).
+* **Logic:** When a file is uploaded, extract the text and send it to Gemini with a prompt to "Extract structured JSON matching the Employee or Project database schema."
+* **Verification:** Show the parsed data to the user for confirmation before saving to the DB.
+
+### B. The Proposal Builder (The "Wizard")
+Create a UI workflow to build a specific SF330:
+1.  **Select Firm/Branch:** Choose which office is submitting (Part II data).
+2.  **Select Key Personnel (Section E):** Checkbox list of all employees in the DB.
+    * *Feature:* Allow the user to select which 5 "Relevant Projects" (Block 19) appear on that specific employee's resume page.
+3.  **Select Example Projects (Section F):** Select up to 10 projects from the global project list.
+4.  **Matrix Generation (Section G):** **Critical Feature.** Automatically generate the "Key Personnel Participation" matrix. The app must look at the selected Personnel and selected Projects, check the `Employee_Project_Link` table, and determine where to place the "X" in the grid.
+
+### C. PDF Generation
+* Upload the blank SF330 PDF template (provided in context) to the project.
+* Use a library like `pdfrw`, `fillpdf`, or `pypdf` to map the database strings to the PDF form fields.
+* **Output:** A downloadable, filled SF330 PDF.
+
+## 3. Tech Stack Instructions
+* **Backend:** Python (Flask).
+* **Database:** SQLAlchemy (start with SQLite for dev).
+* **Frontend:** Simple HTML/TailwindCSS or React.
+* **AI:** Google Gemini API key configuration (use environment variables).
+
+## 4. Specific Form Logic
+* **Part I, Section E:** Must handle multiple pages if more than one employee is selected.
+* **Part I, Section F:** Must handle one page per project (Block 24 text area is large).
+* **Part I, Section G:** This is a dynamic grid. Map the column headers to the Project IDs selected in Section F, and row headers to Employee Names selected in Section E.
