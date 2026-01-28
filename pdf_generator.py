@@ -21,21 +21,25 @@ def get_form_fields(pdf_path: str) -> Dict[str, Any]:
 
 
 def fill_pdf_form(data: Dict[str, str], output_path: Optional[str] = None) -> bytes:
+    if not os.path.exists(SF330_TEMPLATE_PATH):
+        raise FileNotFoundError(f"SF330 template not found at {SF330_TEMPLATE_PATH}")
+    
     reader = PdfReader(SF330_TEMPLATE_PATH)
     writer = PdfWriter()
     
     for page in reader.pages:
         writer.add_page(page)
     
-    if reader.get_fields():
-        for field_name, value in data.items():
-            try:
-                writer.update_page_form_field_values(
-                    writer.pages[0],
-                    {field_name: value}
-                )
-            except:
-                pass
+    if "/AcroForm" in writer._root_object:
+        writer._root_object["/AcroForm"].update({
+            NameObject("/NeedAppearances"): True
+        })
+    
+    for page in writer.pages:
+        try:
+            writer.update_page_form_field_values(page, data)
+        except Exception:
+            pass
     
     output = io.BytesIO()
     writer.write(output)
