@@ -94,6 +94,20 @@ class Project(db.Model):
     firm_involvements = db.relationship('ProjectFirmInvolvement', backref='project', lazy=True)
 
 
+class ProjectAlternateDescription(db.Model):
+    """Stores alternate brief descriptions for Section F, Block 24"""
+    __tablename__ = 'project_alternate_descriptions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=False)
+    label = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    project = db.relationship('Project', backref=db.backref('alternate_descriptions', lazy=True, cascade='all, delete-orphan'))
+
+
 class EmployeeProjectLink(db.Model):
     __tablename__ = 'employee_project_links'
     
@@ -168,7 +182,9 @@ class ProposalSelectedProject(db.Model):
     project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=False)
     display_order = db.Column(db.Integer, default=0)
     custom_writeup = db.Column(db.Text)
+    alternate_description_id = db.Column(db.Integer, db.ForeignKey('project_alternate_descriptions.id'), nullable=True)
     
     project = db.relationship('Project')
+    alternate_description = db.relationship('ProjectAlternateDescription')
     
     __table_args__ = (db.UniqueConstraint('proposal_id', 'project_id', name='unique_proposal_project'),)

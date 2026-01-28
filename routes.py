@@ -7,7 +7,7 @@ from database import db
 from models import (
     Firm, Employee, Project, EmployeeProjectLink, Proposal,
     ProposalSelectedEmployee, ProposalSelectedProject, ProposalEmployeeRelevantProject,
-    ProjectFirmInvolvement, EmployeeProjectExperience
+    ProjectFirmInvolvement, EmployeeProjectExperience, ProjectAlternateDescription
 )
 from document_parser import extract_text_from_file
 from gemini_service import detect_document_type, parse_employee_resume, parse_project_sheet, parse_firm_info, find_matching_employee, combine_and_rewrite_text
@@ -555,6 +555,68 @@ def link_employee_to_project(project_id):
     return jsonify({'success': True})
 
 
+@app.route('/projects/<int:project_id>/alternate-descriptions', methods=['POST'])
+def add_alternate_description(project_id):
+    data = request.json
+    alt_desc = ProjectAlternateDescription(
+        project_id=project_id,
+        label=data.get('label', 'Alternate'),
+        description=data.get('description', '')
+    )
+    db.session.add(alt_desc)
+    db.session.commit()
+    return jsonify({'success': True, 'id': alt_desc.id})
+
+
+@app.route('/projects/<int:project_id>/alternate-descriptions/<int:alt_id>', methods=['PUT'])
+def update_alternate_description(project_id, alt_id):
+    alt_desc = ProjectAlternateDescription.query.filter_by(id=alt_id, project_id=project_id).first_or_404()
+    data = request.json
+    alt_desc.label = data.get('label', alt_desc.label)
+    alt_desc.description = data.get('description', alt_desc.description)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/projects/<int:project_id>/alternate-descriptions/<int:alt_id>', methods=['DELETE'])
+def delete_alternate_description(project_id, alt_id):
+    alt_desc = ProjectAlternateDescription.query.filter_by(id=alt_id, project_id=project_id).first_or_404()
+    db.session.delete(alt_desc)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/api/rewrite-description', methods=['POST'])
+def rewrite_description():
+    data = request.json
+    description = data.get('description', '')
+    
+    if not description:
+        return jsonify({'success': False, 'error': 'No description provided'})
+    
+    prompt = f"""You are a senior structural engineer with extensive experience in bridge inspection and rehabilitation.
+Rewrite the following project description in a professional, technical tone appropriate for a federal SF330 proposal.
+Focus on structural engineering aspects, bridge inspection methodologies, load ratings, condition assessments, and any rehabilitation or repair work.
+Keep the same factual content but enhance the language to demonstrate technical expertise.
+Keep the description concise (under 300 words) and suitable for Block 24 of SF330 Section F.
+
+Original description:
+{description}
+
+Rewritten description (return ONLY the rewritten text, no explanations):"""
+    
+    try:
+        from gemini_service import client
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+        )
+        rewritten = response.text.strip()
+        return jsonify({'success': True, 'rewritten': rewritten})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
 @app.route('/firms')
 def firms():
     firms = Firm.query.order_by(Firm.name).all()
@@ -684,23 +746,31 @@ def proposal_step3(id):
     if request.method == 'GET':
         projects = Project.query.order_by(Project.title).all()
         selected_ids = [sp.project_id for sp in proposal.selected_projects]
+        selected_alt_descs = {sp.project_id: sp.alternate_description_id for sp in proposal.selected_projects if sp.alternate_description_id}
         return render_template('proposal_wizard_step3.html', 
                              proposal=proposal, 
                              projects=projects,
-                             selected_ids=selected_ids)
+                             selected_ids=selected_ids,
+                             selected_alt_descs=selected_alt_descs)
     
     data = request.json
     project_ids = data.get('project_ids', [])
     writeups = data.get('writeups', {})
+    desc_versions = data.get('desc_versions', {})
     
     ProposalSelectedProject.query.filter_by(proposal_id=id).delete()
     
     for idx, proj_id in enumerate(project_ids[:10]):
+        alt_desc_id = desc_versions.get(str(proj_id))
+        if alt_desc_id:
+            alt_desc = ProjectAlternateDescription.query.filter_by(id=alt_desc_id, project_id=proj_id).first()
+            alt_desc_id = alt_desc.id if alt_desc else None
         psp = ProposalSelectedProject(
             proposal_id=id,
             project_id=proj_id,
             display_order=idx,
-            custom_writeup=writeups.get(str(proj_id), '')
+            custom_writeup=writeups.get(str(proj_id), ''),
+            alternate_description_id=alt_desc_id
         )
         db.session.add(psp)
     
@@ -835,7 +905,7 @@ def generate_proposal_pdf(id):
             'owner_name': psp.project.owner_name,
             'owner_contact_name': psp.project.owner_contact_name,
             'owner_contact_phone': psp.project.owner_contact_phone,
-            'brief_description': psp.project.brief_description,
+            'brief_description': psp.alternate_description.description if psp.alternate_description else psp.project.brief_description,
             'custom_writeup': psp.custom_writeup or psp.project.relevance_writeup or '',
         } for psp in selected_projects],
         'employee_project_matrix': employee_project_matrix

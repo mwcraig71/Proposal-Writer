@@ -49,10 +49,11 @@ MVP implementation complete with:
 - **Firms** - Company/branch office data (Part II)
 - **Employees** - Personnel resumes (Section E)
 - **Projects** - Example projects (Section F - firm's project database)
+- **ProjectAlternateDescription** - Alternate brief descriptions for projects (Section F, Block 24)
 - **EmployeeProjectExperience** - Project experience from resumes (may include projects from previous employers)
 - **EmployeeProjectLink** - Many-to-many for Section G matrix (links employees to firm projects)
 - **Proposals** - SF330 submission containers
-- **ProposalSelectedEmployee/Project** - Junction tables
+- **ProposalSelectedEmployee/Project** - Junction tables (ProposalSelectedProject now includes alternate_description_id)
 
 ## Running the Application
 The app runs on port 5000. Access via the webview.
@@ -65,6 +66,11 @@ The AI parsing enforces consistent formats for personnel data:
 - **Other Qualifications:** Certifications, awards, publications - one per line
 
 ## Recent Changes
+- Added multiple alternate Brief Descriptions per project (Jan 2026)
+  - Projects can now have multiple versions of Brief Description (Section F, Block 24)
+  - Each alternate has a label and description text
+  - AI rewrite button rewrites descriptions in structural engineer bridge inspection tone
+  - Proposal wizard Step 3 allows selecting which description version to use per project
 - Added merge and delete functionality for existing database records (Jan 2026)
   - Multi-select checkboxes on Personnel and Projects pages
   - "Merge Selected" button appears when 2+ items are selected

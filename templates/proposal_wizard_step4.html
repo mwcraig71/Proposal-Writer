@@ -71,7 +71,12 @@
         <h2 class="text-lg font-semibold text-gray-800 mb-4">Selected Projects ({{ selected_projects|length }})</h2>
         <ol class="space-y-2 text-sm list-decimal list-inside">
             {% for psp in selected_projects %}
-            <li class="font-medium">{{ psp.project.title }}</li>
+            <li class="font-medium">
+                {{ psp.project.title }}
+                {% if psp.alternate_description %}
+                <span class="text-xs text-purple-600 ml-2">({{ psp.alternate_description.label }})</span>
+                {% endif %}
+            </li>
             {% endfor %}
         </ol>
     </div>
