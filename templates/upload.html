@@ -191,6 +191,10 @@ saveBtn.addEventListener('click', async () => {
         updatedData[input.dataset.field] = input.value;
     });
     
+    if (parsedData && parsedData.project_experience) {
+        updatedData.project_experience = parsedData.project_experience;
+    }
+    
     try {
         const response = await fetch('/save-parsed-data', {
             method: 'POST',
@@ -203,6 +207,23 @@ saveBtn.addEventListener('click', async () => {
         if (result.success) {
             alert(result.message);
             location.reload();
+        } else if (result.duplicate_found) {
+            if (confirm(result.message + '\n\nClick OK to review and merge the data, or Cancel to create a new entry anyway.')) {
+                window.location.href = `/employees/compare/${result.existing_id}`;
+            } else {
+                const forceResponse = await fetch('/save-parsed-data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ doc_type: docType, parsed_data: updatedData, force_new: true })
+                });
+                const forceResult = await forceResponse.json();
+                if (forceResult.success) {
+                    alert('New employee entry created.');
+                    location.reload();
+                } else {
+                    alert('Error: ' + forceResult.error);
+                }
+            }
         } else {
             alert('Error: ' + result.error);
         }

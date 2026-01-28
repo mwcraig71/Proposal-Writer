@@ -328,3 +328,55 @@ Return ONLY the JSON object, no markdown formatting or explanation."""
     
     result = json.loads(response.text or "{}")
     return result
+
+
+@retry(
+    stop=stop_after_attempt(5),
+    wait=wait_exponential(multiplier=1, min=2, max=60),
+    retry=retry_if_exception(is_rate_limit_error),
+    reraise=True
+)
+def combine_and_rewrite_text(text1: str, text2: str, field_name: str = "description") -> str:
+    """Combine two versions of text and rewrite in a professional structural engineering tone."""
+    prompt = f"""You are a professional technical writer specializing in structural engineering documentation for federal SF330 forms.
+
+You have been given two versions of {field_name} text for the same employee or project. Your task is to:
+1. Combine the most relevant and accurate information from both versions
+2. Eliminate redundancy while preserving all unique details
+3. Rewrite the combined text in a professional, concise tone appropriate for federal A/E qualification submissions
+4. Use active voice and emphasize technical expertise, project scope, and measurable achievements
+5. Keep the format consistent with SF330 requirements
+
+VERSION 1:
+{text1 or '(empty)'}
+
+VERSION 2:
+{text2 or '(empty)'}
+
+Write a professionally combined version that captures the best of both. Return ONLY the rewritten text, no explanations or formatting markers."""
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt
+    )
+    
+    return (response.text or "").strip()
+
+
+def find_matching_employee(name: str) -> Optional[int]:
+    """Check if an employee with a matching name already exists. Returns employee ID if found."""
+    from models import Employee
+    import re
+    
+    if not name:
+        return None
+    
+    normalized_name = ' '.join(name.strip().split()).lower()
+    
+    all_employees = Employee.query.all()
+    for emp in all_employees:
+        emp_normalized = ' '.join(emp.name.strip().split()).lower() if emp.name else ''
+        if emp_normalized == normalized_name:
+            return emp.id
+    
+    return None

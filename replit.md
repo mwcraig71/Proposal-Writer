@@ -65,6 +65,12 @@ The AI parsing enforces consistent formats for personnel data:
 - **Other Qualifications:** Certifications, awards, publications - one per line
 
 ## Recent Changes
+- Added duplicate employee detection and merge functionality (Jan 2026)
+  - When uploading a resume for someone already in the database, system detects the duplicate by name
+  - Side-by-side comparison page shows existing vs new data for each field
+  - User can select which version to keep for each field
+  - AI "Combine & Rewrite" feature merges text fields in professional structural engineering tone
+  - New project experience is deduplicated by title/owner/firm before adding
 - Added EmployeeProjectExperience model to track project history from resumes (Jan 2026)
   - AI resume parsing now extracts detailed project experience with title, location, cost, owner, role, and firm
   - Employee detail page shows and manages project experience with add/edit/delete functionality

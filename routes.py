@@ -1,6 +1,6 @@
 import os
 import json
-from flask import render_template, request, jsonify, redirect, url_for, flash, send_file
+from flask import render_template, request, jsonify, redirect, url_for, flash, send_file, session
 from werkzeug.utils import secure_filename
 from main import app
 from database import db
@@ -10,7 +10,7 @@ from models import (
     ProjectFirmInvolvement, EmployeeProjectExperience
 )
 from document_parser import extract_text_from_file
-from gemini_service import detect_document_type, parse_employee_resume, parse_project_sheet, parse_firm_info
+from gemini_service import detect_document_type, parse_employee_resume, parse_project_sheet, parse_firm_info, find_matching_employee, combine_and_rewrite_text
 from pdf_generator import generate_full_sf330, get_form_fields
 import io
 
@@ -87,11 +87,25 @@ def save_parsed_data():
     data = request.json
     doc_type = data.get('doc_type')
     parsed_data = data.get('parsed_data')
+    force_new = data.get('force_new', False)
     
     try:
         if doc_type == 'employee':
+            name = parsed_data.get('name', 'Unknown')
+            
+            if not force_new:
+                existing_id = find_matching_employee(name)
+                if existing_id:
+                    session['pending_employee_data'] = parsed_data
+                    return jsonify({
+                        'success': False, 
+                        'duplicate_found': True,
+                        'existing_id': existing_id,
+                        'message': f'An employee named "{name}" already exists. Review and merge the data.'
+                    })
+            
             employee = Employee(
-                name=parsed_data.get('name', 'Unknown'),
+                name=name,
                 title=parsed_data.get('title'),
                 role=parsed_data.get('role'),
                 years_experience_total=parsed_data.get('years_experience_total'),
@@ -717,3 +731,126 @@ def api_firms():
         'city': f.city,
         'state': f.state
     } for f in firms])
+
+
+@app.route('/employees/compare/<int:existing_id>')
+def employee_compare(existing_id):
+    existing = Employee.query.get_or_404(existing_id)
+    
+    parsed_new = session.get('pending_employee_data', {})
+    
+    if not parsed_new:
+        new_data = request.args.get('new_data')
+        if new_data:
+            try:
+                parsed_new = json.loads(new_data)
+            except:
+                parsed_new = {}
+    
+    existing_experiences = EmployeeProjectExperience.query.filter_by(employee_id=existing_id).all()
+    
+    existing_data = {
+        'name': existing.name,
+        'title': existing.title,
+        'role': existing.role,
+        'years_experience_total': existing.years_experience_total,
+        'years_experience_firm': existing.years_experience_firm,
+        'education': existing.education,
+        'registrations': existing.registrations,
+        'training': existing.training,
+        'other_qualifications': existing.other_qualifications,
+        'project_experience': [{
+            'project_title': exp.project_title,
+            'location': exp.location,
+            'owner_name': exp.owner_name,
+            'project_cost': exp.project_cost,
+            'year_completed': exp.year_completed,
+            'role_performed': exp.role_performed,
+            'brief_description': exp.brief_description,
+            'firm_name': exp.firm_name
+        } for exp in existing_experiences]
+    }
+    
+    return render_template('employee_compare.html', 
+                          existing=existing,
+                          existing_data=existing_data,
+                          new_data=parsed_new)
+
+
+@app.route('/employees/merge/<int:existing_id>', methods=['POST'])
+def employee_merge(existing_id):
+    existing = Employee.query.get_or_404(existing_id)
+    data = request.json
+    merged_data = data.get('merged_data', {})
+    new_project_experiences = data.get('new_project_experiences', [])
+    
+    try:
+        if merged_data.get('name'):
+            existing.name = merged_data['name']
+        if merged_data.get('title'):
+            existing.title = merged_data['title']
+        if merged_data.get('role'):
+            existing.role = merged_data['role']
+        if merged_data.get('years_experience_total') is not None:
+            existing.years_experience_total = merged_data['years_experience_total']
+        if merged_data.get('years_experience_firm') is not None:
+            existing.years_experience_firm = merged_data['years_experience_firm']
+        if merged_data.get('education'):
+            existing.education = merged_data['education']
+        if merged_data.get('registrations'):
+            existing.registrations = merged_data['registrations']
+        if merged_data.get('training'):
+            existing.training = merged_data['training']
+        if merged_data.get('other_qualifications'):
+            existing.other_qualifications = merged_data['other_qualifications']
+        
+        for proj in new_project_experiences:
+            if proj.get('project_title'):
+                query = EmployeeProjectExperience.query.filter_by(
+                    employee_id=existing_id,
+                    project_title=proj.get('project_title')
+                )
+                if proj.get('owner_name'):
+                    query = query.filter_by(owner_name=proj.get('owner_name'))
+                if proj.get('firm_name'):
+                    query = query.filter_by(firm_name=proj.get('firm_name'))
+                existing_proj = query.first()
+                
+                if not existing_proj:
+                    exp = EmployeeProjectExperience(
+                        employee_id=existing_id,
+                        project_title=proj.get('project_title'),
+                        location=proj.get('location'),
+                        owner_name=proj.get('owner_name'),
+                        project_cost=proj.get('project_cost'),
+                        year_completed=proj.get('year_completed'),
+                        role_performed=proj.get('role_performed'),
+                        brief_description=proj.get('brief_description'),
+                        firm_name=proj.get('firm_name'),
+                        is_current_firm=False
+                    )
+                    db.session.add(exp)
+        
+        db.session.commit()
+        
+        if 'pending_employee_data' in session:
+            del session['pending_employee_data']
+        
+        return jsonify({'success': True, 'id': existing.id, 'message': 'Employee updated successfully'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/ai-combine-text', methods=['POST'])
+def api_ai_combine_text():
+    data = request.json
+    text1 = data.get('text1', '')
+    text2 = data.get('text2', '')
+    field_name = data.get('field_name', 'description')
+    
+    try:
+        combined = combine_and_rewrite_text(text1, text2, field_name)
+        return jsonify({'success': True, 'combined_text': combined})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
