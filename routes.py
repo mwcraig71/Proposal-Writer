@@ -212,8 +212,21 @@ def employees():
 def add_employee():
     if request.method == 'POST':
         data = request.form
+        first_name = data.get('first_name', '').strip()
+        middle_name = data.get('middle_name', '').strip()
+        last_name = data.get('last_name', '').strip()
+        nickname = data.get('nickname', '').strip()
+        
+        # Build full name from components
+        name_parts = [first_name, middle_name, last_name]
+        full_name = ' '.join(p for p in name_parts if p)
+        
         employee = Employee(
-            name=data.get('name', ''),
+            name=full_name,
+            first_name=first_name if first_name else None,
+            middle_name=middle_name if middle_name else None,
+            last_name=last_name if last_name else None,
+            nickname=nickname if nickname else None,
             title=data.get('title'),
             role=data.get('role'),
             years_experience_total=int(data.get('years_experience_total') or 0) if data.get('years_experience_total') else None,

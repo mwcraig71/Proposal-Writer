@@ -59,6 +59,10 @@ class Employee(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     firm_id = db.Column(db.Integer, db.ForeignKey('firms.id'), nullable=True)
     name = db.Column(db.String(255), nullable=False)
+    first_name = db.Column(db.String(100))
+    middle_name = db.Column(db.String(100))
+    last_name = db.Column(db.String(100))
+    nickname = db.Column(db.String(100))
     title = db.Column(db.String(255))
     role = db.Column(db.String(255))
     years_experience_total = db.Column(db.Integer)
@@ -71,6 +75,14 @@ class Employee(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     project_links = db.relationship('EmployeeProjectLink', backref='employee', lazy=True)
+    
+    @property
+    def display_name(self):
+        """Returns the full display name combining first, middle, last names"""
+        if self.first_name or self.last_name:
+            parts = [self.first_name or '', self.middle_name or '', self.last_name or '']
+            return ' '.join(p for p in parts if p).strip()
+        return self.name
 
 
 class EmployeeProjectExperience(db.Model):
