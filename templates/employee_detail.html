@@ -113,7 +113,15 @@
                             <button onclick="addToProjects({{ exp.id }})" class="text-orange-600 hover:text-orange-800" title="Add to Projects Database">
                                 <i class="fas fa-database"></i>
                             </button>
-                            <button onclick="editExperience({{ exp.id }}, {{ exp|tojson|safe }})" class="text-blue-600 hover:text-blue-800" title="Edit">
+                            <button class="edit-exp-btn text-blue-600 hover:text-blue-800" title="Edit"
+                                data-exp-id="{{ exp.id }}"
+                                data-title="{{ exp.title or '' }}"
+                                data-location="{{ exp.location or '' }}"
+                                data-year="{{ exp.year_completed or '' }}"
+                                data-cost="{{ exp.project_cost or '' }}"
+                                data-owner="{{ exp.owner_name or '' }}"
+                                data-role="{{ exp.role_description or '' }}"
+                                data-firm="{{ exp.firm_name or '' }}">
                                 <i class="fas fa-edit"></i>
                             </button>
                             <button onclick="deleteExperience({{ exp.id }})" class="text-red-600 hover:text-red-800" title="Delete">
@@ -313,16 +321,31 @@ function editExperience(id, exp) {
     document.getElementById('modal-title').textContent = 'Edit Project Experience';
     document.getElementById('exp-id').value = id;
     document.getElementById('exp-linked-project-id').value = '';
-    document.getElementById('exp-project-title').value = exp.project_title || '';
+    document.getElementById('exp-project-title').value = exp.title || '';
     document.getElementById('exp-location').value = exp.location || '';
-    document.getElementById('exp-year-completed').value = exp.year_completed || '';
-    document.getElementById('exp-project-cost').value = exp.project_cost || '';
-    document.getElementById('exp-owner-name').value = exp.owner_name || '';
-    document.getElementById('exp-role-performed').value = exp.role_performed || '';
-    document.getElementById('exp-firm-name').value = exp.firm_name || '';
-    document.getElementById('exp-brief-description').value = exp.brief_description || '';
+    document.getElementById('exp-year-completed').value = exp.year || '';
+    document.getElementById('exp-project-cost').value = exp.cost || '';
+    document.getElementById('exp-owner-name').value = exp.owner || '';
+    document.getElementById('exp-role-performed').value = exp.role || '';
+    document.getElementById('exp-firm-name').value = exp.firm || '';
+    document.getElementById('exp-brief-description').value = exp.role || '';
     document.getElementById('experience-modal').classList.remove('hidden');
 }
+
+document.querySelectorAll('.edit-exp-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const exp = {
+            title: this.dataset.title,
+            location: this.dataset.location,
+            year: this.dataset.year,
+            cost: this.dataset.cost,
+            owner: this.dataset.owner,
+            role: this.dataset.role,
+            firm: this.dataset.firm
+        };
+        editExperience(this.dataset.expId, exp);
+    });
+});
 
 function closeModal() {
     document.getElementById('experience-modal').classList.add('hidden');
