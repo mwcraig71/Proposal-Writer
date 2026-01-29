@@ -66,6 +66,11 @@ The AI parsing enforces consistent formats for personnel data:
 - **Other Qualifications:** Certifications, awards, publications - one per line
 
 ## Recent Changes
+- Added website scraping for firm information import (Jan 2026)
+  - "Import from Website" section on Add Firm page
+  - Enter a firm's website URL to automatically extract company information
+  - AI parses website content and populates form fields (name, address, contact, etc.)
+  - Populated fields are highlighted for easy review before saving
 - Added proposal tracking numbers with search/filter functionality (Jan 2026)
   - Proposals now require a tracking_number field for unique identification
   - Proposals list page has search box (searches tracking #, name, title, solicitation #)
