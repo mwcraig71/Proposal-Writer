@@ -51,6 +51,7 @@ MVP implementation complete with:
 - **Projects** - Example projects (Section F - firm's project database)
 - **ProjectAlternateDescription** - Alternate brief descriptions for projects (Section F, Block 24)
 - **EmployeeProjectExperience** - Project experience from resumes (may include projects from previous employers)
+- **ExperienceAlternateDescription** - Alternate brief descriptions for resume project experiences
 - **EmployeeProjectLink** - Many-to-many for Section G matrix (links employees to firm projects)
 - **Proposals** - SF330 submission containers
 - **ProposalSelectedEmployee/Project** - Junction tables (ProposalSelectedProject now includes alternate_description_id)
@@ -66,6 +67,13 @@ The AI parsing enforces consistent formats for personnel data:
 - **Other Qualifications:** Certifications, awards, publications - one per line
 
 ## Recent Changes
+- Enhanced employee project experience management (Jan 2026)
+  - Alternate descriptions for resume projects with ExperienceAlternateDescription model
+  - Project title autocomplete searches main Projects database and auto-fills location, year, cost, owner
+  - Owner/client autocomplete connected to Client Contacts database
+  - AI rewrite button with custom instructions popup for descriptions
+  - "Copy to Other Resumes" - copy project experience to other employees
+  - "Add to Projects Database" - promote resume project to main Projects database
 - Added website scraping for firm information import (Jan 2026)
   - "Import from Website" section on Add Firm page
   - Enter a firm's website URL to automatically extract company information
