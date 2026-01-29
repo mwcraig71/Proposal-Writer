@@ -142,6 +142,31 @@
                 <li><i class="fas fa-check text-green-500 mr-2"></i> Project description</li>
             </ul>
         </div>
+        
+        <div class="mt-6 border-t pt-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-3">
+                <i class="fas fa-file-alt text-purple-600 mr-2"></i> Previous Proposal Reference
+            </h3>
+            <p class="text-gray-600 text-sm mb-4">Upload a previous proposal (PDF or Word) to use as reference when generating cover letters and written sections.</p>
+            
+            <div id="ref-drop-zone" class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-purple-500 transition cursor-pointer">
+                <i class="fas fa-file-pdf text-gray-400 text-2xl mb-2"></i>
+                <p class="text-gray-600 text-sm">Drag and drop previous proposal</p>
+                <p class="text-gray-400 text-xs">PDF or Word document</p>
+                <input type="file" id="ref-file-input" class="hidden" accept=".pdf,.docx,.doc">
+            </div>
+            
+            <div id="ref-upload-status" class="hidden mt-3">
+                <div class="flex items-center justify-center p-4 bg-purple-50 rounded-lg border border-purple-200">
+                    <i class="fas fa-spinner fa-spin text-purple-600 mr-2"></i>
+                    <span class="text-purple-700 text-sm">Processing document...</span>
+                </div>
+            </div>
+            
+            <div id="ref-uploaded-files" class="mt-3 space-y-2"></div>
+            
+            <p class="text-xs text-gray-500 mt-2">These documents will be available in Step 4 when generating AI content.</p>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -259,5 +284,97 @@ function updateFirmBioOptions() {
         bioSection.classList.add('hidden');
     }
 }
+
+// Previous proposal reference upload handling
+const refDropZone = document.getElementById('ref-drop-zone');
+const refFileInput = document.getElementById('ref-file-input');
+const refUploadStatus = document.getElementById('ref-upload-status');
+const refUploadedFiles = document.getElementById('ref-uploaded-files');
+let pendingRefFiles = [];
+
+refDropZone.addEventListener('click', () => refFileInput.click());
+
+refDropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    refDropZone.classList.add('border-purple-500', 'bg-purple-50');
+});
+
+refDropZone.addEventListener('dragleave', () => {
+    refDropZone.classList.remove('border-purple-500', 'bg-purple-50');
+});
+
+refDropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    refDropZone.classList.remove('border-purple-500', 'bg-purple-50');
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+        addRefFile(files[0]);
+    }
+});
+
+refFileInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+        addRefFile(e.target.files[0]);
+    }
+});
+
+function addRefFile(file) {
+    const fileId = Date.now();
+    pendingRefFiles.push({ id: fileId, file: file });
+    
+    const fileDiv = document.createElement('div');
+    fileDiv.id = `ref-file-${fileId}`;
+    fileDiv.className = 'flex items-center justify-between p-2 bg-purple-50 rounded-lg border border-purple-200';
+    fileDiv.innerHTML = `
+        <div class="flex items-center">
+            <i class="fas fa-file-alt text-purple-600 mr-2"></i>
+            <span class="text-sm text-gray-700">${file.name}</span>
+            <span class="text-xs text-gray-500 ml-2">(${(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+        </div>
+        <button type="button" onclick="removeRefFile(${fileId})" class="text-red-500 hover:text-red-700">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    refUploadedFiles.appendChild(fileDiv);
+}
+
+function removeRefFile(fileId) {
+    pendingRefFiles = pendingRefFiles.filter(f => f.id !== fileId);
+    const fileDiv = document.getElementById(`ref-file-${fileId}`);
+    if (fileDiv) fileDiv.remove();
+}
+
+// Override form submission to include reference files
+document.getElementById('proposal-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    
+    // Add reference files to form data
+    pendingRefFiles.forEach((item, idx) => {
+        formData.append(`ref_file_${idx}`, item.file);
+    });
+    formData.append('ref_file_count', pendingRefFiles.length);
+    
+    try {
+        const response = await fetch(this.action, {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (response.redirected) {
+            window.location.href = response.url;
+        } else if (response.ok) {
+            const text = await response.text();
+            if (text.includes('step2')) {
+                window.location.href = response.url;
+            } else {
+                document.body.innerHTML = text;
+            }
+        }
+    } catch (error) {
+        alert('Error submitting form: ' + error.message);
+    }
+});
 </script>
 {% endblock %}

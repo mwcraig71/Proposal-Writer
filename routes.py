@@ -9,7 +9,7 @@ from models import (
     ProposalSelectedEmployee, ProposalSelectedProject, ProposalEmployeeRelevantProject,
     ProjectFirmInvolvement, EmployeeProjectExperience, ProjectAlternateDescription, AISettings,
     ClientContact, ExperienceAlternateDescription, Certification, CertificationType,
-    EmployeePhoto, ProjectPhoto
+    EmployeePhoto, ProjectPhoto, ProposalReference
 )
 from replit.object_storage import Client as ObjectStorageClient
 import uuid
@@ -1193,6 +1193,34 @@ def new_proposal():
         rfp_text=data.get('rfp_text')
     )
     db.session.add(proposal)
+    db.session.commit()
+    
+    # Handle reference document uploads (previous proposals)
+    ref_count = int(data.get('ref_file_count', 0))
+    for i in range(ref_count):
+        ref_key = f'ref_file_{i}'
+        if ref_key in request.files:
+            ref_file = request.files[ref_key]
+            if ref_file and ref_file.filename:
+                file_content = ref_file.read()
+                
+                # Extract text from the reference document
+                extracted_text = ""
+                try:
+                    extracted_text = extract_text_from_file(file_content, ref_file.filename)
+                except Exception as e:
+                    print(f"Error extracting text from reference doc: {e}")
+                
+                ref_doc = ProposalReference(
+                    proposal_id=proposal.id,
+                    filename=secure_filename(ref_file.filename),
+                    file_content=file_content,
+                    extracted_text=extracted_text,
+                    file_size=len(file_content),
+                    content_type=ref_file.content_type
+                )
+                db.session.add(ref_doc)
+    
     db.session.commit()
     
     return redirect(url_for('proposal_step2', id=proposal.id))
