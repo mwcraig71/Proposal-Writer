@@ -68,6 +68,12 @@ The AI parsing enforces consistent formats for personnel data:
 - **Other Qualifications:** Certifications, awards, publications - one per line
 
 ## Recent Changes
+- Added Marketing Photos section with tagging and filtering (Jan 2026)
+  - MarketingPhoto model with caption and tags (comma-separated #tags)
+  - ProposalSelectedMarketingPhoto junction table for proposal selections
+  - Marketing photos page with upload, tag filtering, caption/tag editing
+  - Proposal wizard Step 1 has tag filter buttons and photo selection grid
+  - Multiple photos can be selected by clicking, stored with proposals
 - Added firm photo upload and proposal selection (Jan 2026)
   - FirmPhoto model stores firm images in Object Storage
   - Photo gallery on firm edit page with upload, delete, set primary

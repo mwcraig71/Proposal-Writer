@@ -1213,6 +1213,22 @@ def new_proposal():
                 )
                 db.session.add(psfp)
     
+    # Handle selected marketing photos
+    selected_marketing = data.get('selected_marketing_photos', '')
+    if selected_marketing:
+        from models import ProposalSelectedMarketingPhoto, MarketingPhoto
+        marketing_photo_ids = [int(pid) for pid in selected_marketing.split(',') if pid.strip()]
+        for order, photo_id in enumerate(marketing_photo_ids):
+            # Validate photo exists
+            photo = MarketingPhoto.query.get(photo_id)
+            if photo:
+                psmp = ProposalSelectedMarketingPhoto(
+                    proposal_id=proposal.id,
+                    marketing_photo_id=photo_id,
+                    display_order=order
+                )
+                db.session.add(psmp)
+    
     # Handle reference document uploads (previous proposals)
     ref_count = int(data.get('ref_file_count', 0))
     for i in range(ref_count):
