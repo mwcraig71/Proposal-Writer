@@ -314,6 +314,15 @@ def update_employee(id):
     employee = Employee.query.get_or_404(id)
     data = request.json
     
+    # Helper to convert empty strings to None for integer fields
+    def to_int_or_none(value):
+        if value is None or value == '':
+            return None
+        try:
+            return int(value)
+        except (ValueError, TypeError):
+            return None
+    
     # Handle name fields
     first_name = data.get('first_name', employee.first_name) or ''
     middle_name = data.get('middle_name', employee.middle_name) or ''
@@ -329,15 +338,15 @@ def update_employee(id):
     employee.last_name = last_name.strip() if last_name.strip() else None
     employee.nickname = nickname.strip() if nickname and nickname.strip() else None
     employee.name = full_name if full_name else data.get('name', employee.name)
-    employee.title = data.get('title', employee.title)
-    employee.role = data.get('role', employee.role)
-    employee.years_experience_total = data.get('years_experience_total', employee.years_experience_total)
-    employee.years_experience_firm = data.get('years_experience_firm', employee.years_experience_firm)
-    employee.education = data.get('education', employee.education)
-    employee.registrations = data.get('registrations', employee.registrations)
-    employee.training = data.get('training', employee.training)
-    employee.other_qualifications = data.get('other_qualifications', employee.other_qualifications)
-    employee.firm_id = data.get('firm_id', employee.firm_id)
+    employee.title = data.get('title', employee.title) or None
+    employee.role = data.get('role', employee.role) or None
+    employee.years_experience_total = to_int_or_none(data.get('years_experience_total', employee.years_experience_total))
+    employee.years_experience_firm = to_int_or_none(data.get('years_experience_firm', employee.years_experience_firm))
+    employee.education = data.get('education', employee.education) or None
+    employee.registrations = data.get('registrations', employee.registrations) or None
+    employee.training = data.get('training', employee.training) or None
+    employee.other_qualifications = data.get('other_qualifications', employee.other_qualifications) or None
+    employee.firm_id = to_int_or_none(data.get('firm_id', employee.firm_id))
     
     db.session.commit()
     return jsonify({'success': True})
