@@ -174,6 +174,40 @@
     
     <div class="bg-white rounded-lg shadow p-6">
         <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-semibold text-gray-800">Photos</h2>
+        </div>
+        <div id="photo-gallery" class="grid grid-cols-2 gap-2 mb-4">
+            {% for photo in employee.photos %}
+            <div class="relative group" data-photo-id="{{ photo.id }}">
+                <img src="/photos/employee/{{ photo.id }}" alt="{{ photo.caption or photo.filename }}" 
+                     class="w-full h-24 object-cover rounded-lg cursor-pointer hover:opacity-90"
+                     onclick="openPhotoViewer({{ photo.id }}, '{{ photo.caption or '' }}')">
+                <button onclick="deletePhoto({{ photo.id }})" 
+                        class="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5 text-xs opacity-0 group-hover:opacity-100 transition">
+                    <i class="fas fa-times"></i>
+                </button>
+                {% if photo.caption %}
+                <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 rounded-b-lg truncate">
+                    {{ photo.caption }}
+                </div>
+                {% endif %}
+            </div>
+            {% else %}
+            <p class="text-gray-500 text-sm col-span-2" id="no-photos-msg">No photos uploaded.</p>
+            {% endfor %}
+        </div>
+        <form id="photo-upload-form" class="flex gap-2">
+            <input type="file" id="photo-file" accept="image/*" class="hidden">
+            <button type="button" onclick="document.getElementById('photo-file').click()" 
+                    class="flex-1 text-sm bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition">
+                <i class="fas fa-camera mr-1"></i> Upload Photo
+            </button>
+        </form>
+        <input type="text" id="photo-caption" placeholder="Caption (optional)" class="w-full mt-2 p-2 border rounded-lg text-sm hidden">
+    </div>
+    
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex justify-between items-center mb-4">
             <h2 class="text-xl font-semibold text-gray-800">Certifications & Licenses</h2>
             <a href="{{ url_for('employee_certifications', employee_id=employee.id) }}" class="text-blue-600 hover:text-blue-800 text-sm">
                 <i class="fas fa-external-link-alt mr-1"></i>Manage All
@@ -324,6 +358,97 @@
 
 <script>
 const allEmployees = {{ employees|tojson|safe if employees else '[]' }};
+const employeeId = {{ employee.id }};
+
+// Photo upload handling
+document.getElementById('photo-file').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const captionInput = document.getElementById('photo-caption');
+    captionInput.classList.remove('hidden');
+    captionInput.focus();
+    
+    // Auto-upload after brief delay or on blur
+    const uploadPhoto = async () => {
+        const formData = new FormData();
+        formData.append('photo', file);
+        formData.append('caption', captionInput.value);
+        
+        try {
+            const response = await fetch(`/employees/${employeeId}/photos`, {
+                method: 'POST',
+                body: formData
+            });
+            const result = await response.json();
+            if (result.success) {
+                // Add photo to gallery
+                const gallery = document.getElementById('photo-gallery');
+                const noPhotosMsg = document.getElementById('no-photos-msg');
+                if (noPhotosMsg) noPhotosMsg.remove();
+                
+                const photoDiv = document.createElement('div');
+                photoDiv.className = 'relative group';
+                photoDiv.dataset.photoId = result.photo.id;
+                photoDiv.innerHTML = `
+                    <img src="${result.photo.url}" alt="${result.photo.caption || result.photo.filename}" 
+                         class="w-full h-24 object-cover rounded-lg cursor-pointer hover:opacity-90"
+                         onclick="openPhotoViewer(${result.photo.id}, '${result.photo.caption || ''}')">
+                    <button onclick="deletePhoto(${result.photo.id})" 
+                            class="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5 text-xs opacity-0 group-hover:opacity-100 transition">
+                        <i class="fas fa-times"></i>
+                    </button>
+                    ${result.photo.caption ? `<div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 rounded-b-lg truncate">${result.photo.caption}</div>` : ''}
+                `;
+                gallery.appendChild(photoDiv);
+                
+                captionInput.value = '';
+                captionInput.classList.add('hidden');
+                e.target.value = '';
+            } else {
+                alert('Error uploading photo: ' + result.error);
+            }
+        } catch (error) {
+            alert('Error: ' + error.message);
+        }
+    };
+    
+    // Upload on Enter key or blur
+    captionInput.onkeypress = (e) => { if (e.key === 'Enter') { e.preventDefault(); uploadPhoto(); } };
+    setTimeout(() => { 
+        const uploadBtn = document.createElement('button');
+        uploadBtn.type = 'button';
+        uploadBtn.className = 'mt-2 w-full text-sm bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700';
+        uploadBtn.innerHTML = '<i class="fas fa-upload mr-1"></i> Upload';
+        uploadBtn.onclick = uploadPhoto;
+        if (!captionInput.nextElementSibling || !captionInput.nextElementSibling.classList.contains('bg-green-600')) {
+            captionInput.parentNode.insertBefore(uploadBtn, captionInput.nextSibling);
+        }
+    }, 100);
+});
+
+async function deletePhoto(photoId) {
+    if (!confirm('Delete this photo?')) return;
+    try {
+        const response = await fetch(`/employees/${employeeId}/photos/${photoId}`, { method: 'DELETE' });
+        const result = await response.json();
+        if (result.success) {
+            document.querySelector(`[data-photo-id="${photoId}"]`).remove();
+            const gallery = document.getElementById('photo-gallery');
+            if (gallery.children.length === 0) {
+                gallery.innerHTML = '<p class="text-gray-500 text-sm col-span-2" id="no-photos-msg">No photos uploaded.</p>';
+            }
+        } else {
+            alert('Error deleting photo');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+function openPhotoViewer(photoId, caption) {
+    window.open(`/photos/employee/${photoId}`, '_blank');
+}
 
 document.getElementById('employee-form').addEventListener('submit', async (e) => {
     e.preventDefault();
