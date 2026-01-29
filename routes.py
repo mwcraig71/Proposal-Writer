@@ -153,6 +153,8 @@ def save_parsed_data():
             db.session.commit()
             
             project_experiences = parsed_data.get('project_experience', [])
+            print(f"DEBUG: Found {len(project_experiences) if project_experiences else 0} project experiences for {name}")
+            print(f"DEBUG: project_experience data: {project_experiences}")
             if project_experiences:
                 for proj in project_experiences:
                     if proj.get('project_title'):
