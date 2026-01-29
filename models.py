@@ -248,6 +248,30 @@ class ProposalSelectedProject(db.Model):
     __table_args__ = (db.UniqueConstraint('proposal_id', 'project_id', name='unique_proposal_project'),)
 
 
+class Certification(db.Model):
+    """Stores employee certifications, licenses, and training records with PDF documentation"""
+    __tablename__ = 'certifications'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False)
+    cert_type = db.Column(db.String(100), nullable=False)  # 'training', 'license', 'certification'
+    category = db.Column(db.String(100))  # 'NHI', 'Safety', 'SPRAT', 'Drone', 'PE License'
+    name = db.Column(db.String(255), nullable=False)  # e.g., 'NHI-130055', 'OSHA-10', 'PE'
+    state = db.Column(db.String(50))  # For PE licenses
+    level = db.Column(db.String(50))  # For SPRAT levels
+    status = db.Column(db.String(50))  # 'completed', 'active', 'expired', 'yes', 'registered'
+    expiration_date = db.Column(db.Date)
+    issue_date = db.Column(db.Date)
+    license_number = db.Column(db.String(100))
+    pdf_filename = db.Column(db.String(500))
+    pdf_content = db.Column(db.LargeBinary)
+    notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    employee = db.relationship('Employee', backref=db.backref('certifications', lazy=True, cascade='all, delete-orphan'))
+
+
 class AISettings(db.Model):
     __tablename__ = 'ai_settings'
     

@@ -8,7 +8,7 @@ from models import (
     Firm, Employee, Project, EmployeeProjectLink, Proposal,
     ProposalSelectedEmployee, ProposalSelectedProject, ProposalEmployeeRelevantProject,
     ProjectFirmInvolvement, EmployeeProjectExperience, ProjectAlternateDescription, AISettings,
-    ClientContact, ExperienceAlternateDescription
+    ClientContact, ExperienceAlternateDescription, Certification
 )
 from document_parser import extract_text_from_file
 from gemini_service import detect_document_type, parse_employee_resume, parse_project_sheet, parse_firm_info, find_matching_employee, combine_and_rewrite_text
@@ -1657,3 +1657,273 @@ def search_contacts():
         'phone': c.phone or '',
         'email': c.email or ''
     } for c in contacts])
+
+
+# ==================== CERTIFICATIONS ====================
+
+@app.route('/certifications')
+def certifications():
+    from datetime import date
+    employees = Employee.query.order_by(Employee.name).all()
+    return render_template('certifications.html', employees=employees, today=date.today())
+
+
+@app.route('/certifications/<int:employee_id>')
+def employee_certifications(employee_id):
+    from datetime import date
+    employee = Employee.query.get_or_404(employee_id)
+    certs = Certification.query.filter_by(employee_id=employee_id).order_by(Certification.category, Certification.name).all()
+    return render_template('employee_certifications.html', employee=employee, certifications=certs, today=date.today())
+
+
+@app.route('/certifications/<int:employee_id>/add', methods=['POST'])
+def add_certification(employee_id):
+    employee = Employee.query.get_or_404(employee_id)
+    
+    expiration_date = None
+    exp_str = request.form.get('expiration_date')
+    if exp_str:
+        try:
+            from datetime import datetime as dt
+            expiration_date = dt.strptime(exp_str, '%Y-%m-%d').date()
+        except ValueError:
+            pass
+    
+    cert = Certification(
+        employee_id=employee_id,
+        cert_type=request.form.get('cert_type', 'certification'),
+        category=request.form.get('category'),
+        name=request.form.get('name'),
+        state=request.form.get('state'),
+        level=request.form.get('level'),
+        status=request.form.get('status'),
+        expiration_date=expiration_date,
+        license_number=request.form.get('license_number'),
+        notes=request.form.get('notes')
+    )
+    
+    pdf_file = request.files.get('pdf_file')
+    if pdf_file and pdf_file.filename:
+        cert.pdf_filename = secure_filename(pdf_file.filename)
+        cert.pdf_content = pdf_file.read()
+    
+    db.session.add(cert)
+    db.session.commit()
+    flash('Certification added successfully!', 'success')
+    return redirect(url_for('employee_certifications', employee_id=employee_id))
+
+
+@app.route('/certifications/<int:cert_id>/update', methods=['POST'])
+def update_certification(cert_id):
+    cert = Certification.query.get_or_404(cert_id)
+    
+    cert.cert_type = request.form.get('cert_type', cert.cert_type)
+    cert.category = request.form.get('category', cert.category)
+    cert.name = request.form.get('name', cert.name)
+    cert.state = request.form.get('state', cert.state)
+    cert.level = request.form.get('level', cert.level)
+    cert.status = request.form.get('status', cert.status)
+    cert.license_number = request.form.get('license_number', cert.license_number)
+    cert.notes = request.form.get('notes', cert.notes)
+    
+    exp_str = request.form.get('expiration_date')
+    if exp_str:
+        try:
+            from datetime import datetime as dt
+            cert.expiration_date = dt.strptime(exp_str, '%Y-%m-%d').date()
+        except ValueError:
+            pass
+    elif 'expiration_date' in request.form:
+        cert.expiration_date = None
+    
+    db.session.commit()
+    flash('Certification updated successfully!', 'success')
+    return redirect(url_for('employee_certifications', employee_id=cert.employee_id))
+
+
+@app.route('/certifications/<int:cert_id>/delete', methods=['POST'])
+def delete_certification(cert_id):
+    cert = Certification.query.get_or_404(cert_id)
+    employee_id = cert.employee_id
+    db.session.delete(cert)
+    db.session.commit()
+    flash('Certification deleted successfully!', 'success')
+    return redirect(url_for('employee_certifications', employee_id=employee_id))
+
+
+@app.route('/certifications/<int:cert_id>/pdf', methods=['GET'])
+def view_certification_pdf(cert_id):
+    cert = Certification.query.get_or_404(cert_id)
+    if not cert.pdf_content:
+        flash('No PDF file attached to this certification.', 'warning')
+        return redirect(url_for('employee_certifications', employee_id=cert.employee_id))
+    
+    return send_file(
+        io.BytesIO(cert.pdf_content),
+        mimetype='application/pdf',
+        as_attachment=False,
+        download_name=cert.pdf_filename or f'{cert.name}.pdf'
+    )
+
+
+@app.route('/certifications/<int:cert_id>/pdf/upload', methods=['POST'])
+def upload_certification_pdf(cert_id):
+    cert = Certification.query.get_or_404(cert_id)
+    
+    pdf_file = request.files.get('pdf_file')
+    if pdf_file and pdf_file.filename:
+        cert.pdf_filename = secure_filename(pdf_file.filename)
+        cert.pdf_content = pdf_file.read()
+        db.session.commit()
+        flash('PDF uploaded successfully!', 'success')
+    else:
+        flash('No file selected.', 'warning')
+    
+    return redirect(url_for('employee_certifications', employee_id=cert.employee_id))
+
+
+@app.route('/certifications/<int:cert_id>/pdf/delete', methods=['POST'])
+def delete_certification_pdf(cert_id):
+    cert = Certification.query.get_or_404(cert_id)
+    cert.pdf_filename = None
+    cert.pdf_content = None
+    db.session.commit()
+    flash('PDF deleted successfully!', 'success')
+    return redirect(url_for('employee_certifications', employee_id=cert.employee_id))
+
+
+@app.route('/certifications/import-csv', methods=['POST'])
+def import_certifications_csv():
+    import csv
+    from datetime import datetime as dt
+    
+    file = request.files.get('csv_file')
+    if not file:
+        flash('No file uploaded.', 'error')
+        return redirect(url_for('certifications'))
+    
+    content = file.read().decode('utf-8-sig')
+    lines = content.strip().split('\n')
+    reader = csv.reader(lines)
+    rows = list(reader)
+    
+    if len(rows) < 3:
+        flash('Invalid CSV format.', 'error')
+        return redirect(url_for('certifications'))
+    
+    # Row 2 has names starting at column 4 (index 4)
+    header_row = rows[1]
+    name_columns = {}
+    for idx, cell in enumerate(header_row):
+        if idx >= 4 and cell.strip():
+            # Convert "Last, First" to "First Last"
+            parts = cell.strip().split(',')
+            if len(parts) == 2:
+                name = f"{parts[1].strip()} {parts[0].strip()}"
+            else:
+                name = cell.strip()
+            name_columns[idx] = name
+    
+    # Create or find employees
+    employee_map = {}
+    for idx, name in name_columns.items():
+        emp = Employee.query.filter(Employee.name.ilike(name)).first()
+        if not emp:
+            emp = Employee(name=name)
+            db.session.add(emp)
+            db.session.flush()
+        employee_map[idx] = emp
+    
+    # Parse certifications
+    current_category = None
+    
+    for row_idx, row in enumerate(rows[2:], start=2):
+        if len(row) < 2:
+            continue
+        
+        col0 = row[0].strip() if len(row) > 0 else ''
+        col1 = row[1].strip() if len(row) > 1 else ''
+        
+        # Detect category headers
+        if col0 and not col1:
+            if 'National' in col0 or 'Highway' in col0 or 'Institute' in col0:
+                current_category = 'NHI'
+            elif 'Safety' in col0:
+                current_category = 'Safety'
+            elif 'SPRAT' in col0:
+                current_category = 'SPRAT'
+            elif 'Drone' in col0:
+                current_category = 'Drone'
+            elif 'PE' in col0 or 'COA' in col0:
+                current_category = 'PE License'
+            continue
+        
+        # Certification name in column 1
+        cert_name = col1 if col1 else col0
+        if not cert_name or cert_name in ['registered', 'N/A', 'Able to pursue']:
+            continue
+        
+        # Check for PE state rows (state in column 0)
+        state = None
+        if current_category == 'PE License' and col0 and col0 not in ['registered', 'N/A']:
+            state = col0
+            cert_name = 'PE'
+        
+        # Process each employee column
+        for col_idx, emp in employee_map.items():
+            if col_idx >= len(row):
+                continue
+            
+            value = row[col_idx].strip() if row[col_idx] else ''
+            if not value or value == '----':
+                continue
+            
+            # Determine status and expiration
+            status = None
+            expiration_date = None
+            level = None
+            
+            if value.lower() in ['yes', 'no']:
+                status = value.lower()
+            elif '/' in value:
+                # Date format M/D/YYYY
+                try:
+                    expiration_date = dt.strptime(value, '%m/%d/%Y').date()
+                    status = 'active' if expiration_date > dt.now().date() else 'expired'
+                except ValueError:
+                    status = value
+            elif value.lower() == 'registered':
+                status = 'registered'
+            elif value.isdigit():
+                level = value
+                status = 'active'
+            else:
+                status = value
+            
+            # Skip 'no' values
+            if status == 'no':
+                continue
+            
+            # Check if certification already exists
+            existing = Certification.query.filter_by(
+                employee_id=emp.id,
+                name=cert_name,
+                state=state
+            ).first()
+            
+            if not existing:
+                cert = Certification(
+                    employee_id=emp.id,
+                    cert_type='license' if current_category == 'PE License' else 'training' if current_category in ['NHI', 'Safety'] else 'certification',
+                    category=current_category,
+                    name=cert_name,
+                    state=state,
+                    level=level,
+                    status=status,
+                    expiration_date=expiration_date
+                )
+                db.session.add(cert)
+    
+    db.session.commit()
+    flash(f'CSV imported successfully! Created {len(employee_map)} personnel records with certifications.', 'success')
+    return redirect(url_for('certifications'))

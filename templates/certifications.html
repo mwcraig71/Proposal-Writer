@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Certifications - SF330 AI{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <h1 class="text-3xl font-bold text-gray-800">Certifications & Licenses</h1>
+</div>
+
+<div class="bg-white rounded-lg shadow-md p-6 mb-6">
+    <h2 class="text-lg font-semibold text-gray-700 mb-4">Import from CSV</h2>
+    <form action="{{ url_for('import_certifications_csv') }}" method="POST" enctype="multipart/form-data" class="flex items-center gap-4">
+        <input type="file" name="csv_file" accept=".csv" class="block text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+            <i class="fas fa-file-import mr-2"></i>Import License Survey
+        </button>
+    </form>
+    <p class="text-sm text-gray-500 mt-2">Upload the License_Survey CSV to import personnel and their certifications.</p>
+</div>
+
+<div class="bg-white rounded-lg shadow-md overflow-hidden">
+    <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+            <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Certifications</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expiring Soon</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+            {% for employee in employees %}
+            {% set cert_count = employee.certifications|length %}
+            {% set expiring_soon = [] %}
+            {% for cert in employee.certifications %}
+                {% if cert.expiration_date %}
+                    {% set days_until = (cert.expiration_date - today).days if cert.expiration_date else 999 %}
+                    {% if days_until <= 90 and days_until >= 0 %}
+                        {% set _ = expiring_soon.append(cert) %}
+                    {% endif %}
+                {% endif %}
+            {% endfor %}
+            <tr class="hover:bg-gray-50">
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <a href="{{ url_for('employee_certifications', employee_id=employee.id) }}" class="text-blue-600 hover:text-blue-800 font-medium">
+                        {{ employee.name }}
+                    </a>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ employee.title or '-' }}</td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        {{ cert_count }} certifications
+                    </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    {% set expired_certs = employee.certifications|selectattr('expiration_date')|selectattr('status', 'equalto', 'expired')|list %}
+                    {% if expired_certs|length > 0 %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                        {{ expired_certs|length }} expired
+                    </span>
+                    {% else %}
+                    <span class="text-gray-400 text-sm">None</span>
+                    {% endif %}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                    <a href="{{ url_for('employee_certifications', employee_id=employee.id) }}" class="text-blue-600 hover:text-blue-800">
+                        <i class="fas fa-certificate mr-1"></i>View Certifications
+                    </a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" class="px-6 py-12 text-center text-gray-500">
+                    <i class="fas fa-certificate text-4xl mb-4 text-gray-300"></i>
+                    <p>No personnel found. Import from CSV or add personnel first.</p>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
