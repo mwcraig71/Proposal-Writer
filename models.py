@@ -2,6 +2,27 @@ from datetime import datetime
 from database import db
 
 
+class ClientContact(db.Model):
+    __tablename__ = 'client_contacts'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), nullable=False)
+    agency = db.Column(db.String(255))
+    role = db.Column(db.String(255))
+    phone = db.Column(db.String(50))
+    email = db.Column(db.String(255))
+    physical_street = db.Column(db.String(255))
+    physical_city = db.Column(db.String(100))
+    physical_state = db.Column(db.String(50))
+    physical_zip = db.Column(db.String(20))
+    mailing_street = db.Column(db.String(255))
+    mailing_city = db.Column(db.String(100))
+    mailing_state = db.Column(db.String(50))
+    mailing_zip = db.Column(db.String(20))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class Firm(db.Model):
     __tablename__ = 'firms'
     

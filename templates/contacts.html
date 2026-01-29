@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Client Contacts - SF330 AI{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-8">
+    <div>
+        <h1 class="text-3xl font-bold text-gray-800">Client Contacts</h1>
+        <p class="text-gray-600">Manage client/owner contact information</p>
+    </div>
+    <a href="/contacts/add" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+        <i class="fas fa-plus mr-2"></i> Add Contact
+    </a>
+</div>
+
+{% if contacts %}
+<div class="bg-white rounded-lg shadow overflow-hidden">
+    <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+            <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Agency</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Phone</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+            {% for contact in contacts %}
+            <tr class="hover:bg-gray-50">
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <a href="/contacts/{{ contact.id }}" class="text-blue-600 hover:underline font-medium">{{ contact.name }}</a>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ contact.agency or '-' }}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ contact.role or '-' }}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ contact.phone or '-' }}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ contact.email or '-' }}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-right">
+                    <a href="/contacts/{{ contact.id }}" class="text-blue-600 hover:text-blue-800 mr-3">
+                        <i class="fas fa-edit"></i>
+                    </a>
+                    <button onclick="deleteContact({{ contact.id }})" class="text-red-600 hover:text-red-800">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="bg-white rounded-lg shadow p-8 text-center">
+    <i class="fas fa-address-book text-4xl text-gray-400 mb-4"></i>
+    <p class="text-gray-600 mb-4">No client contacts yet</p>
+    <a href="/contacts/add" class="text-blue-600 hover:underline">Add your first contact</a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function deleteContact(id) {
+    if (confirm('Are you sure you want to delete this contact?')) {
+        fetch(`/contacts/${id}/delete`, { method: 'POST' })
+            .then(() => location.reload());
+    }
+}
+</script>
+{% endblock %}

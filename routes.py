@@ -7,7 +7,8 @@ from database import db
 from models import (
     Firm, Employee, Project, EmployeeProjectLink, Proposal,
     ProposalSelectedEmployee, ProposalSelectedProject, ProposalEmployeeRelevantProject,
-    ProjectFirmInvolvement, EmployeeProjectExperience, ProjectAlternateDescription, AISettings
+    ProjectFirmInvolvement, EmployeeProjectExperience, ProjectAlternateDescription, AISettings,
+    ClientContact
 )
 from document_parser import extract_text_from_file
 from gemini_service import detect_document_type, parse_employee_resume, parse_project_sheet, parse_firm_info, find_matching_employee, combine_and_rewrite_text
@@ -1137,3 +1138,90 @@ def save_settings():
     
     flash('AI settings saved successfully!', 'success')
     return redirect(url_for('settings'))
+
+
+@app.route('/contacts')
+def contacts():
+    all_contacts = ClientContact.query.order_by(ClientContact.name).all()
+    return render_template('contacts.html', contacts=all_contacts)
+
+
+@app.route('/contacts/add', methods=['GET', 'POST'])
+def add_contact():
+    if request.method == 'GET':
+        return render_template('contact_form.html', contact=None)
+    
+    contact = ClientContact(
+        name=request.form.get('name'),
+        agency=request.form.get('agency'),
+        role=request.form.get('role'),
+        phone=request.form.get('phone'),
+        email=request.form.get('email'),
+        physical_street=request.form.get('physical_street'),
+        physical_city=request.form.get('physical_city'),
+        physical_state=request.form.get('physical_state'),
+        physical_zip=request.form.get('physical_zip'),
+        mailing_street=request.form.get('mailing_street'),
+        mailing_city=request.form.get('mailing_city'),
+        mailing_state=request.form.get('mailing_state'),
+        mailing_zip=request.form.get('mailing_zip')
+    )
+    db.session.add(contact)
+    db.session.commit()
+    flash('Contact added successfully!', 'success')
+    return redirect(url_for('contacts'))
+
+
+@app.route('/contacts/<int:id>', methods=['GET', 'POST'])
+def edit_contact(id):
+    contact = ClientContact.query.get_or_404(id)
+    
+    if request.method == 'GET':
+        return render_template('contact_form.html', contact=contact)
+    
+    contact.name = request.form.get('name')
+    contact.agency = request.form.get('agency')
+    contact.role = request.form.get('role')
+    contact.phone = request.form.get('phone')
+    contact.email = request.form.get('email')
+    contact.physical_street = request.form.get('physical_street')
+    contact.physical_city = request.form.get('physical_city')
+    contact.physical_state = request.form.get('physical_state')
+    contact.physical_zip = request.form.get('physical_zip')
+    contact.mailing_street = request.form.get('mailing_street')
+    contact.mailing_city = request.form.get('mailing_city')
+    contact.mailing_state = request.form.get('mailing_state')
+    contact.mailing_zip = request.form.get('mailing_zip')
+    
+    db.session.commit()
+    flash('Contact updated successfully!', 'success')
+    return redirect(url_for('contacts'))
+
+
+@app.route('/contacts/<int:id>/delete', methods=['POST'])
+def delete_contact(id):
+    contact = ClientContact.query.get_or_404(id)
+    db.session.delete(contact)
+    db.session.commit()
+    flash('Contact deleted successfully!', 'success')
+    return redirect(url_for('contacts'))
+
+
+@app.route('/api/contacts/search')
+def search_contacts():
+    query = request.args.get('q', '')
+    if len(query) < 2:
+        return jsonify([])
+    
+    contacts = ClientContact.query.filter(
+        ClientContact.name.ilike(f'%{query}%')
+    ).order_by(ClientContact.name).limit(10).all()
+    
+    return jsonify([{
+        'id': c.id,
+        'name': c.name,
+        'agency': c.agency or '',
+        'role': c.role or '',
+        'phone': c.phone or '',
+        'email': c.email or ''
+    } for c in contacts])

@@ -66,6 +66,11 @@ The AI parsing enforces consistent formats for personnel data:
 - **Other Qualifications:** Certifications, awards, publications - one per line
 
 ## Recent Changes
+- Added Client Contacts database with autocomplete in project page (Jan 2026)
+  - ClientContact model stores name, agency, role, phone, email, physical/mailing addresses
+  - Contacts page for managing client contacts (CRUD)
+  - Project page has autocomplete for owner contact - typing searches contacts
+  - Selecting a contact auto-fills owner name and phone fields
 - Added AI Settings admin page and custom rewrite instructions popup (Jan 2026)
   - Settings page (gear icon in nav) for global AI writing style and tone preferences
   - AISettings model stores key-value preferences in database

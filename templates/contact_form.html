@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}{% if contact %}Edit{% else %}Add{% endif %} Contact - SF330 AI{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <a href="/contacts" class="text-blue-600 hover:underline mb-4 inline-block">
+        <i class="fas fa-arrow-left mr-2"></i> Back to Contacts
+    </a>
+    <h1 class="text-3xl font-bold text-gray-800">{% if contact %}Edit{% else %}Add{% endif %} Client Contact</h1>
+</div>
+
+<form method="POST" class="max-w-3xl">
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Basic Information</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="md:col-span-2">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Contact Name *</label>
+                <input type="text" name="name" value="{{ contact.name if contact else '' }}" required class="w-full p-2 border rounded-lg">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Agency/Organization</label>
+                <input type="text" name="agency" value="{{ contact.agency if contact else '' }}" class="w-full p-2 border rounded-lg">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Role/Title</label>
+                <input type="text" name="role" value="{{ contact.role if contact else '' }}" class="w-full p-2 border rounded-lg">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                <input type="text" name="phone" value="{{ contact.phone if contact else '' }}" class="w-full p-2 border rounded-lg">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input type="email" name="email" value="{{ contact.email if contact else '' }}" class="w-full p-2 border rounded-lg">
+            </div>
+        </div>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Physical Address</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="md:col-span-2">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Street Address</label>
+                <input type="text" name="physical_street" value="{{ contact.physical_street if contact else '' }}" class="w-full p-2 border rounded-lg">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">City</label>
+                <input type="text" name="physical_city" value="{{ contact.physical_city if contact else '' }}" class="w-full p-2 border rounded-lg">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">State</label>
+                    <input type="text" name="physical_state" value="{{ contact.physical_state if contact else '' }}" class="w-full p-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">ZIP</label>
+                    <input type="text" name="physical_zip" value="{{ contact.physical_zip if contact else '' }}" class="w-full p-2 border rounded-lg">
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Mailing Address</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="md:col-span-2">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Street Address</label>
+                <input type="text" name="mailing_street" value="{{ contact.mailing_street if contact else '' }}" class="w-full p-2 border rounded-lg">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">City</label>
+                <input type="text" name="mailing_city" value="{{ contact.mailing_city if contact else '' }}" class="w-full p-2 border rounded-lg">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">State</label>
+                    <input type="text" name="mailing_state" value="{{ contact.mailing_state if contact else '' }}" class="w-full p-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">ZIP</label>
+                    <input type="text" name="mailing_zip" value="{{ contact.mailing_zip if contact else '' }}" class="w-full p-2 border rounded-lg">
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="flex justify-end space-x-4">
+        <a href="/contacts" class="px-6 py-2 border rounded-lg text-gray-700 hover:bg-gray-50">Cancel</a>
+        <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+            {% if contact %}Save Changes{% else %}Add Contact{% endif %}
+        </button>
+    </div>
+</form>
+{% endblock %}
