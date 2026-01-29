@@ -392,6 +392,43 @@ class ProposalSelectedFirmPhoto(db.Model):
     firm_photo = db.relationship('FirmPhoto')
 
 
+class MarketingPhoto(db.Model):
+    """Stores marketing photos with tags for filtering"""
+    __tablename__ = 'marketing_photos'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    filename = db.Column(db.String(500), nullable=False)
+    storage_path = db.Column(db.String(500), nullable=False)
+    caption = db.Column(db.String(500))
+    tags = db.Column(db.Text)  # Comma-separated tags like "#bridge,#inspection,#team"
+    file_size = db.Column(db.Integer)
+    content_type = db.Column(db.String(100))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def get_tags_list(self):
+        """Return tags as a list"""
+        if not self.tags:
+            return []
+        return [t.strip() for t in self.tags.split(',') if t.strip()]
+    
+    def set_tags_from_list(self, tags_list):
+        """Set tags from a list"""
+        self.tags = ','.join(tags_list) if tags_list else ''
+
+
+class ProposalSelectedMarketingPhoto(db.Model):
+    """Junction table for marketing photos selected for a proposal"""
+    __tablename__ = 'proposal_selected_marketing_photos'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    proposal_id = db.Column(db.Integer, db.ForeignKey('proposals.id'), nullable=False)
+    marketing_photo_id = db.Column(db.Integer, db.ForeignKey('marketing_photos.id'), nullable=False)
+    display_order = db.Column(db.Integer, default=0)
+    
+    proposal = db.relationship('Proposal', backref=db.backref('selected_marketing_photos', lazy=True, cascade='all, delete-orphan'))
+    marketing_photo = db.relationship('MarketingPhoto')
+
+
 class ProposalReference(db.Model):
     """Stores previous proposal documents uploaded as reference for AI-generated content"""
     __tablename__ = 'proposal_references'
