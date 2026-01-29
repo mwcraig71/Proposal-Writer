@@ -467,3 +467,260 @@ def combine_documents_as_zip(documents):
     
     buffer.seek(0)
     return buffer.getvalue()
+
+
+def generate_simple_sf330(proposal, employees_data, projects_data, firms_data, matrix_data):
+    """
+    Generate a simple Word document with all SF330 info (no template)
+    Returns: bytes of the Word document
+    """
+    from docx.shared import Inches, Pt
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.enum.style import WD_STYLE_TYPE
+    
+    doc = Document()
+    
+    # Set up styles
+    style = doc.styles['Normal']
+    style.font.name = 'Arial'
+    style.font.size = Pt(10)
+    
+    def add_heading(text, level=1):
+        h = doc.add_heading(text, level=level)
+        return h
+    
+    def add_field(label, value):
+        p = doc.add_paragraph()
+        p.add_run(f"{label}: ").bold = True
+        p.add_run(str(value) if value else "")
+        return p
+    
+    # Title
+    title = doc.add_heading('SF330 - ARCHITECT-ENGINEER QUALIFICATIONS', 0)
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    
+    # Part I - Contract-Specific Qualifications
+    add_heading('PART I - CONTRACT-SPECIFIC QUALIFICATIONS', 1)
+    
+    # Section A - Contract Information
+    add_heading('A. CONTRACT INFORMATION', 2)
+    add_field('1. Title and Location', f"{proposal.contract_title or ''}, {proposal.contract_location or ''}")
+    
+    if proposal.public_notice_date:
+        if hasattr(proposal.public_notice_date, 'strftime'):
+            notice_date = proposal.public_notice_date.strftime('%m/%d/%Y')
+        else:
+            notice_date = str(proposal.public_notice_date)
+    else:
+        notice_date = ""
+    add_field('2. Public Notice Date', notice_date)
+    add_field('3. Solicitation or Project Number', proposal.solicitation_number or '')
+    
+    # Section B - Point of Contact
+    add_heading('B. ARCHITECT-ENGINEER POINT OF CONTACT', 2)
+    if proposal.firm:
+        firm = proposal.firm
+        poc_name = getattr(firm, 'point_of_contact_name', '') or ''
+        poc_title = getattr(firm, 'point_of_contact_title', '') or ''
+        add_field('4. Name and Title', f"{poc_name}, {poc_title}" if poc_title else poc_name)
+        add_field('5. Name of Firm', firm.name or '')
+        add_field('6. Telephone Number', getattr(firm, 'phone', '') or '')
+        add_field('7. Fax Number', getattr(firm, 'fax', '') or '')
+        add_field('8. E-mail Address', getattr(firm, 'email', '') or '')
+    
+    # Section C - Proposed Team
+    add_heading('C. PROPOSED TEAM', 2)
+    if firms_data:
+        for idx, firm_info in enumerate(firms_data):
+            firm = firm_info.get('firm')
+            if firm:
+                role = firm_info.get('role', '')
+                loc = f"{firm.city}, {firm.state}" if firm.city else ""
+                p = doc.add_paragraph()
+                p.add_run(f"{chr(97+idx)}. ").bold = True
+                p.add_run(f"{firm.name} - {loc}")
+                if role:
+                    p.add_run(f" ({role})")
+    
+    # Section D - Org Chart placeholder
+    add_heading('D. ORGANIZATIONAL CHART OF PROPOSED TEAM', 2)
+    doc.add_paragraph('(Attach organizational chart)')
+    
+    # Section E - Resumes
+    add_heading('E. RESUMES OF KEY PERSONNEL PROPOSED FOR THIS CONTRACT', 2)
+    
+    for emp_data in employees_data:
+        emp = emp_data.get('employee')
+        if not emp:
+            continue
+        
+        doc.add_paragraph()
+        h = doc.add_heading(f"{emp.name}", 3)
+        
+        add_field('12. Name', emp.name)
+        add_field('13. Role in This Contract', emp_data.get('role', '') or getattr(emp, 'role', ''))
+        
+        firm_name = ""
+        if proposal.firm:
+            firm_loc = f"{proposal.firm.city}, {proposal.firm.state}" if proposal.firm.city else ""
+            firm_name = f"{proposal.firm.name}, {firm_loc}"
+        add_field('14. Years Experience: a. Total', getattr(emp, 'years_experience_total', ''))
+        add_field('14. Years Experience: b. With Current Firm', getattr(emp, 'years_experience_firm', ''))
+        add_field('15. Firm Name and Location', firm_name)
+        add_field('16. Education', getattr(emp, 'education', ''))
+        add_field('17. Current Professional Registration', getattr(emp, 'registrations', ''))
+        add_field('18. Other Professional Qualifications', getattr(emp, 'other_qualifications', ''))
+        
+        # Training
+        if getattr(emp, 'training', ''):
+            add_field('Training', emp.training)
+        
+        # Project Experience
+        doc.add_paragraph()
+        p = doc.add_paragraph()
+        p.add_run('19. RELEVANT PROJECTS').bold = True
+        
+        experiences = emp_data.get('experiences', [])
+        for exp_idx, exp in enumerate(experiences[:5]):
+            exp_p = doc.add_paragraph()
+            exp_p.add_run(f"({chr(97+exp_idx)}) ").bold = True
+            title = getattr(exp, 'project_title', '') or getattr(exp, 'title', '') or ''
+            location = getattr(exp, 'location', '') or ''
+            year = getattr(exp, 'year_completed', '') or ''
+            exp_p.add_run(f"{title}")
+            if location:
+                exp_p.add_run(f", {location}")
+            if year:
+                exp_p.add_run(f" ({year})")
+            
+            desc = getattr(exp, 'brief_description', '') or getattr(exp, 'description', '') or ''
+            role = getattr(exp, 'role_performed', '') or getattr(exp, 'role', '') or ''
+            if desc:
+                doc.add_paragraph(desc)
+            if role:
+                add_field('Role', role)
+        
+        doc.add_page_break()
+    
+    # Section F - Example Projects
+    add_heading('F. EXAMPLE PROJECTS WHICH BEST ILLUSTRATE PROPOSED TEAM\'S QUALIFICATIONS', 2)
+    
+    for idx, proj_data in enumerate(projects_data):
+        proj = proj_data.get('project')
+        if not proj:
+            continue
+        
+        doc.add_paragraph()
+        h = doc.add_heading(f"Project {idx + 1}: {proj.title}", 3)
+        
+        add_field('21. Title and Location', f"{proj.title}, {proj.location or ''}")
+        year = getattr(proj, 'year_completed_professional', '') or ''
+        add_field('22. Year Completed: Professional Services', year)
+        year_const = getattr(proj, 'year_completed_construction', '') or ''
+        if year_const:
+            add_field('22. Year Completed: Construction', year_const)
+        
+        add_field('23a. Project Owner', getattr(proj, 'owner_name', '') or '')
+        add_field('23b. Point of Contact Name', getattr(proj, 'owner_contact_name', '') or '')
+        add_field('23c. Point of Contact Telephone', getattr(proj, 'owner_contact_phone', '') or '')
+        
+        # Get description (alternate or main)
+        desc = proj_data.get('description') or getattr(proj, 'brief_description', '') or ''
+        add_field('24. Brief Description', '')
+        if desc:
+            doc.add_paragraph(desc)
+        
+        # Firms involved
+        if hasattr(proj, 'firm_involvements') and proj.firm_involvements:
+            doc.add_paragraph()
+            p = doc.add_paragraph()
+            p.add_run('25. Firms Involved:').bold = True
+            for fi in proj.firm_involvements:
+                if fi.firm:
+                    doc.add_paragraph(f"  - {fi.firm.name}: {fi.role or ''}")
+        
+        doc.add_page_break()
+    
+    # Section G - Key Personnel Participation Matrix
+    add_heading('G. KEY PERSONNEL PARTICIPATION IN EXAMPLE PROJECTS', 2)
+    
+    if employees_data and projects_data:
+        # Create table
+        num_cols = min(len(projects_data), 10) + 2  # Name, Role, + projects
+        table = doc.add_table(rows=1, cols=num_cols)
+        table.style = 'Table Grid'
+        
+        # Header row
+        hdr_cells = table.rows[0].cells
+        hdr_cells[0].text = 'Name'
+        hdr_cells[1].text = 'Role'
+        for idx, proj_data in enumerate(projects_data[:10]):
+            proj = proj_data.get('project')
+            if proj and idx + 2 < num_cols:
+                hdr_cells[idx + 2].text = str(idx + 1)
+        
+        # Data rows
+        for emp_data in employees_data:
+            emp = emp_data.get('employee')
+            if not emp:
+                continue
+            row = table.add_row().cells
+            row[0].text = emp.name or ''
+            row[1].text = emp_data.get('role', '') or ''
+            
+            # Check matrix for participation
+            for proj_idx, proj_data in enumerate(projects_data[:10]):
+                proj = proj_data.get('project')
+                if proj and proj_idx + 2 < num_cols:
+                    # Check if employee participated in this project
+                    key = (emp.id, proj.id)
+                    if matrix_data and key in matrix_data:
+                        row[proj_idx + 2].text = 'X'
+    
+    doc.add_page_break()
+    
+    # Section H - Additional Information
+    add_heading('H. ADDITIONAL INFORMATION', 2)
+    if proposal.section_h_narrative:
+        doc.add_paragraph(proposal.section_h_narrative)
+    else:
+        doc.add_paragraph('(No additional information provided)')
+    
+    # Section I - Authorized Representative
+    add_heading('I. AUTHORIZED REPRESENTATIVE', 2)
+    if proposal.firm:
+        poc_name = getattr(proposal.firm, 'point_of_contact_name', '') or ''
+        poc_title = getattr(proposal.firm, 'point_of_contact_title', '') or ''
+        add_field('Signature of Authorized Representative', '')
+        add_field('Name', poc_name)
+        add_field('Title', poc_title)
+        from datetime import datetime
+        add_field('Date', datetime.now().strftime('%m/%d/%Y'))
+    
+    doc.add_page_break()
+    
+    # Part II - General Qualifications
+    add_heading('PART II - GENERAL QUALIFICATIONS', 1)
+    
+    if proposal.firm:
+        firm = proposal.firm
+        add_field('2a. Firm Name', firm.name or '')
+        add_field('2b. Street Address', getattr(firm, 'street_address', '') or '')
+        add_field('2c. City', getattr(firm, 'city', '') or '')
+        add_field('2d. State', getattr(firm, 'state', '') or '')
+        add_field('2e. Zip Code', getattr(firm, 'zip_code', '') or '')
+        add_field('3. Year Established', getattr(firm, 'year_established', '') or '')
+        add_field('4. UEI Number', getattr(firm, 'uei', '') or '')
+        add_field('5a. Ownership Type', getattr(firm, 'ownership_type', '') or '')
+        
+        poc_name = getattr(firm, 'point_of_contact_name', '') or ''
+        poc_title = getattr(firm, 'point_of_contact_title', '') or ''
+        add_field('6a. Point of Contact Name and Title', f"{poc_name}, {poc_title}" if poc_title else poc_name)
+        add_field('6b. Telephone Number', getattr(firm, 'phone', '') or '')
+        add_field('6c. E-mail Address', getattr(firm, 'email', '') or '')
+    
+    # Save to buffer
+    buffer = io.BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    return buffer.getvalue()

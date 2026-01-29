@@ -1823,6 +1823,68 @@ def generate_proposal_word(id):
     )
 
 
+@app.route('/proposals/<int:id>/generate-word-simple')
+def generate_proposal_word_simple(id):
+    """Generate SF330 as simple Word document (no template)"""
+    from word_generator import generate_simple_sf330
+    
+    proposal = Proposal.query.get_or_404(id)
+    
+    selected_employees = ProposalSelectedEmployee.query.filter_by(proposal_id=id)\
+        .order_by(ProposalSelectedEmployee.display_order).all()
+    selected_projects = ProposalSelectedProject.query.filter_by(proposal_id=id)\
+        .order_by(ProposalSelectedProject.display_order).all()
+    
+    # Build employee project matrix
+    employee_project_matrix = {}
+    for pse in selected_employees:
+        if pse.employee:
+            for link in EmployeeProjectLink.query.filter_by(employee_id=pse.employee_id).all():
+                employee_project_matrix[(pse.employee_id, link.project_id)] = True
+    
+    # Build employees data with experiences
+    employees_data = []
+    for pse in selected_employees:
+        if pse.employee:
+            experiences = list(pse.employee.project_experiences) if pse.employee else []
+            employees_data.append({
+                'employee': pse.employee,
+                'role': pse.role_in_contract or pse.employee.role,
+                'experiences': experiences
+            })
+    
+    # Build projects data with descriptions
+    projects_data = []
+    for psp in selected_projects:
+        if psp.project:
+            # Get alternate description if selected
+            desc = psp.project.brief_description
+            if psp.alternate_description_id:
+                alt = ProjectAlternateDescription.query.get(psp.alternate_description_id)
+                if alt:
+                    desc = alt.description
+            projects_data.append({
+                'project': psp.project,
+                'description': desc
+            })
+    
+    # Build firms data
+    firms_data = [{'firm': proposal.firm, 'role': 'Prime'}] if proposal.firm else []
+    
+    # Generate document
+    doc_bytes = generate_simple_sf330(proposal, employees_data, projects_data, firms_data, employee_project_matrix)
+    
+    filename = f"SF330_{proposal.tracking_number or proposal.id}_{proposal.name or 'proposal'}_simple.docx"
+    filename = filename.replace(' ', '_').replace('/', '-')
+    
+    return send_file(
+        io.BytesIO(doc_bytes),
+        mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        as_attachment=True,
+        download_name=filename
+    )
+
+
 @app.route('/api/employees')
 def api_employees():
     employees = Employee.query.order_by(Employee.name).all()
