@@ -637,6 +637,34 @@ def firms():
     return render_template('firms.html', firms=firms)
 
 
+@app.route('/firms/scrape-website', methods=['POST'])
+def scrape_firm_website():
+    """Scrape a firm's website and extract company information using AI."""
+    data = request.get_json()
+    url = data.get('url', '').strip()
+    
+    if not url:
+        return jsonify({'error': 'Please provide a website URL'}), 400
+    
+    if not url.startswith(('http://', 'https://')):
+        url = 'https://' + url
+    
+    try:
+        from web_scraper import get_website_text_content
+        from gemini_service import parse_firm_website
+        
+        website_content = get_website_text_content(url)
+        
+        if not website_content:
+            return jsonify({'error': 'Could not fetch content from this website. The site may be unavailable or blocking access.'}), 400
+        
+        firm_data = parse_firm_website(website_content)
+        
+        return jsonify({'success': True, 'data': firm_data})
+    except Exception as e:
+        return jsonify({'error': f'Error processing website: {str(e)}'}), 500
+
+
 @app.route('/firms/add', methods=['GET', 'POST'])
 def add_firm():
     if request.method == 'POST':

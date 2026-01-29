@@ -380,3 +380,57 @@ def find_matching_employee(name: str) -> Optional[int]:
             return emp.id
     
     return None
+
+
+FIRM_WEBSITE_SCHEMA = {
+    "name": "string (company/firm name)",
+    "street_address": "string (street address if found)",
+    "city": "string (city)",
+    "state": "string (state abbreviation)",
+    "zip_code": "string (ZIP code)",
+    "country": "string (country, default USA)",
+    "phone": "string (phone number)",
+    "fax": "string (fax number if found)",
+    "email": "string (email address)",
+    "year_established": "integer (year founded/established)",
+    "ownership_type": "string (Corporation, Partnership, LLC, etc.)",
+    "is_small_business": "boolean (true if small business mentioned)",
+    "small_business_categories": "string (8(a), HUBZone, SDVOSB, WOSB, etc.)",
+    "point_of_contact_name": "string (primary contact person name)",
+    "point_of_contact_title": "string (primary contact title)"
+}
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    retry=retry_if_exception(is_rate_limit_error)
+)
+def parse_firm_website(website_content: str) -> dict:
+    """Parse scraped website content to extract firm information using Gemini AI."""
+    
+    prompt = f"""You are parsing a company/firm website to extract business information for a government form (SF330).
+
+Extract ONLY the information that is clearly present on the website. Do not make up or guess information.
+
+Website content:
+{website_content[:15000]}
+
+Extract the following fields if present (return null for missing fields):
+{json.dumps(FIRM_WEBSITE_SCHEMA, indent=2)}
+
+Return a valid JSON object with the extracted data. Use null for any field where information is not clearly stated on the website."""
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json"
+        )
+    )
+    
+    try:
+        result = json.loads(response.text)
+        return result
+    except json.JSONDecodeError:
+        return {}

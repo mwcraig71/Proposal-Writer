@@ -8,7 +8,22 @@
         <i class="fas fa-arrow-left mr-2"></i> Back to Firms
     </a>
     <h1 class="text-3xl font-bold text-gray-800">Add Firm</h1>
-    <p class="text-gray-600 mt-2">Enter firm information manually or upload a firm profile</p>
+    <p class="text-gray-600 mt-2">Enter firm information manually, scrape from website, or upload a firm profile</p>
+</div>
+
+<div class="bg-white rounded-lg shadow p-6 mb-6">
+    <h2 class="text-xl font-semibold text-gray-800 mb-4">
+        <i class="fas fa-globe text-purple-600 mr-2"></i> Import from Website
+    </h2>
+    <p class="text-gray-600 mb-4">Enter a firm's website URL and we'll automatically extract their information.</p>
+    
+    <div class="flex gap-3">
+        <input type="url" id="website_url" placeholder="https://www.example-firm.com" class="flex-1 p-2 border rounded-lg">
+        <button type="button" id="scrape_btn" onclick="scrapeFirmWebsite()" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition">
+            <i class="fas fa-download mr-2"></i> Fetch Info
+        </button>
+    </div>
+    <p id="scrape_status" class="mt-2 text-sm text-gray-500 hidden"></p>
 </div>
 
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -17,7 +32,7 @@
             <i class="fas fa-keyboard text-blue-600 mr-2"></i> Manual Entry
         </h2>
         
-        <form action="/firms/add" method="POST" class="space-y-4">
+        <form action="/firms/add" method="POST" class="space-y-4" id="firm_form">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="md:col-span-2">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Firm Name *</label>
@@ -130,4 +145,89 @@
         </div>
     </div>
 </div>
+
+<script>
+async function scrapeFirmWebsite() {
+    const urlInput = document.getElementById('website_url');
+    const statusEl = document.getElementById('scrape_status');
+    const btn = document.getElementById('scrape_btn');
+    const url = urlInput.value.trim();
+    
+    if (!url) {
+        statusEl.textContent = 'Please enter a website URL';
+        statusEl.className = 'mt-2 text-sm text-red-600';
+        statusEl.classList.remove('hidden');
+        return;
+    }
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Fetching...';
+    statusEl.textContent = 'Fetching and analyzing website content...';
+    statusEl.className = 'mt-2 text-sm text-blue-600';
+    statusEl.classList.remove('hidden');
+    
+    try {
+        const response = await fetch('/firms/scrape-website', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({url: url})
+        });
+        
+        const result = await response.json();
+        
+        if (result.error) {
+            statusEl.textContent = result.error;
+            statusEl.className = 'mt-2 text-sm text-red-600';
+        } else if (result.data) {
+            populateFirmForm(result.data);
+            statusEl.textContent = 'Information extracted successfully! Review and edit the fields below.';
+            statusEl.className = 'mt-2 text-sm text-green-600';
+        }
+    } catch (error) {
+        statusEl.textContent = 'Error fetching website. Please try again.';
+        statusEl.className = 'mt-2 text-sm text-red-600';
+    }
+    
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-download mr-2"></i> Fetch Info';
+}
+
+function populateFirmForm(data) {
+    const form = document.getElementById('firm_form');
+    
+    const fieldMapping = {
+        'name': 'name',
+        'street_address': 'street_address',
+        'city': 'city',
+        'state': 'state',
+        'zip_code': 'zip_code',
+        'country': 'country',
+        'phone': 'phone',
+        'fax': 'fax',
+        'email': 'email',
+        'year_established': 'year_established',
+        'ownership_type': 'ownership_type',
+        'small_business_categories': 'small_business_categories',
+        'point_of_contact_name': 'point_of_contact_name',
+        'point_of_contact_title': 'point_of_contact_title'
+    };
+    
+    for (const [dataKey, formField] of Object.entries(fieldMapping)) {
+        if (data[dataKey] && data[dataKey] !== null) {
+            const input = form.querySelector(`[name="${formField}"]`);
+            if (input) {
+                input.value = data[dataKey];
+                input.classList.add('bg-yellow-50');
+            }
+        }
+    }
+    
+    if (data.is_small_business === true) {
+        const checkbox = document.getElementById('is_small_business');
+        if (checkbox) {
+            checkbox.checked = true;
+        }
+    }
+}
+</script>
 {% endblock %}
