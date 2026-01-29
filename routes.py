@@ -1712,7 +1712,7 @@ def finalize_proposal(id):
 @app.route('/proposals/<int:id>/generate-word')
 def generate_proposal_word(id):
     """Generate SF330 as Word document"""
-    from word_generator import generate_section_a_c, generate_section_e, generate_section_f, generate_section_g, generate_section_h, generate_part_ii, combine_documents
+    from word_generator import generate_section_a_c, generate_section_e, generate_section_f, generate_section_g, generate_section_h, generate_part_ii, combine_documents_as_zip
     
     proposal = Proposal.query.get_or_404(id)
     
@@ -1810,14 +1810,14 @@ def generate_proposal_word(id):
         doc_ii.save(buffer)
         documents['part_ii'] = buffer.getvalue()
     
-    combined = combine_documents(documents)
+    zip_data = combine_documents_as_zip(documents)
     
-    filename = f"SF330_{proposal.tracking_number or proposal.id}_{proposal.name or 'proposal'}.docx"
+    filename = f"SF330_{proposal.tracking_number or proposal.id}_{proposal.name or 'proposal'}.zip"
     filename = filename.replace(' ', '_').replace('/', '-')
     
     return send_file(
-        io.BytesIO(combined),
-        mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        io.BytesIO(zip_data),
+        mimetype='application/zip',
         as_attachment=True,
         download_name=filename
     )

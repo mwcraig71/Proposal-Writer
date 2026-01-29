@@ -435,48 +435,35 @@ def generate_full_sf330_word(proposal, selected_employees, selected_projects, ma
     return documents
 
 
-def combine_documents(documents):
+def combine_documents_as_zip(documents):
     """
-    Combine multiple Word documents into one
-    Returns: bytes of combined document
+    Package multiple Word documents into a ZIP file
+    Returns: bytes of ZIP archive
     """
-    from docx.oxml.ns import qn
-    from docx.oxml import OxmlElement
-    
-    combined = Document()
-    
-    def add_page_break(doc):
-        doc.add_page_break()
-    
-    sections_order = ['section_a_c', 'section_e', 'section_f', 'section_g', 'section_h_i', 'part_ii']
-    
-    first = True
-    for section in sections_order:
-        if section not in documents:
-            continue
-            
-        data = documents[section]
-        
-        if isinstance(data, list):
-            # Multiple docs (Section E, F)
-            for item in data:
-                if not first:
-                    add_page_break(combined)
-                first = False
-                
-                sub_doc = Document(io.BytesIO(item['data']))
-                for element in sub_doc.element.body:
-                    combined.element.body.append(copy.deepcopy(element))
-        else:
-            # Single doc
-            if not first:
-                add_page_break(combined)
-            first = False
-            
-            sub_doc = Document(io.BytesIO(data))
-            for element in sub_doc.element.body:
-                combined.element.body.append(copy.deepcopy(element))
+    import zipfile
     
     buffer = io.BytesIO()
-    combined.save(buffer)
+    
+    with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+        sections_order = ['section_a_c', 'section_e', 'section_f', 'section_g', 'section_h_i', 'part_ii']
+        
+        for section in sections_order:
+            if section not in documents:
+                continue
+                
+            data = documents[section]
+            
+            if isinstance(data, list):
+                # Multiple docs (Section E, F)
+                for idx, item in enumerate(data, 1):
+                    name = item.get('name', f'item_{idx}')
+                    # Sanitize filename
+                    safe_name = "".join(c for c in name if c.isalnum() or c in (' ', '-', '_')).strip()[:50]
+                    filename = f"{section}_{idx:02d}_{safe_name}.docx"
+                    zf.writestr(filename, item['data'])
+            else:
+                # Single doc
+                zf.writestr(f"{section}.docx", data)
+    
+    buffer.seek(0)
     return buffer.getvalue()

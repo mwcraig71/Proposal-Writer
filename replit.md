@@ -72,7 +72,7 @@ The AI parsing enforces consistent formats for personnel data:
   - word_generator.py module fills Word templates with proposal data
   - Templates stored in templates/sf330_word/ for each section (A/C, E, F, G, H/I, Part II)
   - Section E generates one page per employee, Section F one per project
-  - Combined document download from proposals list (blue Word icon)
+  - Downloads as ZIP file containing individual Word documents per section
   - Uses python-docx library for Word manipulation
 - Added win theme and intelligence document uploads (Jan 2026)
   - win_theme field on Proposal for key messaging and strategy
