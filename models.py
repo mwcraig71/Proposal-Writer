@@ -206,6 +206,7 @@ class Proposal(db.Model):
     rfp_filename = db.Column(db.String(500))
     rfp_content = db.Column(db.LargeBinary)
     rfp_text = db.Column(db.Text)
+    win_theme = db.Column(db.Text)  # Key messages and strategy for winning
     cover_letter = db.Column(db.Text)
     written_sections = db.Column(db.Text)
     status = db.Column(db.String(50), default='draft')
@@ -443,3 +444,20 @@ class ProposalReference(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     proposal = db.relationship('Proposal', backref=db.backref('reference_documents', lazy=True, cascade='all, delete-orphan'))
+
+
+class ProposalIntelligence(db.Model):
+    """Stores intelligence documents (competitor info, client background, etc.) for proposal writing"""
+    __tablename__ = 'proposal_intelligence'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    proposal_id = db.Column(db.Integer, db.ForeignKey('proposals.id'), nullable=False)
+    filename = db.Column(db.String(500), nullable=False)
+    file_content = db.Column(db.LargeBinary)
+    extracted_text = db.Column(db.Text)
+    description = db.Column(db.String(500))  # Brief description of what this document contains
+    file_size = db.Column(db.Integer)
+    content_type = db.Column(db.String(100))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    proposal = db.relationship('Proposal', backref=db.backref('intelligence_documents', lazy=True, cascade='all, delete-orphan'))
