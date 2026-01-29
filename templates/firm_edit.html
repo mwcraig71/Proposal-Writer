@@ -290,8 +290,8 @@ async function loadFirmPhotos() {
         
         container.innerHTML = photos.map(photo => `
             <div class="relative group ${photo.is_primary ? 'ring-2 ring-green-500 rounded-lg' : ''}">
-                <a href="/storage/${photo.storage_path}" target="_blank">
-                    <img src="/storage/${photo.storage_path}" alt="${photo.caption || photo.filename}" 
+                <a href="${photo.url}" target="_blank">
+                    <img src="${photo.url}" alt="${photo.caption || photo.filename}" 
                          class="w-full h-24 object-cover rounded-lg cursor-pointer hover:opacity-90">
                 </a>
                 ${photo.is_primary ? '<span class="absolute top-1 left-1 bg-green-500 text-white text-xs px-1 rounded"><i class="fas fa-star"></i></span>' : ''}

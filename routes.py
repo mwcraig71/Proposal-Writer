@@ -2701,15 +2701,35 @@ def set_firm_primary_photo(id, photo_id):
 @app.route('/api/firms/<int:id>/photos')
 def get_firm_photos(id):
     """Get all photos for a firm"""
-    from models import FirmPhoto
     photos = FirmPhoto.query.filter_by(firm_id=id).order_by(FirmPhoto.is_primary.desc(), FirmPhoto.created_at.desc()).all()
     return jsonify([{
         'id': p.id,
         'filename': p.filename,
-        'storage_path': p.storage_path,
+        'url': f'/photos/firm/{p.id}',
         'caption': p.caption,
         'is_primary': p.is_primary
     } for p in photos])
+
+
+@app.route('/photos/firm/<int:photo_id>')
+def serve_firm_photo(photo_id):
+    """Serve a firm photo from object storage"""
+    photo = FirmPhoto.query.get_or_404(photo_id)
+    
+    client = get_storage_client()
+    if not client:
+        return "Storage not configured", 500
+    
+    try:
+        data = client.download_as_bytes(photo.storage_path)
+        return send_file(
+            io.BytesIO(data),
+            mimetype=photo.content_type or 'image/jpeg',
+            download_name=photo.filename
+        )
+    except Exception as e:
+        print(f"Error serving firm photo: {e}")
+        return "Photo not found", 404
 
 
 # Marketing Photos Routes
@@ -2801,10 +2821,30 @@ def upload_marketing_photo():
     return redirect(url_for('marketing_photos'))
 
 
+@app.route('/photos/marketing/<int:photo_id>')
+def serve_marketing_photo(photo_id):
+    """Serve a marketing photo from object storage"""
+    photo = MarketingPhoto.query.get_or_404(photo_id)
+    
+    client = get_storage_client()
+    if not client:
+        return "Storage not configured", 500
+    
+    try:
+        data = client.download_as_bytes(photo.storage_path)
+        return send_file(
+            io.BytesIO(data),
+            mimetype=photo.content_type or 'image/jpeg',
+            download_name=photo.filename
+        )
+    except Exception as e:
+        print(f"Error serving marketing photo: {e}")
+        return "Photo not found", 404
+
+
 @app.route('/marketing-photos/<int:id>', methods=['DELETE'])
 def delete_marketing_photo(id):
     """Delete a marketing photo"""
-    from models import MarketingPhoto
     photo = MarketingPhoto.query.get_or_404(id)
     
     client = get_storage_client()
@@ -2859,7 +2899,7 @@ def get_marketing_photos_api():
     return jsonify([{
         'id': p.id,
         'filename': p.filename,
-        'storage_path': p.storage_path,
+        'url': f'/photos/marketing/{p.id}',
         'caption': p.caption,
         'tags': p.get_tags_list()
     } for p in photos])

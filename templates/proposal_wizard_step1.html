@@ -369,7 +369,7 @@ async function loadFirmPhotos(firmId) {
         container.innerHTML = photos.map(photo => `
             <div class="photo-item cursor-pointer relative ${selectedFirmPhotos.includes(photo.id) ? 'ring-2 ring-blue-500' : ''}" 
                  onclick="togglePhotoSelection(${photo.id})" data-photo-id="${photo.id}">
-                <img src="/storage/${photo.storage_path}" alt="${photo.caption || photo.filename}" 
+                <img src="${photo.url}" alt="${photo.caption || photo.filename}" 
                      class="w-full h-16 object-cover rounded">
                 <div class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-0 hover:bg-opacity-20 transition">
                     ${selectedFirmPhotos.includes(photo.id) ? '<i class="fas fa-check-circle text-blue-500 text-lg"></i>' : ''}
@@ -485,7 +485,7 @@ function filterAndDisplayMarketingPhotos() {
     container.innerHTML = filtered.map(photo => `
         <div class="marketing-photo-item cursor-pointer relative ${selectedMarketingPhotos.includes(photo.id) ? 'ring-2 ring-green-500' : ''}" 
              onclick="toggleMarketingPhotoSelection(${photo.id})" data-marketing-photo-id="${photo.id}">
-            <img src="/storage/${photo.storage_path}" alt="${photo.caption || photo.filename}" 
+            <img src="${photo.url}" alt="${photo.caption || photo.filename}" 
                  class="w-full h-16 object-cover rounded" title="${photo.caption || ''}\n${photo.tags.join(', ')}">
             <div class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-0 hover:bg-opacity-20 transition">
                 ${selectedMarketingPhotos.includes(photo.id) ? '<i class="fas fa-check-circle text-green-500 text-lg"></i>' : ''}
