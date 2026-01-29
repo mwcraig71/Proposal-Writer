@@ -164,10 +164,9 @@
                 <i class="fas fa-external-link-alt mr-1"></i>Manage All
             </a>
         </div>
-        {% set certs = employee.certifications[:5] %}
-        {% if certs %}
+        {% if employee.certifications %}
         <ul class="space-y-2">
-            {% for cert in certs %}
+            {% for cert in employee.certifications %}
             <li class="flex justify-between items-center text-sm">
                 <span>
                     {{ cert.name }}{% if cert.state %} ({{ cert.state }}){% endif %}
@@ -180,9 +179,6 @@
                 {% endif %}
             </li>
             {% endfor %}
-            {% if employee.certifications|length > 5 %}
-            <li class="text-sm text-gray-500">+ {{ employee.certifications|length - 5 }} more...</li>
-            {% endif %}
         </ul>
         {% else %}
         <p class="text-gray-500">No certifications recorded.</p>
