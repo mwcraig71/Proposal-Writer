@@ -692,8 +692,9 @@ def generate_simple_sf330(proposal, employees_data, projects_data, firms_data, m
     
     # Section H - Additional Information
     add_heading('H. ADDITIONAL INFORMATION', 2)
-    if proposal.section_h_narrative:
-        doc.add_paragraph(proposal.section_h_narrative)
+    written_sections = getattr(proposal, 'written_sections', '') or ''
+    if written_sections:
+        doc.add_paragraph(written_sections)
     else:
         doc.add_paragraph('(No additional information provided)')
     
