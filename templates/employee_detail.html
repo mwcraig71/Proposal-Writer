@@ -115,12 +115,13 @@
                             </button>
                             <button class="edit-exp-btn text-blue-600 hover:text-blue-800" title="Edit"
                                 data-exp-id="{{ exp.id }}"
-                                data-title="{{ exp.title or '' }}"
+                                data-title="{{ exp.project_title or '' }}"
                                 data-location="{{ exp.location or '' }}"
                                 data-year="{{ exp.year_completed or '' }}"
                                 data-cost="{{ exp.project_cost or '' }}"
                                 data-owner="{{ exp.owner_name or '' }}"
-                                data-role="{{ exp.role_description or '' }}"
+                                data-role="{{ exp.role_performed or '' }}"
+                                data-description="{{ exp.brief_description or '' }}"
                                 data-firm="{{ exp.firm_name or '' }}">
                                 <i class="fas fa-edit"></i>
                             </button>
@@ -328,7 +329,7 @@ function editExperience(id, exp) {
     document.getElementById('exp-owner-name').value = exp.owner || '';
     document.getElementById('exp-role-performed').value = exp.role || '';
     document.getElementById('exp-firm-name').value = exp.firm || '';
-    document.getElementById('exp-brief-description').value = exp.role || '';
+    document.getElementById('exp-brief-description').value = exp.description || '';
     document.getElementById('experience-modal').classList.remove('hidden');
 }
 
@@ -341,6 +342,7 @@ document.querySelectorAll('.edit-exp-btn').forEach(btn => {
             cost: this.dataset.cost,
             owner: this.dataset.owner,
             role: this.dataset.role,
+            description: this.dataset.description,
             firm: this.dataset.firm
         };
         editExperience(this.dataset.expId, exp);
