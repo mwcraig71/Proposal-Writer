@@ -8,7 +8,7 @@ from models import (
     Firm, Employee, Project, EmployeeProjectLink, Proposal,
     ProposalSelectedEmployee, ProposalSelectedProject, ProposalEmployeeRelevantProject,
     ProjectFirmInvolvement, EmployeeProjectExperience, ProjectAlternateDescription, AISettings,
-    ClientContact
+    ClientContact, ExperienceAlternateDescription
 )
 from document_parser import extract_text_from_file
 from gemini_service import detect_document_type, parse_employee_resume, parse_project_sheet, parse_firm_info, find_matching_employee, combine_and_rewrite_text
@@ -238,7 +238,8 @@ def employee_detail(id):
     projects = Project.query.join(EmployeeProjectLink).filter(EmployeeProjectLink.employee_id == id).all()
     project_experiences = EmployeeProjectExperience.query.filter_by(employee_id=id).order_by(EmployeeProjectExperience.year_completed.desc()).all()
     firms = Firm.query.all()
-    return render_template('employee_detail.html', employee=employee, projects=projects, project_experiences=project_experiences, firms=firms)
+    employees = [{'id': e.id, 'name': e.name} for e in Employee.query.order_by(Employee.name).all()]
+    return render_template('employee_detail.html', employee=employee, projects=projects, project_experiences=project_experiences, firms=firms, employees=employees)
 
 
 @app.route('/employees/<int:id>', methods=['PUT'])
@@ -308,6 +309,147 @@ def delete_project_experience(id, exp_id):
     db.session.delete(exp)
     db.session.commit()
     return jsonify({'success': True})
+
+
+@app.route('/api/experience/<int:exp_id>/alternate-descriptions', methods=['GET'])
+def get_experience_alternate_descriptions(exp_id):
+    """Get all alternate descriptions for an experience"""
+    exp = EmployeeProjectExperience.query.get_or_404(exp_id)
+    return jsonify([{
+        'id': d.id,
+        'label': d.label,
+        'description': d.description
+    } for d in exp.alternate_descriptions])
+
+
+@app.route('/api/experience/<int:exp_id>/alternate-descriptions', methods=['POST'])
+def add_experience_alternate_description(exp_id):
+    """Add an alternate description to an experience"""
+    exp = EmployeeProjectExperience.query.get_or_404(exp_id)
+    data = request.json
+    
+    alt = ExperienceAlternateDescription(
+        experience_id=exp_id,
+        label=data.get('label', 'Version'),
+        description=data.get('description', '')
+    )
+    db.session.add(alt)
+    db.session.commit()
+    return jsonify({'success': True, 'id': alt.id})
+
+
+@app.route('/api/experience/alternate-descriptions/<int:alt_id>', methods=['PUT'])
+def update_experience_alternate_description(alt_id):
+    """Update an alternate description"""
+    alt = ExperienceAlternateDescription.query.get_or_404(alt_id)
+    data = request.json
+    alt.label = data.get('label', alt.label)
+    alt.description = data.get('description', alt.description)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/api/experience/alternate-descriptions/<int:alt_id>', methods=['DELETE'])
+def delete_experience_alternate_description(alt_id):
+    """Delete an alternate description"""
+    alt = ExperienceAlternateDescription.query.get_or_404(alt_id)
+    db.session.delete(alt)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/api/projects/search')
+def search_projects():
+    """Search projects by title for autocomplete"""
+    query = request.args.get('q', '')
+    if len(query) < 2:
+        return jsonify([])
+    
+    projects = Project.query.filter(
+        Project.title.ilike(f'%{query}%')
+    ).order_by(Project.title).limit(10).all()
+    
+    return jsonify([{
+        'id': p.id,
+        'title': p.title,
+        'location': p.location or '',
+        'year_completed': p.year_completed_professional or '',
+        'project_cost': p.project_cost or '',
+        'owner_name': p.owner_name or ''
+    } for p in projects])
+
+
+@app.route('/api/experience/<int:exp_id>/copy-to-employees', methods=['POST'])
+def copy_experience_to_employees(exp_id):
+    """Copy a project experience to other employees"""
+    exp = EmployeeProjectExperience.query.get_or_404(exp_id)
+    data = request.json
+    employee_ids = data.get('employee_ids', [])
+    
+    copied_count = 0
+    for emp_id in employee_ids:
+        if emp_id != exp.employee_id:
+            existing = EmployeeProjectExperience.query.filter_by(
+                employee_id=emp_id,
+                project_title=exp.project_title
+            ).first()
+            if not existing:
+                new_exp = EmployeeProjectExperience(
+                    employee_id=emp_id,
+                    project_title=exp.project_title,
+                    location=exp.location,
+                    owner_name=exp.owner_name,
+                    project_cost=exp.project_cost,
+                    year_completed=exp.year_completed,
+                    role_performed=exp.role_performed,
+                    brief_description=exp.brief_description,
+                    firm_name=exp.firm_name,
+                    is_current_firm=exp.is_current_firm
+                )
+                db.session.add(new_exp)
+                copied_count += 1
+    
+    db.session.commit()
+    return jsonify({'success': True, 'copied_count': copied_count})
+
+
+@app.route('/api/experience/<int:exp_id>/add-to-projects', methods=['POST'])
+def add_experience_to_projects(exp_id):
+    """Add a resume project experience to the main projects database"""
+    exp = EmployeeProjectExperience.query.get_or_404(exp_id)
+    
+    existing = Project.query.filter_by(title=exp.project_title).first()
+    if existing:
+        return jsonify({'success': False, 'error': 'A project with this title already exists', 'project_id': existing.id})
+    
+    project = Project(
+        title=exp.project_title,
+        location=exp.location,
+        year_completed_professional=exp.year_completed,
+        project_cost=exp.project_cost,
+        owner_name=exp.owner_name,
+        brief_description=exp.brief_description
+    )
+    db.session.add(project)
+    db.session.commit()
+    
+    return jsonify({'success': True, 'project_id': project.id})
+
+
+@app.route('/api/experience/rewrite-description', methods=['POST'])
+def rewrite_experience_description():
+    """AI rewrite of experience description using global settings and custom instructions"""
+    data = request.json
+    custom_instructions = data.get('custom_instructions', '')
+    description_text = data.get('description', '')
+    
+    if not description_text:
+        return jsonify({'error': 'No description to rewrite'}), 400
+    
+    from gemini_service import rewrite_description
+    rewritten = rewrite_description(description_text, custom_instructions)
+    
+    return jsonify({'success': True, 'rewritten': rewritten})
 
 
 @app.route('/employees/<int:id>', methods=['DELETE'])

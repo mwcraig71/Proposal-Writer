@@ -93,6 +93,20 @@ class EmployeeProjectExperience(db.Model):
     employee = db.relationship('Employee', backref=db.backref('project_experiences', lazy=True, cascade='all, delete-orphan'))
 
 
+class ExperienceAlternateDescription(db.Model):
+    """Stores alternate brief descriptions for employee project experience (Section E resume projects)"""
+    __tablename__ = 'experience_alternate_descriptions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    experience_id = db.Column(db.Integer, db.ForeignKey('employee_project_experiences.id'), nullable=False)
+    label = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    experience = db.relationship('EmployeeProjectExperience', backref=db.backref('alternate_descriptions', lazy=True, cascade='all, delete-orphan'))
+
+
 class Project(db.Model):
     __tablename__ = 'projects'
     

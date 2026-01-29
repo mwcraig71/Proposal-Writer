@@ -104,10 +104,19 @@
                             {% if exp.brief_description %}<p class="text-sm text-gray-600 mt-2">{{ exp.brief_description[:200] }}{% if exp.brief_description|length > 200 %}...{% endif %}</p>{% endif %}
                         </div>
                         <div class="flex space-x-2 ml-4">
-                            <button onclick="editExperience({{ exp.id }}, {{ exp|tojson|safe }})" class="text-blue-600 hover:text-blue-800">
+                            <button onclick="showAltDescModal({{ exp.id }})" class="text-purple-600 hover:text-purple-800" title="Alternate Descriptions">
+                                <i class="fas fa-list-alt"></i>
+                            </button>
+                            <button onclick="showCopyModal({{ exp.id }})" class="text-green-600 hover:text-green-800" title="Copy to Other Employees">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                            <button onclick="addToProjects({{ exp.id }})" class="text-orange-600 hover:text-orange-800" title="Add to Projects Database">
+                                <i class="fas fa-database"></i>
+                            </button>
+                            <button onclick="editExperience({{ exp.id }}, {{ exp|tojson|safe }})" class="text-blue-600 hover:text-blue-800" title="Edit">
                                 <i class="fas fa-edit"></i>
                             </button>
-                            <button onclick="deleteExperience({{ exp.id }})" class="text-red-600 hover:text-red-800">
+                            <button onclick="deleteExperience({{ exp.id }})" class="text-red-600 hover:text-red-800" title="Delete">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
@@ -153,10 +162,13 @@
             </div>
             <form id="experience-form" class="space-y-4">
                 <input type="hidden" id="exp-id" value="">
+                <input type="hidden" id="exp-linked-project-id" value="">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="md:col-span-2">
+                    <div class="md:col-span-2 relative">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Project Title *</label>
-                        <input type="text" id="exp-project-title" required class="w-full p-2 border rounded-lg">
+                        <input type="text" id="exp-project-title" required class="w-full p-2 border rounded-lg" autocomplete="off">
+                        <div id="project-autocomplete" class="absolute z-10 w-full bg-white border rounded-lg shadow-lg hidden max-h-48 overflow-y-auto"></div>
+                        <p class="text-xs text-gray-500 mt-1">Type to search existing projects or enter new</p>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Location</label>
@@ -170,9 +182,10 @@
                         <label class="block text-sm font-medium text-gray-700 mb-1">Project Cost</label>
                         <input type="text" id="exp-project-cost" class="w-full p-2 border rounded-lg" placeholder="e.g., $5,000,000">
                     </div>
-                    <div>
+                    <div class="relative">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Owner/Client</label>
-                        <input type="text" id="exp-owner-name" class="w-full p-2 border rounded-lg">
+                        <input type="text" id="exp-owner-name" class="w-full p-2 border rounded-lg" autocomplete="off">
+                        <div id="owner-autocomplete" class="absolute z-10 w-full bg-white border rounded-lg shadow-lg hidden max-h-48 overflow-y-auto"></div>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Role Performed</label>
@@ -184,7 +197,12 @@
                     </div>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Brief Description</label>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="block text-sm font-medium text-gray-700">Brief Description</label>
+                        <button type="button" onclick="showRewriteModal()" class="text-xs text-purple-600 hover:text-purple-800">
+                            <i class="fas fa-magic mr-1"></i> AI Rewrite
+                        </button>
+                    </div>
                     <textarea id="exp-brief-description" rows="3" class="w-full p-2 border rounded-lg" placeholder="Description of the project and their specific contribution"></textarea>
                 </div>
                 <div class="flex justify-end space-x-3 pt-4">
@@ -196,20 +214,75 @@
     </div>
 </div>
 
+<div id="rewrite-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4">
+        <div class="p-6">
+            <h3 class="text-xl font-semibold mb-4">AI Rewrite Description</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Custom Instructions (Optional)</label>
+                    <textarea id="rewrite-instructions" rows="3" class="w-full p-2 border rounded-lg" placeholder="e.g., Make it more technical, focus on bridge inspection..."></textarea>
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button type="button" onclick="closeRewriteModal()" class="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-50">Cancel</button>
+                    <button type="button" onclick="doAIRewrite()" id="rewrite-btn" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                        <i class="fas fa-magic mr-1"></i> Rewrite
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="copy-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[80vh] overflow-y-auto">
+        <div class="p-6">
+            <h3 class="text-xl font-semibold mb-4">Copy to Other Employees</h3>
+            <p class="text-sm text-gray-600 mb-4">Select employees to copy this project experience to:</p>
+            <input type="hidden" id="copy-exp-id" value="">
+            <div id="employee-list" class="space-y-2 max-h-64 overflow-y-auto border rounded-lg p-2">
+            </div>
+            <div class="flex justify-end space-x-3 mt-4">
+                <button type="button" onclick="closeCopyModal()" class="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-50">Cancel</button>
+                <button type="button" onclick="doCopyToEmployees()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                    <i class="fas fa-copy mr-1"></i> Copy
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="alt-desc-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+        <div class="p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold">Alternate Descriptions</h3>
+                <button onclick="closeAltDescModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <input type="hidden" id="alt-exp-id" value="">
+            <div id="alt-descriptions-list" class="space-y-4 mb-4"></div>
+            <button type="button" onclick="addAltDescription()" class="w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-blue-500 hover:text-blue-500">
+                <i class="fas fa-plus mr-1"></i> Add Alternate Description
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
+const allEmployees = {{ employees|tojson|safe if employees else '[]' }};
+
 document.getElementById('employee-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    
     const formData = new FormData(e.target);
     const data = Object.fromEntries(formData.entries());
-    
     try {
         const response = await fetch('/employees/{{ employee.id }}', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
-        
         const result = await response.json();
         if (result.success) {
             alert('Changes saved successfully!');
@@ -224,6 +297,7 @@ document.getElementById('employee-form').addEventListener('submit', async (e) =>
 function showAddExperienceModal() {
     document.getElementById('modal-title').textContent = 'Add Project Experience';
     document.getElementById('exp-id').value = '';
+    document.getElementById('exp-linked-project-id').value = '';
     document.getElementById('exp-project-title').value = '';
     document.getElementById('exp-location').value = '';
     document.getElementById('exp-year-completed').value = '';
@@ -238,6 +312,7 @@ function showAddExperienceModal() {
 function editExperience(id, exp) {
     document.getElementById('modal-title').textContent = 'Edit Project Experience';
     document.getElementById('exp-id').value = id;
+    document.getElementById('exp-linked-project-id').value = '';
     document.getElementById('exp-project-title').value = exp.project_title || '';
     document.getElementById('exp-location').value = exp.location || '';
     document.getElementById('exp-year-completed').value = exp.year_completed || '';
@@ -253,9 +328,311 @@ function closeModal() {
     document.getElementById('experience-modal').classList.add('hidden');
 }
 
+let projectSearchTimeout;
+document.getElementById('exp-project-title').addEventListener('input', async (e) => {
+    clearTimeout(projectSearchTimeout);
+    const query = e.target.value;
+    const dropdown = document.getElementById('project-autocomplete');
+    
+    if (query.length < 2) {
+        dropdown.classList.add('hidden');
+        return;
+    }
+    
+    projectSearchTimeout = setTimeout(async () => {
+        const response = await fetch(`/api/projects/search?q=${encodeURIComponent(query)}`);
+        const projects = await response.json();
+        
+        if (projects.length > 0) {
+            dropdown.innerHTML = projects.map(p => `
+                <div class="p-2 hover:bg-blue-50 cursor-pointer border-b" onclick="selectProject(${JSON.stringify(p).replace(/"/g, '&quot;')})">
+                    <div class="font-medium">${p.title}</div>
+                    <div class="text-xs text-gray-500">${p.location || ''} ${p.year_completed ? '(' + p.year_completed + ')' : ''}</div>
+                </div>
+            `).join('');
+            dropdown.classList.remove('hidden');
+        } else {
+            dropdown.classList.add('hidden');
+        }
+    }, 300);
+});
+
+function selectProject(project) {
+    document.getElementById('exp-project-title').value = project.title;
+    document.getElementById('exp-linked-project-id').value = project.id;
+    document.getElementById('exp-location').value = project.location || '';
+    document.getElementById('exp-year-completed').value = project.year_completed || '';
+    document.getElementById('exp-project-cost').value = project.project_cost || '';
+    document.getElementById('exp-owner-name').value = project.owner_name || '';
+    document.getElementById('project-autocomplete').classList.add('hidden');
+}
+
+let ownerSearchTimeout;
+document.getElementById('exp-owner-name').addEventListener('input', async (e) => {
+    clearTimeout(ownerSearchTimeout);
+    const query = e.target.value;
+    const dropdown = document.getElementById('owner-autocomplete');
+    
+    if (query.length < 2) {
+        dropdown.classList.add('hidden');
+        return;
+    }
+    
+    ownerSearchTimeout = setTimeout(async () => {
+        const response = await fetch(`/api/contacts/search?q=${encodeURIComponent(query)}`);
+        const contacts = await response.json();
+        
+        if (contacts.length > 0) {
+            dropdown.innerHTML = contacts.map(c => `
+                <div class="p-2 hover:bg-blue-50 cursor-pointer border-b" onclick="selectOwner('${c.name.replace(/'/g, "\\'")}')">
+                    <div class="font-medium">${c.name}</div>
+                    <div class="text-xs text-gray-500">${c.agency || ''}</div>
+                </div>
+            `).join('');
+            dropdown.classList.remove('hidden');
+        } else {
+            dropdown.classList.add('hidden');
+        }
+    }, 300);
+});
+
+function selectOwner(name) {
+    document.getElementById('exp-owner-name').value = name;
+    document.getElementById('owner-autocomplete').classList.add('hidden');
+}
+
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('#exp-project-title') && !e.target.closest('#project-autocomplete')) {
+        document.getElementById('project-autocomplete').classList.add('hidden');
+    }
+    if (!e.target.closest('#exp-owner-name') && !e.target.closest('#owner-autocomplete')) {
+        document.getElementById('owner-autocomplete').classList.add('hidden');
+    }
+});
+
+function showRewriteModal() {
+    document.getElementById('rewrite-instructions').value = '';
+    document.getElementById('rewrite-modal').classList.remove('hidden');
+}
+
+function closeRewriteModal() {
+    document.getElementById('rewrite-modal').classList.add('hidden');
+}
+
+async function doAIRewrite() {
+    const description = document.getElementById('exp-brief-description').value;
+    const instructions = document.getElementById('rewrite-instructions').value;
+    const btn = document.getElementById('rewrite-btn');
+    
+    if (!description) {
+        alert('Please enter a description first');
+        return;
+    }
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Rewriting...';
+    
+    try {
+        const response = await fetch('/api/experience/rewrite-description', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ description, custom_instructions: instructions })
+        });
+        const result = await response.json();
+        if (result.rewritten) {
+            document.getElementById('exp-brief-description').value = result.rewritten;
+            closeRewriteModal();
+        } else {
+            alert(result.error || 'Error rewriting');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+    
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-magic mr-1"></i> Rewrite';
+}
+
+function showCopyModal(expId) {
+    document.getElementById('copy-exp-id').value = expId;
+    const list = document.getElementById('employee-list');
+    list.innerHTML = allEmployees
+        .filter(e => e.id !== {{ employee.id }})
+        .map(e => `
+            <label class="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer">
+                <input type="checkbox" value="${e.id}" class="mr-3 emp-checkbox">
+                <span>${e.name}</span>
+            </label>
+        `).join('');
+    document.getElementById('copy-modal').classList.remove('hidden');
+}
+
+function closeCopyModal() {
+    document.getElementById('copy-modal').classList.add('hidden');
+}
+
+async function doCopyToEmployees() {
+    const expId = document.getElementById('copy-exp-id').value;
+    const checkboxes = document.querySelectorAll('.emp-checkbox:checked');
+    const employeeIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+    
+    if (employeeIds.length === 0) {
+        alert('Please select at least one employee');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/experience/${expId}/copy-to-employees`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ employee_ids: employeeIds })
+        });
+        const result = await response.json();
+        if (result.success) {
+            alert(`Copied to ${result.copied_count} employee(s)`);
+            closeCopyModal();
+        } else {
+            alert('Error copying');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+async function addToProjects(expId) {
+    if (!confirm('Add this project experience to the main Projects database?')) return;
+    
+    try {
+        const response = await fetch(`/api/experience/${expId}/add-to-projects`, {
+            method: 'POST'
+        });
+        const result = await response.json();
+        if (result.success) {
+            alert('Added to Projects database!');
+        } else {
+            alert(result.error || 'Error adding to projects');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+function showAltDescModal(expId) {
+    document.getElementById('alt-exp-id').value = expId;
+    loadAltDescriptions(expId);
+    document.getElementById('alt-desc-modal').classList.remove('hidden');
+}
+
+function closeAltDescModal() {
+    document.getElementById('alt-desc-modal').classList.add('hidden');
+}
+
+async function loadAltDescriptions(expId) {
+    const list = document.getElementById('alt-descriptions-list');
+    list.innerHTML = '<p class="text-gray-500 text-center py-4">Loading...</p>';
+    
+    try {
+        const response = await fetch(`/api/experience/${expId}/alternate-descriptions`);
+        const descriptions = await response.json();
+        
+        if (descriptions.length === 0) {
+            list.innerHTML = '<p class="text-gray-500 text-center py-4">No alternate descriptions yet</p>';
+        } else {
+            list.innerHTML = descriptions.map(d => `
+                <div class="border rounded-lg p-4" id="alt-${d.id}">
+                    <div class="flex justify-between items-start mb-2">
+                        <input type="text" value="${d.label}" class="font-medium border-b border-transparent hover:border-gray-300 focus:border-blue-500 outline-none" onchange="updateAltDesc(${d.id}, this.value, null)">
+                        <div class="flex space-x-2">
+                            <button onclick="rewriteAltDesc(${d.id})" class="text-purple-600 hover:text-purple-800 text-sm">
+                                <i class="fas fa-magic"></i>
+                            </button>
+                            <button onclick="deleteAltDesc(${d.id})" class="text-red-600 hover:text-red-800 text-sm">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <textarea class="w-full p-2 border rounded text-sm" rows="3" onchange="updateAltDesc(${d.id}, null, this.value)">${d.description || ''}</textarea>
+                </div>
+            `).join('');
+        }
+    } catch (error) {
+        list.innerHTML = '<p class="text-red-500 text-center py-4">Error loading descriptions</p>';
+    }
+}
+
+async function addAltDescription() {
+    const expId = document.getElementById('alt-exp-id').value;
+    try {
+        const response = await fetch(`/api/experience/${expId}/alternate-descriptions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ label: 'New Version', description: '' })
+        });
+        const result = await response.json();
+        if (result.success) {
+            loadAltDescriptions(expId);
+        }
+    } catch (error) {
+        alert('Error adding description');
+    }
+}
+
+async function updateAltDesc(id, label, description) {
+    const data = {};
+    if (label !== null) data.label = label;
+    if (description !== null) data.description = description;
+    
+    try {
+        await fetch(`/api/experience/alternate-descriptions/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+    } catch (error) {
+        alert('Error updating');
+    }
+}
+
+async function deleteAltDesc(id) {
+    if (!confirm('Delete this alternate description?')) return;
+    try {
+        await fetch(`/api/experience/alternate-descriptions/${id}`, { method: 'DELETE' });
+        document.getElementById(`alt-${id}`).remove();
+    } catch (error) {
+        alert('Error deleting');
+    }
+}
+
+async function rewriteAltDesc(id) {
+    const instructions = prompt('Enter custom rewrite instructions (optional):');
+    if (instructions === null) return;
+    
+    const textarea = document.querySelector(`#alt-${id} textarea`);
+    const description = textarea.value;
+    
+    if (!description) {
+        alert('No description to rewrite');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/experience/rewrite-description', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ description, custom_instructions: instructions })
+        });
+        const result = await response.json();
+        if (result.rewritten) {
+            textarea.value = result.rewritten;
+            updateAltDesc(id, null, result.rewritten);
+        }
+    } catch (error) {
+        alert('Error rewriting');
+    }
+}
+
 async function deleteExperience(id) {
     if (!confirm('Are you sure you want to delete this project experience?')) return;
-    
     try {
         const response = await fetch(`/employees/{{ employee.id }}/project-experience/${id}`, {
             method: 'DELETE'
@@ -273,7 +650,6 @@ async function deleteExperience(id) {
 
 document.getElementById('experience-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    
     const expId = document.getElementById('exp-id').value;
     const data = {
         project_title: document.getElementById('exp-project-title').value,
