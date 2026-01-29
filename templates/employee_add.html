@@ -80,8 +80,38 @@
                 </h3>
                 <p class="text-sm text-gray-500 mb-3">Check all certifications this person has. You can add details later.</p>
                 
-                <div class="space-y-4 max-h-64 overflow-y-auto border rounded-lg p-3 bg-gray-50" id="cert-checklist-container">
+                <div class="space-y-4 max-h-80 overflow-y-auto border rounded-lg p-3 bg-gray-50" id="cert-checklist-container">
                     {% for category, types in cert_types_grouped.items() %}
+                    {% if category == 'SPRAT' %}
+                    <div data-category="SPRAT">
+                        <h4 class="font-medium text-gray-700 text-sm mb-2">SPRAT</h4>
+                        <div class="flex items-center gap-3 p-2 bg-white rounded">
+                            <label class="flex items-center text-sm cursor-pointer">
+                                <input type="checkbox" name="has_sprat" id="has_sprat" class="mr-2 text-blue-600" onchange="toggleSpratLevel()">
+                                <span>SPRAT Certified</span>
+                            </label>
+                            <select name="sprat_level" id="sprat_level" class="p-1 border rounded text-sm" disabled>
+                                <option value="">Level</option>
+                                <option value="1">Level 1</option>
+                                <option value="2">Level 2</option>
+                                <option value="3">Level 3</option>
+                            </select>
+                        </div>
+                    </div>
+                    {% elif category == 'PE License' %}
+                    <div data-category="PE License">
+                        <h4 class="font-medium text-gray-700 text-sm mb-2">PE Licenses (Select States)</h4>
+                        <div class="grid grid-cols-4 gap-1 max-h-32 overflow-y-auto p-2 bg-white rounded">
+                            {% set states = ['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'DC', 'FL', 'GA', 'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'] %}
+                            {% for state in states %}
+                            <label class="flex items-center text-xs cursor-pointer hover:bg-gray-50 p-1 rounded">
+                                <input type="checkbox" name="pe_states" value="{{ state }}" class="mr-1 text-blue-600">
+                                <span>{{ state }}</span>
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% else %}
                     <div data-category="{{ category }}">
                         <h4 class="font-medium text-gray-700 text-sm mb-2">{{ category }}</h4>
                         <div class="grid grid-cols-2 gap-1">
@@ -93,6 +123,7 @@
                             {% endfor %}
                         </div>
                     </div>
+                    {% endif %}
                     {% endfor %}
                 </div>
                 
@@ -189,6 +220,15 @@
 
 {% block scripts %}
 <script>
+function toggleSpratLevel() {
+    const checkbox = document.getElementById('has_sprat');
+    const levelSelect = document.getElementById('sprat_level');
+    levelSelect.disabled = !checkbox.checked;
+    if (!checkbox.checked) {
+        levelSelect.value = '';
+    }
+}
+
 function showAddCertTypeModal() {
     document.getElementById('add-cert-type-modal').classList.remove('hidden');
 }

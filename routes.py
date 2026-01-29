@@ -241,6 +241,32 @@ def add_employee():
                 )
                 db.session.add(cert)
         
+        # Process SPRAT certification
+        if data.get('has_sprat'):
+            sprat_level = data.get('sprat_level')
+            cert = Certification(
+                employee_id=employee.id,
+                name='SPRAT',
+                category='SPRAT',
+                cert_type='certification',
+                level=sprat_level if sprat_level else None,
+                status='active'
+            )
+            db.session.add(cert)
+        
+        # Process PE License states
+        pe_states = data.getlist('pe_states')
+        for state in pe_states:
+            cert = Certification(
+                employee_id=employee.id,
+                name='PE',
+                category='PE License',
+                cert_type='license',
+                state=state,
+                status='pending'  # Details to be filled later
+            )
+            db.session.add(cert)
+        
         db.session.commit()
         return redirect(f'/employees/{employee.id}')
     
