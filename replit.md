@@ -66,6 +66,11 @@ The AI parsing enforces consistent formats for personnel data:
 - **Other Qualifications:** Certifications, awards, publications - one per line
 
 ## Recent Changes
+- Added proposal tracking numbers with search/filter functionality (Jan 2026)
+  - Proposals now require a tracking_number field for unique identification
+  - Proposals list page has search box (searches tracking #, name, title, solicitation #)
+  - Status filter dropdown to show only draft or finalized proposals
+  - Tracking number displayed prominently in proposals table
 - Added Client Contacts database with autocomplete in project page (Jan 2026)
   - ClientContact model stores name, agency, role, phone, email, physical/mailing addresses
   - Contacts page for managing client contacts (CRUD)
