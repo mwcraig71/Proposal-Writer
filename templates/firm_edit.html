@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+
+{% block title %}Edit {{ firm.name }} - SF330 AI{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <a href="/firms/{{ firm.id }}" class="text-blue-600 hover:underline mb-4 inline-block">
+        <i class="fas fa-arrow-left mr-2"></i> Back to Firm Details
+    </a>
+    <div class="flex justify-between items-center">
+        <h1 class="text-3xl font-bold text-gray-800">Edit Firm</h1>
+        <button onclick="confirmDelete()" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition">
+            <i class="fas fa-trash mr-2"></i> Delete Firm
+        </button>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div class="lg:col-span-2">
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                <i class="fas fa-building text-blue-600 mr-2"></i> Firm Information
+            </h2>
+            
+            <form action="/firms/{{ firm.id }}/edit" method="POST" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Firm Name *</label>
+                        <input type="text" name="name" required value="{{ firm.name }}" class="w-full p-2 border rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">UEI (Unique Entity Identifier)</label>
+                        <input type="text" name="uei" value="{{ firm.uei or '' }}" class="w-full p-2 border rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Year Established</label>
+                        <input type="number" name="year_established" value="{{ firm.year_established or '' }}" class="w-full p-2 border rounded-lg">
+                    </div>
+                </div>
+                
+                <div class="border-t pt-4 mt-4">
+                    <h3 class="font-medium text-gray-700 mb-3">Address</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Street Address</label>
+                            <input type="text" name="street_address" value="{{ firm.street_address or '' }}" class="w-full p-2 border rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">City</label>
+                            <input type="text" name="city" value="{{ firm.city or '' }}" class="w-full p-2 border rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">State</label>
+                            <input type="text" name="state" value="{{ firm.state or '' }}" class="w-full p-2 border rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">ZIP Code</label>
+                            <input type="text" name="zip_code" value="{{ firm.zip_code or '' }}" class="w-full p-2 border rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                            <input type="text" name="country" value="{{ firm.country or 'USA' }}" class="w-full p-2 border rounded-lg">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="border-t pt-4 mt-4">
+                    <h3 class="font-medium text-gray-700 mb-3">Contact Information</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                            <input type="text" name="phone" value="{{ firm.phone or '' }}" class="w-full p-2 border rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Fax</label>
+                            <input type="text" name="fax" value="{{ firm.fax or '' }}" class="w-full p-2 border rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                            <input type="email" name="email" value="{{ firm.email or '' }}" class="w-full p-2 border rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Point of Contact Name</label>
+                            <input type="text" name="point_of_contact_name" value="{{ firm.point_of_contact_name or '' }}" class="w-full p-2 border rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Point of Contact Title</label>
+                            <input type="text" name="point_of_contact_title" value="{{ firm.point_of_contact_title or '' }}" class="w-full p-2 border rounded-lg">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="border-t pt-4 mt-4">
+                    <h3 class="font-medium text-gray-700 mb-3">Business Information</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Ownership Type</label>
+                            <input type="text" name="ownership_type" value="{{ firm.ownership_type or '' }}" class="w-full p-2 border rounded-lg" placeholder="Corporation, Partnership, etc.">
+                        </div>
+                        <div class="flex items-center mt-6">
+                            <input type="checkbox" name="is_small_business" id="is_small_business" class="mr-2" {% if firm.is_small_business %}checked{% endif %}>
+                            <label for="is_small_business" class="text-sm text-gray-700">Small Business</label>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Small Business Categories</label>
+                            <input type="text" name="small_business_categories" value="{{ firm.small_business_categories or '' }}" class="w-full p-2 border rounded-lg" placeholder="8(a), HUBZone, SDVOSB, WOSB, etc.">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="border-t pt-4 mt-4">
+                    <h3 class="font-medium text-gray-700 mb-3">Firm Bio / Writeup</h3>
+                    <p class="text-sm text-gray-500 mb-2">Company description for proposals</p>
+                    <textarea name="bio" rows="6" class="w-full p-2 border rounded-lg" placeholder="Describe your firm's capabilities, history, and expertise...">{{ firm.bio or '' }}</textarea>
+                </div>
+                
+                <button type="submit" class="w-full bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition">
+                    <i class="fas fa-save mr-2"></i> Save Changes
+                </button>
+            </form>
+        </div>
+    </div>
+    
+    <div>
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold text-gray-800">
+                    <i class="fas fa-file-alt text-green-600 mr-2"></i> Alternate Bios
+                </h2>
+                <button onclick="addAlternateBio()" class="text-blue-600 hover:text-blue-800">
+                    <i class="fas fa-plus"></i> Add
+                </button>
+            </div>
+            <p class="text-sm text-gray-500 mb-4">Create different versions of the firm bio for various proposal types</p>
+            
+            <div id="alternate-bios-list" class="space-y-4">
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const firmId = {{ firm.id }};
+
+async function loadAlternateBios() {
+    try {
+        const response = await fetch(`/api/firms/${firmId}/alternate-descriptions`);
+        const alts = await response.json();
+        const container = document.getElementById('alternate-bios-list');
+        
+        if (alts.length === 0) {
+            container.innerHTML = '<p class="text-gray-500 text-sm">No alternate bios yet. Add one to create proposal-specific versions.</p>';
+            return;
+        }
+        
+        container.innerHTML = alts.map(alt => `
+            <div id="alt-${alt.id}" class="border rounded-lg p-3">
+                <div class="flex justify-between items-center mb-2">
+                    <input type="text" value="${alt.label}" onchange="updateAltBio(${alt.id}, this.value, null)" 
+                           class="font-medium text-gray-800 border-b border-transparent hover:border-gray-300 focus:border-blue-500 outline-none">
+                    <div class="flex gap-2">
+                        <button onclick="rewriteAltBio(${alt.id})" class="text-purple-600 hover:text-purple-800" title="AI Rewrite">
+                            <i class="fas fa-magic"></i>
+                        </button>
+                        <button onclick="deleteAltBio(${alt.id})" class="text-red-600 hover:text-red-800" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                <textarea rows="4" onchange="updateAltBio(${alt.id}, null, this.value)" 
+                          class="w-full text-sm border rounded p-2">${alt.description || ''}</textarea>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Error loading alternate bios:', error);
+    }
+}
+
+async function addAlternateBio() {
+    try {
+        const response = await fetch(`/api/firms/${firmId}/alternate-descriptions`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({label: 'New Bio', description: ''})
+        });
+        if (response.ok) {
+            loadAlternateBios();
+        }
+    } catch (error) {
+        alert('Error adding alternate bio');
+    }
+}
+
+async function updateAltBio(id, label, description) {
+    const data = {};
+    if (label !== null) data.label = label;
+    if (description !== null) data.description = description;
+    
+    try {
+        await fetch(`/api/firms/alternate-descriptions/${id}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+    } catch (error) {
+        alert('Error updating');
+    }
+}
+
+async function deleteAltBio(id) {
+    if (!confirm('Delete this alternate bio?')) return;
+    try {
+        await fetch(`/api/firms/alternate-descriptions/${id}`, {method: 'DELETE'});
+        loadAlternateBios();
+    } catch (error) {
+        alert('Error deleting');
+    }
+}
+
+async function rewriteAltBio(id) {
+    const instructions = prompt('Enter custom rewrite instructions (optional):');
+    if (instructions === null) return;
+    
+    const textarea = document.querySelector(`#alt-${id} textarea`);
+    const description = textarea.value;
+    
+    if (!description) {
+        alert('No bio to rewrite');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/experience/rewrite-description', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({description, custom_instructions: instructions})
+        });
+        const result = await response.json();
+        if (result.rewritten) {
+            textarea.value = result.rewritten;
+            updateAltBio(id, null, result.rewritten);
+        }
+    } catch (error) {
+        alert('Error rewriting');
+    }
+}
+
+async function confirmDelete() {
+    if (!confirm('Are you sure you want to delete this firm? This action cannot be undone.')) return;
+    
+    try {
+        const response = await fetch(`/firms/${firmId}/delete`, {method: 'POST'});
+        const result = await response.json();
+        if (result.success) {
+            window.location.href = '/firms';
+        } else {
+            alert(result.error || 'Error deleting firm');
+        }
+    } catch (error) {
+        alert('Error deleting firm');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', loadAlternateBios);
+</script>
+{% endblock %}

@@ -50,6 +50,16 @@
                 <dt class="text-gray-500">Firm</dt>
                 <dd class="font-medium">{{ proposal.firm.name if proposal.firm else '-' }}</dd>
             </div>
+            {% if proposal.rfp_filename %}
+            <div class="mt-3 pt-3 border-t">
+                <dt class="text-gray-500">RFP/RFQ Document</dt>
+                <dd class="font-medium">
+                    <a href="/proposals/{{ proposal.id }}/rfp-download" class="text-blue-600 hover:underline">
+                        <i class="fas fa-download mr-1"></i> {{ proposal.rfp_filename }}
+                    </a>
+                </dd>
+            </div>
+            {% endif %}
         </dl>
     </div>
     
@@ -127,6 +137,36 @@
     </div>
 </div>
 
+<div class="bg-white rounded-lg shadow p-6 mb-8">
+    <h2 class="text-xl font-semibold text-gray-800 mb-4">
+        <i class="fas fa-file-alt text-purple-600 mr-2"></i> AI Cover Letter & Written Sections
+    </h2>
+    <p class="text-gray-600 mb-4">Generate a cover letter and written sections using the RFP, firm, personnel, and project data.</p>
+    
+    <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Custom Instructions (optional)</label>
+        <textarea id="cover-letter-instructions" rows="3" class="w-full p-2 border rounded-lg" placeholder="Add any specific requirements or instructions for the cover letter..."></textarea>
+    </div>
+    
+    <button onclick="generateCoverLetter()" id="generate-cover-btn" class="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
+        <i class="fas fa-magic mr-2"></i> Generate Cover Letter
+    </button>
+    
+    {% if proposal.cover_letter %}
+    <div class="mt-6 border-t pt-4">
+        <h3 class="font-semibold text-gray-800 mb-2">Cover Letter</h3>
+        <div class="bg-gray-50 p-4 rounded-lg whitespace-pre-line text-sm">{{ proposal.cover_letter }}</div>
+    </div>
+    {% endif %}
+    
+    {% if proposal.written_sections %}
+    <div class="mt-4 border-t pt-4">
+        <h3 class="font-semibold text-gray-800 mb-2">Written Sections</h3>
+        <div class="bg-gray-50 p-4 rounded-lg whitespace-pre-line text-sm">{{ proposal.written_sections }}</div>
+    </div>
+    {% endif %}
+</div>
+
 <div class="flex justify-between">
     <a href="/proposals/{{ proposal.id }}/step3" class="px-6 py-3 border rounded-lg text-gray-700 hover:bg-gray-50 transition">
         <i class="fas fa-arrow-left mr-2"></i> Back to Projects
@@ -137,4 +177,34 @@
         </a>
     </div>
 </div>
+
+<script>
+async function generateCoverLetter() {
+    const btn = document.getElementById('generate-cover-btn');
+    const instructions = document.getElementById('cover-letter-instructions').value;
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Generating...';
+    
+    try {
+        const response = await fetch('/proposals/{{ proposal.id }}/generate-cover-letter', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({custom_instructions: instructions})
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+            location.reload();
+        } else {
+            alert(result.error || 'Error generating cover letter');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+    
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-magic mr-2"></i> Generate Cover Letter';
+}
+</script>
 {% endblock %}

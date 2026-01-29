@@ -7,7 +7,12 @@
     <a href="/firms" class="text-blue-600 hover:underline mb-4 inline-block">
         <i class="fas fa-arrow-left mr-2"></i> Back to Firms
     </a>
-    <h1 class="text-3xl font-bold text-gray-800">{{ firm.name }}</h1>
+    <div class="flex justify-between items-center">
+        <h1 class="text-3xl font-bold text-gray-800">{{ firm.name }}</h1>
+        <a href="/firms/{{ firm.id }}/edit" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+            <i class="fas fa-edit mr-2"></i> Edit Firm
+        </a>
+    </div>
 </div>
 
 <div class="bg-white rounded-lg shadow p-6">
@@ -51,6 +56,27 @@
             {% endif %}
         </div>
     </div>
+    
+    {% if firm.bio %}
+    <div class="mt-6 border-t pt-6">
+        <h3 class="text-lg font-semibold text-gray-800 mb-3">Firm Bio</h3>
+        <p class="text-gray-700 whitespace-pre-line">{{ firm.bio }}</p>
+    </div>
+    {% endif %}
+    
+    {% if firm.alternate_descriptions %}
+    <div class="mt-6 border-t pt-6">
+        <h3 class="text-lg font-semibold text-gray-800 mb-3">Alternate Bios</h3>
+        <div class="space-y-4">
+            {% for alt in firm.alternate_descriptions %}
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <p class="font-medium text-gray-700 mb-2">{{ alt.label }}</p>
+                <p class="text-gray-600 text-sm whitespace-pre-line">{{ alt.description }}</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
     
     {% if firm.employees %}
     <div class="mt-8 border-t pt-6">

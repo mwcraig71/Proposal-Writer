@@ -67,6 +67,21 @@ The AI parsing enforces consistent formats for personnel data:
 - **Other Qualifications:** Certifications, awards, publications - one per line
 
 ## Recent Changes
+- Added "Copy to Resume" feature on project detail page (Jan 2026)
+  - Select project description version (main or any alternate) to copy
+  - Multi-select employees to copy the project to their resume experience
+  - Avoids duplicates if project already exists on resume
+- Added AI cover letter generator in proposal wizard Step 4 (Jan 2026)
+  - Combines RFP requirements, firm bio, personnel, and project data
+  - Custom instructions popup for additional guidance
+  - Cover letter and written sections stored on proposal
+- Added RFP/RFQ document storage on proposals (Jan 2026)
+  - Upload RFP file in Step 1, stored as binary (rfp_content) and extracted text (rfp_text)
+  - RFP download link shown in Step 4 review page
+- Added firm bio/writeup with alternate versions (Jan 2026)
+  - Firms have bio text field for company writeup
+  - FirmAlternateDescription model for version-specific bios
+  - Proposals can select which firm bio version to use
 - Enhanced employee project experience management (Jan 2026)
   - Alternate descriptions for resume projects with ExperienceAlternateDescription model
   - Project title autocomplete searches main Projects database and auto-fills location, year, cost, owner

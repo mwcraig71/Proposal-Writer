@@ -133,6 +133,39 @@
                 </button>
             </div>
         </div>
+        
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                <i class="fas fa-copy text-purple-600 mr-2"></i> Copy to Resumes
+            </h2>
+            <p class="text-sm text-gray-500 mb-4">Copy this project's description to employees' resume project experience.</p>
+            
+            <div class="mb-3">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Description Version</label>
+                <select id="copy-desc-version" class="w-full p-2 border rounded-lg">
+                    <option value="main">Main Description</option>
+                    {% for alt in project.alternate_descriptions %}
+                    <option value="{{ alt.id }}">{{ alt.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="mb-3">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Select Employees</label>
+                <div class="max-h-40 overflow-y-auto border rounded-lg p-2 space-y-1">
+                    {% for emp in all_employees %}
+                    <label class="flex items-center p-1 hover:bg-gray-50 rounded cursor-pointer">
+                        <input type="checkbox" class="copy-emp-checkbox mr-2" value="{{ emp.id }}">
+                        <span class="text-sm">{{ emp.name }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <button id="copy-to-resume-btn" class="w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 transition">
+                <i class="fas fa-copy mr-2"></i> Copy to Selected Resumes
+            </button>
+        </div>
     </div>
 </div>
 
@@ -393,6 +426,48 @@ document.getElementById('confirm-rewrite').addEventListener('click', async funct
         pendingRewriteBtn = null;
         pendingRewriteTextarea = null;
     }
+});
+
+document.getElementById('copy-to-resume-btn').addEventListener('click', async function() {
+    const checkboxes = document.querySelectorAll('.copy-emp-checkbox:checked');
+    const employeeIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+    
+    if (employeeIds.length === 0) {
+        alert('Please select at least one employee');
+        return;
+    }
+    
+    const versionSelect = document.getElementById('copy-desc-version');
+    const descType = versionSelect.value === 'main' ? 'main' : 'alternate';
+    const altDescId = versionSelect.value === 'main' ? null : parseInt(versionSelect.value);
+    
+    this.disabled = true;
+    this.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Copying...';
+    
+    try {
+        const response = await fetch('/api/projects/{{ project.id }}/copy-to-resume', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                employee_ids: employeeIds,
+                description_type: descType,
+                alternate_description_id: altDescId
+            })
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(`Project copied to ${result.created} employee resume(s). Existing entries were skipped.`);
+            checkboxes.forEach(cb => cb.checked = false);
+        } else {
+            alert(result.error || 'Error copying to resumes');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+    
+    this.disabled = false;
+    this.innerHTML = '<i class="fas fa-copy mr-2"></i> Copy to Selected Resumes';
 });
 </script>
 {% endblock %}

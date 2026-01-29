@@ -72,7 +72,7 @@
             
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Select Firm (Part II)</label>
-                <select name="firm_id" class="w-full p-3 border rounded-lg">
+                <select name="firm_id" id="firm_id" class="w-full p-3 border rounded-lg" onchange="updateFirmBioOptions()">
                     <option value="">-- Select a Firm --</option>
                     {% for firm in firms %}
                     <option value="{{ firm.id }}">{{ firm.name }} {% if firm.city %}({{ firm.city }}, {{ firm.state }}){% endif %}</option>
@@ -80,6 +80,18 @@
                 </select>
                 <p class="text-sm text-gray-500 mt-1">The firm's Part II data will be included in the SF330.</p>
             </div>
+            
+            <div id="firm-bio-section" class="hidden">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Select Firm Bio Version</label>
+                <select name="firm_bio_alternate_id" id="firm_bio_alternate_id" class="w-full p-3 border rounded-lg">
+                    <option value="">-- Use Main Bio --</option>
+                </select>
+                <p class="text-sm text-gray-500 mt-1">Choose which firm bio/writeup to use for this proposal.</p>
+            </div>
+            
+            <input type="hidden" name="rfp_filename" id="rfp_filename">
+            <input type="hidden" name="rfp_content" id="rfp_content">
+            <input type="hidden" name="rfp_text" id="rfp_text">
             
             <div class="flex justify-end space-x-4 pt-4 border-t">
                 <a href="/proposals" class="px-6 py-3 border rounded-lg text-gray-700 hover:bg-gray-50 transition">Cancel</a>
@@ -201,6 +213,16 @@ async function handleRfpUpload(file) {
                 }
             }
             
+            if (data.rfp_filename) {
+                document.getElementById('rfp_filename').value = data.rfp_filename;
+            }
+            if (data.rfp_content) {
+                document.getElementById('rfp_content').value = data.rfp_content;
+            }
+            if (data.rfp_text) {
+                document.getElementById('rfp_text').value = data.rfp_text;
+            }
+            
             parsedInfo.classList.remove('hidden');
         } else {
             alert('Error parsing RFP: ' + (result.error || 'Unknown error'));
@@ -208,6 +230,28 @@ async function handleRfpUpload(file) {
     } catch (error) {
         parsingStatus.classList.add('hidden');
         alert('Error: ' + error.message);
+    }
+}
+
+const firmAlts = {{ firm_alts | tojson | safe }};
+
+function updateFirmBioOptions() {
+    const firmId = document.getElementById('firm_id').value;
+    const bioSection = document.getElementById('firm-bio-section');
+    const bioSelect = document.getElementById('firm_bio_alternate_id');
+    
+    bioSelect.innerHTML = '<option value="">-- Use Main Bio --</option>';
+    
+    if (firmId && firmAlts[firmId] && firmAlts[firmId].length > 0) {
+        firmAlts[firmId].forEach(alt => {
+            const option = document.createElement('option');
+            option.value = alt.id;
+            option.textContent = alt.label;
+            bioSelect.appendChild(option);
+        });
+        bioSection.classList.remove('hidden');
+    } else {
+        bioSection.classList.add('hidden');
     }
 }
 </script>

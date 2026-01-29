@@ -358,6 +358,49 @@ def delete_experience_alternate_description(alt_id):
     return jsonify({'success': True})
 
 
+@app.route('/api/projects/<int:project_id>/copy-to-resume', methods=['POST'])
+def copy_project_to_resume(project_id):
+    """Copy a project description to an employee's resume experience"""
+    project = Project.query.get_or_404(project_id)
+    data = request.json
+    employee_ids = data.get('employee_ids', [])
+    description_type = data.get('description_type', 'main')
+    alt_desc_id = data.get('alternate_description_id')
+    
+    if not employee_ids:
+        return jsonify({'error': 'No employees selected'}), 400
+    
+    description = project.brief_description
+    if description_type == 'alternate' and alt_desc_id:
+        alt = ProjectAlternateDescription.query.get(alt_desc_id)
+        if alt:
+            description = alt.description
+    
+    created = 0
+    for emp_id in employee_ids:
+        existing = EmployeeProjectExperience.query.filter_by(
+            employee_id=emp_id,
+            project_title=project.title
+        ).first()
+        
+        if not existing:
+            exp = EmployeeProjectExperience(
+                employee_id=emp_id,
+                project_title=project.title,
+                location=project.location,
+                owner_name=project.owner_name,
+                project_cost=project.project_cost,
+                year_completed=project.year_completed_professional,
+                brief_description=description,
+                is_current_firm=True
+            )
+            db.session.add(exp)
+            created += 1
+    
+    db.session.commit()
+    return jsonify({'success': True, 'created': created})
+
+
 @app.route('/api/projects/search')
 def search_projects():
     """Search projects by title for autocomplete"""
@@ -842,6 +885,94 @@ def firm_detail(id):
     return render_template('firm_detail.html', firm=firm)
 
 
+@app.route('/firms/<int:id>/edit', methods=['GET', 'POST'])
+def edit_firm(id):
+    firm = Firm.query.get_or_404(id)
+    if request.method == 'POST':
+        data = request.form
+        firm.name = data.get('name', firm.name)
+        firm.uei = data.get('uei')
+        firm.street_address = data.get('street_address')
+        firm.city = data.get('city')
+        firm.state = data.get('state')
+        firm.zip_code = data.get('zip_code')
+        firm.country = data.get('country', 'USA')
+        firm.year_established = int(data.get('year_established')) if data.get('year_established') else None
+        firm.ownership_type = data.get('ownership_type')
+        firm.is_small_business = data.get('is_small_business') == 'on'
+        firm.small_business_categories = data.get('small_business_categories')
+        firm.phone = data.get('phone')
+        firm.fax = data.get('fax')
+        firm.email = data.get('email')
+        firm.point_of_contact_name = data.get('point_of_contact_name')
+        firm.point_of_contact_title = data.get('point_of_contact_title')
+        firm.bio = data.get('bio')
+        db.session.commit()
+        return redirect(f'/firms/{firm.id}')
+    
+    return render_template('firm_edit.html', firm=firm)
+
+
+@app.route('/firms/<int:id>/delete', methods=['POST'])
+def delete_firm(id):
+    firm = Firm.query.get_or_404(id)
+    if firm.employees:
+        return jsonify({'error': 'Cannot delete firm with employees. Reassign or delete employees first.'}), 400
+    if firm.proposals:
+        return jsonify({'error': 'Cannot delete firm with proposals. Delete proposals first.'}), 400
+    db.session.delete(firm)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/api/firms/<int:firm_id>/alternate-descriptions')
+def get_firm_alternate_descriptions(firm_id):
+    from models import FirmAlternateDescription
+    alts = FirmAlternateDescription.query.filter_by(firm_id=firm_id).all()
+    return jsonify([{
+        'id': a.id,
+        'label': a.label,
+        'description': a.description
+    } for a in alts])
+
+
+@app.route('/api/firms/<int:firm_id>/alternate-descriptions', methods=['POST'])
+def add_firm_alternate_description(firm_id):
+    from models import FirmAlternateDescription
+    Firm.query.get_or_404(firm_id)
+    data = request.json
+    alt = FirmAlternateDescription(
+        firm_id=firm_id,
+        label=data.get('label', 'Alternate'),
+        description=data.get('description', '')
+    )
+    db.session.add(alt)
+    db.session.commit()
+    return jsonify({'success': True, 'id': alt.id})
+
+
+@app.route('/api/firms/alternate-descriptions/<int:alt_id>', methods=['PUT'])
+def update_firm_alternate_description(alt_id):
+    from models import FirmAlternateDescription
+    alt = FirmAlternateDescription.query.get_or_404(alt_id)
+    data = request.json
+    if 'label' in data:
+        alt.label = data['label']
+    if 'description' in data:
+        alt.description = data['description']
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/api/firms/alternate-descriptions/<int:alt_id>', methods=['DELETE'])
+def delete_firm_alternate_description(alt_id):
+    from models import FirmAlternateDescription
+    alt = FirmAlternateDescription.query.get_or_404(alt_id)
+    db.session.delete(alt)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
 @app.route('/proposals')
 def proposals():
     search = request.args.get('search', '').strip()
@@ -880,11 +1011,17 @@ def parse_rfp():
         from document_parser import extract_text_from_file
         from gemini_service import parse_rfp_rfq
         
+        file_content = file.read()
+        file.seek(0)
+        
         text = extract_text_from_file(file)
         if not text:
             return jsonify({'error': 'Could not extract text from file'}), 400
         
         parsed_data = parse_rfp_rfq(text)
+        parsed_data['rfp_filename'] = file.filename
+        parsed_data['rfp_content'] = file_content.hex()
+        parsed_data['rfp_text'] = text[:50000]
         return jsonify({'success': True, 'data': parsed_data})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -894,9 +1031,21 @@ def parse_rfp():
 def new_proposal():
     if request.method == 'GET':
         firms = Firm.query.all()
-        return render_template('proposal_wizard_step1.html', firms=firms)
+        from models import FirmAlternateDescription
+        firm_alts = {}
+        for firm in firms:
+            alts = FirmAlternateDescription.query.filter_by(firm_id=firm.id).all()
+            firm_alts[firm.id] = [{'id': a.id, 'label': a.label} for a in alts]
+        return render_template('proposal_wizard_step1.html', firms=firms, firm_alts=firm_alts)
     
     data = request.form
+    rfp_content = None
+    if data.get('rfp_content'):
+        try:
+            rfp_content = bytes.fromhex(data.get('rfp_content'))
+        except:
+            pass
+    
     proposal = Proposal(
         tracking_number=data.get('tracking_number'),
         name=data.get('name'),
@@ -904,7 +1053,11 @@ def new_proposal():
         contract_location=data.get('contract_location'),
         public_notice_date=data.get('public_notice_date'),
         solicitation_number=data.get('solicitation_number'),
-        firm_id=data.get('firm_id') if data.get('firm_id') else None
+        firm_id=data.get('firm_id') if data.get('firm_id') else None,
+        firm_bio_alternate_id=data.get('firm_bio_alternate_id') if data.get('firm_bio_alternate_id') else None,
+        rfp_filename=data.get('rfp_filename'),
+        rfp_content=rfp_content,
+        rfp_text=data.get('rfp_text')
     )
     db.session.add(proposal)
     db.session.commit()
@@ -1006,6 +1159,95 @@ def proposal_step4(id):
                          selected_employees=selected_employees,
                          selected_projects=selected_projects,
                          matrix=matrix)
+
+
+@app.route('/proposals/<int:id>/rfp-download')
+def download_rfp(id):
+    """Download the stored RFP file"""
+    proposal = Proposal.query.get_or_404(id)
+    if not proposal.rfp_content or not proposal.rfp_filename:
+        return jsonify({'error': 'No RFP file stored'}), 404
+    
+    from flask import send_file
+    from io import BytesIO
+    
+    file_ext = proposal.rfp_filename.rsplit('.', 1)[-1].lower() if '.' in proposal.rfp_filename else 'pdf'
+    mime_types = {
+        'pdf': 'application/pdf',
+        'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'txt': 'text/plain'
+    }
+    
+    return send_file(
+        BytesIO(proposal.rfp_content),
+        mimetype=mime_types.get(file_ext, 'application/octet-stream'),
+        as_attachment=True,
+        download_name=proposal.rfp_filename
+    )
+
+
+@app.route('/proposals/<int:id>/generate-cover-letter', methods=['POST'])
+def generate_cover_letter(id):
+    """Generate AI cover letter using RFP + firm + staff + project data"""
+    proposal = Proposal.query.get_or_404(id)
+    data = request.json
+    custom_instructions = data.get('custom_instructions', '')
+    
+    from models import AISettings, FirmAlternateDescription
+    from gemini_service import generate_cover_letter_ai
+    
+    style = AISettings.get_value('writing_style', '')
+    tone = AISettings.get_value('writing_tone', '')
+    
+    firm_bio = ''
+    if proposal.firm:
+        firm_bio = proposal.firm.bio or ''
+        if proposal.firm_bio_alternate_id:
+            alt = FirmAlternateDescription.query.get(proposal.firm_bio_alternate_id)
+            if alt:
+                firm_bio = alt.description or firm_bio
+    
+    employees_data = []
+    for pse in proposal.selected_employees:
+        emp = pse.employee
+        employees_data.append({
+            'name': emp.name,
+            'title': emp.title,
+            'role_in_contract': pse.role_in_contract,
+            'years_experience': emp.years_experience_total,
+            'education': emp.education,
+            'registrations': emp.registrations
+        })
+    
+    projects_data = []
+    for psp in proposal.selected_projects:
+        proj = psp.project
+        projects_data.append({
+            'title': proj.title,
+            'location': proj.location,
+            'owner': proj.owner_name,
+            'description': proj.brief_description
+        })
+    
+    result = generate_cover_letter_ai(
+        rfp_text=proposal.rfp_text or '',
+        firm_name=proposal.firm.name if proposal.firm else '',
+        firm_bio=firm_bio,
+        employees=employees_data,
+        projects=projects_data,
+        contract_title=proposal.contract_title or '',
+        solicitation_number=proposal.solicitation_number or '',
+        style=style,
+        tone=tone,
+        custom_instructions=custom_instructions
+    )
+    
+    proposal.cover_letter = result.get('cover_letter', '')
+    proposal.written_sections = result.get('written_sections', '')
+    db.session.commit()
+    
+    return jsonify({'success': True, 'cover_letter': proposal.cover_letter, 'written_sections': proposal.written_sections})
 
 
 @app.route('/proposals/<int:id>/employee/<int:emp_id>/relevant-projects', methods=['GET', 'POST'])

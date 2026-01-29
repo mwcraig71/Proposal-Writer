@@ -442,3 +442,135 @@ Return a valid JSON object with the extracted data. Use null for any field where
         return result
     except json.JSONDecodeError:
         return {}
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    retry=retry_if_exception(is_rate_limit_error)
+)
+def rewrite_description(description: str, custom_instructions: str = '') -> str:
+    """Rewrite a description using AI with global settings and custom instructions."""
+    from models import AISettings
+    
+    style = AISettings.get_value('writing_style', 'professional and technical')
+    tone = AISettings.get_value('writing_tone', 'formal but accessible')
+    
+    prompt = f"""You are a professional technical writer specializing in structural engineering documentation for federal SF330 forms.
+
+Rewrite the following description according to these specifications:
+
+WRITING STYLE: {style}
+WRITING TONE: {tone}
+
+{f'CUSTOM INSTRUCTIONS: {custom_instructions}' if custom_instructions else ''}
+
+ORIGINAL DESCRIPTION:
+{description}
+
+Rewrite this text while:
+1. Maintaining all technical accuracy and key details
+2. Using active voice and emphasizing expertise
+3. Making it concise yet comprehensive
+4. Suitable for federal A/E qualification submissions
+
+Return ONLY the rewritten text, no explanations or formatting markers."""
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt
+    )
+    
+    return (response.text or "").strip()
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    retry=retry_if_exception(is_rate_limit_error)
+)
+def generate_cover_letter_ai(
+    rfp_text: str,
+    firm_name: str,
+    firm_bio: str,
+    employees: list,
+    projects: list,
+    contract_title: str,
+    solicitation_number: str,
+    style: str = '',
+    tone: str = '',
+    custom_instructions: str = ''
+) -> dict:
+    """Generate a cover letter and written sections using RFP + firm + staff + project data."""
+    
+    employees_summary = '\n'.join([
+        f"- {e['name']}: {e.get('title', '')} - {e.get('role_in_contract', '')} ({e.get('years_experience', '')} years experience)"
+        for e in employees
+    ])
+    
+    projects_summary = '\n'.join([
+        f"- {p['title']}: {p.get('location', '')} for {p.get('owner', '')}"
+        for p in projects
+    ])
+    
+    prompt = f"""You are an expert proposal writer for Architect-Engineer (A/E) federal contracts. Generate a professional cover letter and relevant written sections for an SF330 submission.
+
+CONTRACT INFORMATION:
+- Title: {contract_title}
+- Solicitation Number: {solicitation_number}
+
+FIRM INFORMATION:
+- Name: {firm_name}
+- Bio: {firm_bio or 'Not provided'}
+
+KEY PERSONNEL:
+{employees_summary or 'None selected'}
+
+RELEVANT PROJECTS:
+{projects_summary or 'None selected'}
+
+RFP/RFQ REQUIREMENTS (if available):
+{rfp_text[:15000] if rfp_text else 'RFP text not available'}
+
+WRITING SPECIFICATIONS:
+- Style: {style or 'Professional and technical'}
+- Tone: {tone or 'Formal but accessible'}
+{f'- Custom Instructions: {custom_instructions}' if custom_instructions else ''}
+
+Generate the following:
+
+1. COVER LETTER: A professional cover letter (1 page) that:
+   - Expresses interest in the contract
+   - Highlights the firm's relevant qualifications
+   - Summarizes key personnel experience
+   - References relevant project experience
+   - Demonstrates understanding of the project requirements
+
+2. WRITTEN SECTIONS: Any additional narrative sections commonly required in SF330 submissions such as:
+   - Project Understanding/Approach
+   - Management Plan
+   - Quality Control procedures
+   - Relevant Experience summary
+
+Return valid JSON with this structure:
+{{
+    "cover_letter": "Full cover letter text...",
+    "written_sections": "Additional narrative sections..."
+}}"""
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json"
+        )
+    )
+    
+    try:
+        result = json.loads(response.text or "{}")
+        return result
+    except json.JSONDecodeError:
+        return {
+            "cover_letter": response.text or "",
+            "written_sections": ""
+        }

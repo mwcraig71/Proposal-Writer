@@ -43,6 +43,7 @@ class Firm(db.Model):
     email = db.Column(db.String(255))
     point_of_contact_name = db.Column(db.String(255))
     point_of_contact_title = db.Column(db.String(255))
+    bio = db.Column(db.Text)
     is_branch = db.Column(db.Boolean, default=False)
     parent_firm_id = db.Column(db.Integer, db.ForeignKey('firms.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -143,6 +144,20 @@ class ProjectAlternateDescription(db.Model):
     project = db.relationship('Project', backref=db.backref('alternate_descriptions', lazy=True, cascade='all, delete-orphan'))
 
 
+class FirmAlternateDescription(db.Model):
+    """Stores alternate bio/writeup versions for firms"""
+    __tablename__ = 'firm_alternate_descriptions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    firm_id = db.Column(db.Integer, db.ForeignKey('firms.id'), nullable=False)
+    label = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    firm = db.relationship('Firm', backref=db.backref('alternate_descriptions', lazy=True, cascade='all, delete-orphan'))
+
+
 class EmployeeProjectLink(db.Model):
     __tablename__ = 'employee_project_links'
     
@@ -175,11 +190,18 @@ class Proposal(db.Model):
     public_notice_date = db.Column(db.String(100))
     solicitation_number = db.Column(db.String(255))
     firm_id = db.Column(db.Integer, db.ForeignKey('firms.id'), nullable=True)
+    firm_bio_alternate_id = db.Column(db.Integer, db.ForeignKey('firm_alternate_descriptions.id'), nullable=True)
+    rfp_filename = db.Column(db.String(500))
+    rfp_content = db.Column(db.LargeBinary)
+    rfp_text = db.Column(db.Text)
+    cover_letter = db.Column(db.Text)
+    written_sections = db.Column(db.Text)
     status = db.Column(db.String(50), default='draft')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     firm = db.relationship('Firm', backref='proposals')
+    firm_bio_alternate = db.relationship('FirmAlternateDescription')
     selected_employees = db.relationship('ProposalSelectedEmployee', backref='proposal', lazy=True, cascade='all, delete-orphan')
     selected_projects = db.relationship('ProposalSelectedProject', backref='proposal', lazy=True, cascade='all, delete-orphan')
 
