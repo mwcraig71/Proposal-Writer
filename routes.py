@@ -9,7 +9,8 @@ from models import (
     ProposalSelectedEmployee, ProposalSelectedProject, ProposalEmployeeRelevantProject,
     ProjectFirmInvolvement, EmployeeProjectExperience, ProjectAlternateDescription, AISettings,
     ClientContact, ExperienceAlternateDescription, Certification, CertificationType,
-    EmployeePhoto, ProjectPhoto, ProposalReference
+    EmployeePhoto, ProjectPhoto, ProposalReference, ProposalIntelligence,
+    FirmPhoto, ProposalSelectedFirmPhoto, MarketingPhoto, ProposalSelectedMarketingPhoto
 )
 from replit.object_storage import Client as ObjectStorageClient
 import uuid
@@ -1591,6 +1592,24 @@ def employee_relevant_projects(id, emp_id):
     
     db.session.commit()
     return jsonify({'success': True})
+
+
+@app.route('/proposals/<int:id>/delete', methods=['POST'])
+def delete_proposal(id):
+    proposal = Proposal.query.get_or_404(id)
+    
+    ProposalSelectedEmployee.query.filter_by(proposal_id=id).delete()
+    ProposalSelectedProject.query.filter_by(proposal_id=id).delete()
+    ProposalSelectedFirmPhoto.query.filter_by(proposal_id=id).delete()
+    ProposalSelectedMarketingPhoto.query.filter_by(proposal_id=id).delete()
+    ProposalReference.query.filter_by(proposal_id=id).delete()
+    ProposalIntelligence.query.filter_by(proposal_id=id).delete()
+    
+    db.session.delete(proposal)
+    db.session.commit()
+    
+    flash(f'Proposal "{proposal.name}" has been deleted.', 'success')
+    return redirect('/proposals')
 
 
 @app.route('/proposals/<int:id>/generate-pdf')

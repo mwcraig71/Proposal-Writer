@@ -71,9 +71,12 @@
                     <a href="/proposals/{{ proposal.id }}/step4" class="text-blue-600 hover:text-blue-800 mr-3">
                         <i class="fas fa-edit"></i> Edit
                     </a>
-                    <a href="/proposals/{{ proposal.id }}/generate-pdf" class="text-green-600 hover:text-green-800">
+                    <a href="/proposals/{{ proposal.id }}/generate-pdf" class="text-green-600 hover:text-green-800 mr-3">
                         <i class="fas fa-file-pdf"></i> PDF
                     </a>
+                    <button onclick="confirmDelete({{ proposal.id }}, '{{ proposal.name | e }}')" class="text-red-600 hover:text-red-800">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
                 </td>
             </tr>
             {% endfor %}
@@ -90,4 +93,16 @@
     </a>
 </div>
 {% endif %}
+
+<script>
+function confirmDelete(proposalId, proposalName) {
+    if (confirm('Are you sure you want to delete the proposal "' + proposalName + '"? This action cannot be undone.')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/proposals/' + proposalId + '/delete';
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+</script>
 {% endblock %}
