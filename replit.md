@@ -68,6 +68,12 @@ The AI parsing enforces consistent formats for personnel data:
 - **Other Qualifications:** Certifications, awards, publications - one per line
 
 ## Recent Changes
+- Added certification checklist for new personnel (Jan 2026)
+  - CertificationType model stores master list of certification types
+  - Add Personnel page shows checkboxes grouped by category (NHI, Safety, SPRAT, Drone, PE License)
+  - Users can check certifications, details added later on certifications page
+  - "Add New Certification Type" button adds new types to the master list dynamically
+  - "Build Cert Checklist" button on Certifications page seeds types from existing data
 - Added Certifications & Licenses management section (Jan 2026)
   - Certification model stores training, licenses, and certifications with PDF blob storage
   - Categories: NHI Training, Safety, SPRAT, Drone/FAA, PE Licenses by state
