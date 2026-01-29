@@ -484,20 +484,31 @@ def generate_simple_sf330(proposal, employees_data, projects_data, firms_data, m
     style = doc.styles['Normal']
     style.font.name = 'Arial'
     style.font.size = Pt(10)
+    style.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    
+    # Set heading styles to left align
+    for i in range(4):
+        try:
+            h_style = doc.styles[f'Heading {i+1}']
+            h_style.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        except:
+            pass
     
     def add_heading(text, level=1):
         h = doc.add_heading(text, level=level)
+        h.alignment = WD_ALIGN_PARAGRAPH.LEFT
         return h
     
     def add_field(label, value):
         p = doc.add_paragraph()
+        p.alignment = WD_ALIGN_PARAGRAPH.LEFT
         p.add_run(f"{label}: ").bold = True
         p.add_run(str(value) if value else "")
         return p
     
     # Title
     title = doc.add_heading('SF330 - ARCHITECT-ENGINEER QUALIFICATIONS', 0)
-    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    title.alignment = WD_ALIGN_PARAGRAPH.LEFT
     
     # Part I - Contract-Specific Qualifications
     add_heading('PART I - CONTRACT-SPECIFIC QUALIFICATIONS', 1)
