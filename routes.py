@@ -1138,12 +1138,23 @@ def parse_rfp():
         if not text:
             return jsonify({'error': 'Could not extract text from file'}), 400
         
-        parsed_data = parse_rfp_rfq(text)
+        try:
+            parsed_data = parse_rfp_rfq(text)
+        except Exception as parse_err:
+            print(f"RFP parsing error: {parse_err}")
+            # Return empty parsed data with the raw text so user can still proceed
+            parsed_data = {}
+        
+        if parsed_data is None:
+            parsed_data = {}
+            
         parsed_data['rfp_filename'] = file.filename
         parsed_data['rfp_content'] = file_content.hex()
         parsed_data['rfp_text'] = text[:50000]
         return jsonify({'success': True, 'data': parsed_data})
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 
