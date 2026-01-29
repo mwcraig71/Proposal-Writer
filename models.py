@@ -154,6 +154,7 @@ class Proposal(db.Model):
     __tablename__ = 'proposals'
     
     id = db.Column(db.Integer, primary_key=True)
+    tracking_number = db.Column(db.String(100), nullable=True)
     name = db.Column(db.String(500), nullable=False)
     contract_title = db.Column(db.String(500))
     contract_location = db.Column(db.String(255))

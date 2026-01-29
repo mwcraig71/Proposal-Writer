@@ -36,9 +36,16 @@
             <i class="fas fa-keyboard text-blue-600 mr-2"></i> Contract Information
         </h2>
         <form action="/proposals/new" method="POST" id="proposal-form" class="space-y-6">
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Proposal Name *</label>
-                <input type="text" name="name" id="name" required class="w-full p-3 border rounded-lg" placeholder="e.g., City Hall Renovation RFQ">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Tracking Number *</label>
+                    <input type="text" name="tracking_number" id="tracking_number" required class="w-full p-3 border rounded-lg" placeholder="e.g., 2026-001">
+                    <p class="text-xs text-gray-500 mt-1">Your internal proposal tracking number</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Proposal Name *</label>
+                    <input type="text" name="name" id="name" required class="w-full p-3 border rounded-lg" placeholder="e.g., City Hall Renovation RFQ">
+                </div>
             </div>
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">

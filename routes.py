@@ -674,8 +674,27 @@ def firm_detail(id):
 
 @app.route('/proposals')
 def proposals():
-    proposals = Proposal.query.order_by(Proposal.updated_at.desc()).all()
-    return render_template('proposals.html', proposals=proposals)
+    search = request.args.get('search', '').strip()
+    status_filter = request.args.get('status', '')
+    
+    query = Proposal.query
+    
+    if search:
+        search_term = f'%{search}%'
+        query = query.filter(
+            db.or_(
+                Proposal.tracking_number.ilike(search_term),
+                Proposal.name.ilike(search_term),
+                Proposal.contract_title.ilike(search_term),
+                Proposal.solicitation_number.ilike(search_term)
+            )
+        )
+    
+    if status_filter:
+        query = query.filter(Proposal.status == status_filter)
+    
+    proposals = query.order_by(Proposal.updated_at.desc()).all()
+    return render_template('proposals.html', proposals=proposals, search=search, status_filter=status_filter)
 
 
 @app.route('/proposals/parse-rfp', methods=['POST'])
@@ -709,6 +728,7 @@ def new_proposal():
     
     data = request.form
     proposal = Proposal(
+        tracking_number=data.get('tracking_number'),
         name=data.get('name'),
         contract_title=data.get('contract_title'),
         contract_location=data.get('contract_location'),
