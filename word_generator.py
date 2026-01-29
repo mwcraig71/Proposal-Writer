@@ -63,7 +63,13 @@ def generate_section_a_c(proposal, firms):
     set_cell_text(table, 3, 0, f"1.  TITLE AND LOCATION (City and State)\n{title_location}")
     
     # Row 4: Public Notice Date and Solicitation Number
-    notice_date = proposal.public_notice_date.strftime('%m/%d/%Y') if proposal.public_notice_date else ""
+    if proposal.public_notice_date:
+        if hasattr(proposal.public_notice_date, 'strftime'):
+            notice_date = proposal.public_notice_date.strftime('%m/%d/%Y')
+        else:
+            notice_date = str(proposal.public_notice_date)
+    else:
+        notice_date = ""
     set_cell_text(table, 4, 0, f"2.  PUBLIC NOTICE DATE\n{notice_date}")
     set_cell_text(table, 4, 8, f"3.  SOLICITATION OR PROJECT NUMBER\n{proposal.solicitation_number or ''}")
     
