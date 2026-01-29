@@ -2645,3 +2645,167 @@ def get_firm_photos(id):
         'caption': p.caption,
         'is_primary': p.is_primary
     } for p in photos])
+
+
+# Marketing Photos Routes
+@app.route('/marketing-photos')
+def marketing_photos():
+    """Marketing photos page with tag filtering"""
+    from models import MarketingPhoto
+    
+    # Get selected tags from query string
+    selected_tags = request.args.getlist('tags')
+    
+    # Get all photos
+    query = MarketingPhoto.query
+    photos = query.order_by(MarketingPhoto.created_at.desc()).all()
+    
+    # Get all unique tags
+    all_tags = set()
+    for photo in photos:
+        all_tags.update(photo.get_tags_list())
+    all_tags = sorted(all_tags)
+    
+    # Filter photos by selected tags if any
+    if selected_tags:
+        filtered_photos = []
+        for photo in photos:
+            photo_tags = photo.get_tags_list()
+            if any(tag in photo_tags for tag in selected_tags):
+                filtered_photos.append(photo)
+        photos = filtered_photos
+    
+    return render_template('marketing_photos.html', 
+                           photos=photos, 
+                           all_tags=all_tags,
+                           selected_tags=selected_tags)
+
+
+@app.route('/marketing-photos', methods=['POST'])
+def upload_marketing_photo():
+    """Upload a new marketing photo"""
+    from models import MarketingPhoto
+    
+    if 'photo' not in request.files:
+        flash('No photo file provided', 'error')
+        return redirect(url_for('marketing_photos'))
+    
+    file = request.files['photo']
+    if file.filename == '':
+        flash('No file selected', 'error')
+        return redirect(url_for('marketing_photos'))
+    
+    if not allowed_image_file(file.filename):
+        flash('Invalid file type. Allowed: PNG, JPG, JPEG, GIF, WEBP', 'error')
+        return redirect(url_for('marketing_photos'))
+    
+    client = get_storage_client()
+    if not client:
+        flash('Object storage not configured', 'error')
+        return redirect(url_for('marketing_photos'))
+    
+    ext = file.filename.rsplit('.', 1)[1].lower()
+    unique_id = str(uuid.uuid4())
+    storage_path = f"marketing/{unique_id}.{ext}"
+    
+    try:
+        file_data = file.read()
+        client.upload_from_bytes(storage_path, file_data)
+        
+        # Parse tags from input
+        tags_input = request.form.get('tags', '')
+        tags_list = [t.strip() for t in tags_input.split(',') if t.strip()]
+        # Ensure tags start with #
+        tags_list = ['#' + t.lstrip('#') for t in tags_list]
+        
+        photo = MarketingPhoto(
+            filename=secure_filename(file.filename),
+            storage_path=storage_path,
+            caption=request.form.get('caption', ''),
+            tags=','.join(tags_list),
+            file_size=len(file_data),
+            content_type=file.content_type
+        )
+        db.session.add(photo)
+        db.session.commit()
+        
+        flash('Photo uploaded successfully', 'success')
+    except Exception as e:
+        flash(f'Error uploading photo: {str(e)}', 'error')
+    
+    return redirect(url_for('marketing_photos'))
+
+
+@app.route('/marketing-photos/<int:id>', methods=['DELETE'])
+def delete_marketing_photo(id):
+    """Delete a marketing photo"""
+    from models import MarketingPhoto
+    photo = MarketingPhoto.query.get_or_404(id)
+    
+    client = get_storage_client()
+    if client:
+        try:
+            client.delete(photo.storage_path)
+        except Exception as e:
+            print(f"Error deleting photo from storage: {e}")
+    
+    db.session.delete(photo)
+    db.session.commit()
+    
+    return jsonify({'success': True})
+
+
+@app.route('/marketing-photos/<int:id>/update', methods=['POST'])
+def update_marketing_photo(id):
+    """Update marketing photo caption and tags"""
+    from models import MarketingPhoto
+    photo = MarketingPhoto.query.get_or_404(id)
+    
+    data = request.get_json()
+    if 'caption' in data:
+        photo.caption = data['caption']
+    if 'tags' in data:
+        tags_input = data['tags']
+        tags_list = [t.strip() for t in tags_input.split(',') if t.strip()]
+        tags_list = ['#' + t.lstrip('#') for t in tags_list]
+        photo.tags = ','.join(tags_list)
+    
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/api/marketing-photos')
+def get_marketing_photos_api():
+    """Get all marketing photos, optionally filtered by tags"""
+    from models import MarketingPhoto
+    
+    selected_tags = request.args.getlist('tags')
+    photos = MarketingPhoto.query.order_by(MarketingPhoto.created_at.desc()).all()
+    
+    # Filter by tags if specified
+    if selected_tags:
+        filtered_photos = []
+        for photo in photos:
+            photo_tags = photo.get_tags_list()
+            if any(tag in photo_tags for tag in selected_tags):
+                filtered_photos.append(photo)
+        photos = filtered_photos
+    
+    return jsonify([{
+        'id': p.id,
+        'filename': p.filename,
+        'storage_path': p.storage_path,
+        'caption': p.caption,
+        'tags': p.get_tags_list()
+    } for p in photos])
+
+
+@app.route('/api/marketing-photos/tags')
+def get_all_marketing_tags():
+    """Get all unique tags from marketing photos"""
+    from models import MarketingPhoto
+    photos = MarketingPhoto.query.all()
+    all_tags = set()
+    for photo in photos:
+        all_tags.update(photo.get_tags_list())
+    return jsonify(sorted(all_tags))
