@@ -178,10 +178,21 @@
         </div>
         <div id="photo-gallery" class="grid grid-cols-2 gap-2 mb-4">
             {% for photo in employee.photos %}
-            <div class="relative group" data-photo-id="{{ photo.id }}">
+            <div class="relative group {% if photo.is_primary %}ring-2 ring-green-500{% endif %}" data-photo-id="{{ photo.id }}">
                 <img src="/photos/employee/{{ photo.id }}" alt="{{ photo.caption or photo.filename }}" 
                      class="w-full h-24 object-cover rounded-lg cursor-pointer hover:opacity-90"
                      onclick="openPhotoViewer({{ photo.id }}, '{{ photo.caption or '' }}')">
+                {% if photo.is_primary %}
+                <div class="absolute top-1 left-1 bg-green-600 text-white text-xs px-1.5 py-0.5 rounded">
+                    <i class="fas fa-star text-xs"></i> Resume
+                </div>
+                {% else %}
+                <button onclick="setAsPrimary({{ photo.id }})" 
+                        class="absolute top-1 left-1 bg-gray-700 text-white text-xs px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition"
+                        title="Use for resume">
+                    <i class="fas fa-star"></i>
+                </button>
+                {% endif %}
                 <button onclick="deletePhoto({{ photo.id }})" 
                         class="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5 text-xs opacity-0 group-hover:opacity-100 transition">
                     <i class="fas fa-times"></i>
@@ -448,6 +459,20 @@ async function deletePhoto(photoId) {
 
 function openPhotoViewer(photoId, caption) {
     window.open(`/photos/employee/${photoId}`, '_blank');
+}
+
+async function setAsPrimary(photoId) {
+    try {
+        const response = await fetch(`/employees/${employeeId}/photos/${photoId}/set-primary`, { method: 'POST' });
+        const result = await response.json();
+        if (result.success) {
+            location.reload();
+        } else {
+            alert('Error setting primary photo');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
 }
 
 document.getElementById('employee-form').addEventListener('submit', async (e) => {

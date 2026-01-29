@@ -2322,6 +2322,21 @@ def update_employee_photo_caption(id, photo_id):
     return jsonify({'success': True})
 
 
+@app.route('/employees/<int:id>/photos/<int:photo_id>/set-primary', methods=['POST'])
+def set_employee_primary_photo(id, photo_id):
+    """Set a photo as the primary photo for an employee's resume"""
+    photo = EmployeePhoto.query.filter_by(id=photo_id, employee_id=id).first_or_404()
+    
+    # Clear any existing primary photo for this employee
+    EmployeePhoto.query.filter_by(employee_id=id, is_primary=True).update({'is_primary': False})
+    
+    # Set this photo as primary
+    photo.is_primary = True
+    db.session.commit()
+    
+    return jsonify({'success': True})
+
+
 @app.route('/projects/<int:id>/photos/<int:photo_id>/caption', methods=['PUT'])
 def update_project_photo_caption(id, photo_id):
     """Update the caption for a project photo"""
