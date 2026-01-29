@@ -30,15 +30,45 @@ def allowed_file(filename):
 
 @app.route('/')
 def index():
+    from datetime import date, timedelta
+    from collections import defaultdict
+    
     proposals = Proposal.query.order_by(Proposal.updated_at.desc()).limit(5).all()
     employees_count = Employee.query.count()
     projects_count = Project.query.count()
     firms_count = Firm.query.count()
+    
+    # Get expired and expiring certifications in next 6 months
+    today = date.today()
+    six_months_from_now = today + timedelta(days=180)
+    
+    expired_certs = Certification.query.filter(
+        Certification.expiration_date < today
+    ).order_by(Certification.expiration_date.desc()).all()
+    
+    expiring_certs = Certification.query.filter(
+        Certification.expiration_date >= today,
+        Certification.expiration_date <= six_months_from_now
+    ).order_by(Certification.expiration_date.asc()).all()
+    
+    # Group by category
+    expired_by_category = defaultdict(list)
+    for cert in expired_certs:
+        expired_by_category[cert.category or 'Other'].append(cert)
+    
+    expiring_by_category = defaultdict(list)
+    for cert in expiring_certs:
+        expiring_by_category[cert.category or 'Other'].append(cert)
+    
     return render_template('index.html', 
                          proposals=proposals,
                          employees_count=employees_count,
                          projects_count=projects_count,
-                         firms_count=firms_count)
+                         firms_count=firms_count,
+                         expired_certs_by_category=dict(expired_by_category),
+                         expiring_certs_by_category=dict(expiring_by_category),
+                         expired_total=len(expired_certs),
+                         expiring_total=len(expiring_certs))
 
 
 @app.route('/upload', methods=['GET', 'POST'])
