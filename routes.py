@@ -311,7 +311,21 @@ def update_employee(id):
     employee = Employee.query.get_or_404(id)
     data = request.json
     
-    employee.name = data.get('name', employee.name)
+    # Handle name fields
+    first_name = data.get('first_name', employee.first_name) or ''
+    middle_name = data.get('middle_name', employee.middle_name) or ''
+    last_name = data.get('last_name', employee.last_name) or ''
+    nickname = data.get('nickname', employee.nickname)
+    
+    # Build full name from components
+    name_parts = [first_name.strip(), middle_name.strip(), last_name.strip()]
+    full_name = ' '.join(p for p in name_parts if p)
+    
+    employee.first_name = first_name.strip() if first_name.strip() else None
+    employee.middle_name = middle_name.strip() if middle_name.strip() else None
+    employee.last_name = last_name.strip() if last_name.strip() else None
+    employee.nickname = nickname.strip() if nickname and nickname.strip() else None
+    employee.name = full_name if full_name else data.get('name', employee.name)
     employee.title = data.get('title', employee.title)
     employee.role = data.get('role', employee.role)
     employee.years_experience_total = data.get('years_experience_total', employee.years_experience_total)

@@ -16,10 +16,25 @@
         <h2 class="text-xl font-semibold text-gray-800 mb-4">Personnel Information</h2>
         
         <form id="employee-form" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                    <input type="text" name="first_name" value="{{ employee.first_name or '' }}" class="w-full p-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Middle Name</label>
+                    <input type="text" name="middle_name" value="{{ employee.middle_name or '' }}" class="w-full p-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                    <input type="text" name="last_name" value="{{ employee.last_name or '' }}" class="w-full p-2 border rounded-lg">
+                </div>
+            </div>
+            
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                    <input type="text" name="name" value="{{ employee.name }}" class="w-full p-2 border rounded-lg">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Nickname</label>
+                    <input type="text" name="nickname" value="{{ employee.nickname or '' }}" class="w-full p-2 border rounded-lg" placeholder="e.g., Jim for James">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Title</label>
