@@ -199,13 +199,14 @@ def generate_section_f(project, proposal, project_key_number, firms_involved=Non
         title_loc += f", {project.location}"
     set_cell_text(table, 1, 0, title_loc)
     
-    # Year Completed (Block 22)
-    set_cell_text(table, 1, 5, str(project.year_completed or ''))
+    # Year Completed (Block 22) - use professional services year
+    year_completed = getattr(project, 'year_completed_professional', '') or getattr(project, 'year_completed', '') or ''
+    set_cell_text(table, 1, 5, str(year_completed))
     
     # Project Owner Info (Block 23)
-    set_cell_text(table, 3, 0, project.owner_name or '')
-    set_cell_text(table, 3, 3, project.owner_contact_name or '')
-    set_cell_text(table, 3, 6, project.owner_phone or '')
+    set_cell_text(table, 3, 0, getattr(project, 'owner_name', '') or '')
+    set_cell_text(table, 3, 3, getattr(project, 'owner_contact_name', '') or '')
+    set_cell_text(table, 3, 6, getattr(project, 'owner_contact_phone', '') or '')
     
     # Brief Description (Block 24) - large text area
     description = project.brief_description or ''
