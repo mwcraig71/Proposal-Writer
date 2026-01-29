@@ -1132,9 +1132,8 @@ def parse_rfp():
         from gemini_service import parse_rfp_rfq
         
         file_content = file.read()
-        file.seek(0)
         
-        text = extract_text_from_file(file)
+        text = extract_text_from_file(file.filename, file_content)
         if not text:
             return jsonify({'error': 'Could not extract text from file'}), 400
         
