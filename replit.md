@@ -68,6 +68,11 @@ The AI parsing enforces consistent formats for personnel data:
 - **Other Qualifications:** Certifications, awards, publications - one per line
 
 ## Recent Changes
+- Added win theme and intelligence document uploads (Jan 2026)
+  - win_theme field on Proposal for key messaging and strategy
+  - ProposalIntelligence model stores competitor info, client background docs
+  - Proposal wizard Step 1 has win theme textarea and intelligence upload section
+  - Intelligence documents support descriptions and text extraction for AI use
 - Added Marketing Photos section with tagging and filtering (Jan 2026)
   - MarketingPhoto model with caption and tags (comma-separated #tags)
   - ProposalSelectedMarketingPhoto junction table for proposal selections

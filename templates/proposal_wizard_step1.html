@@ -112,9 +112,18 @@
                 <input type="hidden" name="selected_marketing_photos" id="selected_marketing_photos" value="">
             </div>
             
+            <div class="border-t pt-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Win Theme / Strategy</label>
+                <p class="text-sm text-gray-500 mb-2">Key messages and strategy for winning this proposal (used by AI when writing)</p>
+                <textarea name="win_theme" id="win_theme" rows="4" 
+                    class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter your win themes, key differentiators, and strategic messaging..."></textarea>
+            </div>
+            
             <input type="hidden" name="rfp_filename" id="rfp_filename">
             <input type="hidden" name="rfp_text" id="rfp_text">
             <input type="file" name="rfp_file" id="rfp_file_submit" class="hidden">
+            <input type="hidden" name="intel_file_count" id="intel_file_count" value="0">
             
             <div class="flex justify-end space-x-4 pt-4 border-t">
                 <a href="/proposals" class="px-6 py-3 border rounded-lg text-gray-700 hover:bg-gray-50 transition">Cancel</a>
@@ -189,6 +198,31 @@
             <div id="ref-uploaded-files" class="mt-3 space-y-2"></div>
             
             <p class="text-xs text-gray-500 mt-2">These documents will be available in Step 4 when generating AI content.</p>
+        </div>
+        
+        <div class="mt-6 border-t pt-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-3">
+                <i class="fas fa-lightbulb text-yellow-500 mr-2"></i> Intelligence Documents
+            </h3>
+            <p class="text-gray-600 text-sm mb-4">Upload competitor info, client background, or other research documents to inform proposal writing.</p>
+            
+            <div id="intel-drop-zone" class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-yellow-500 transition cursor-pointer">
+                <i class="fas fa-folder-open text-gray-400 text-2xl mb-2"></i>
+                <p class="text-gray-600 text-sm">Drag and drop intelligence docs</p>
+                <p class="text-gray-400 text-xs">PDF, Word, Excel, or text files</p>
+                <input type="file" id="intel-file-input" class="hidden" accept=".pdf,.docx,.doc,.xlsx,.xls,.txt">
+            </div>
+            
+            <div id="intel-upload-status" class="hidden mt-3">
+                <div class="flex items-center justify-center p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                    <i class="fas fa-spinner fa-spin text-yellow-600 mr-2"></i>
+                    <span class="text-yellow-700 text-sm">Processing document...</span>
+                </div>
+            </div>
+            
+            <div id="intel-uploaded-files" class="mt-3 space-y-2"></div>
+            
+            <p class="text-xs text-gray-500 mt-2">This intelligence will help AI generate more targeted proposal content.</p>
         </div>
     </div>
 </div>
@@ -547,7 +581,78 @@ function removeRefFile(fileId) {
     if (fileDiv) fileDiv.remove();
 }
 
-// Override form submission to include reference files
+// Intelligence document upload handling
+const intelDropZone = document.getElementById('intel-drop-zone');
+const intelFileInput = document.getElementById('intel-file-input');
+const intelUploadStatus = document.getElementById('intel-upload-status');
+const intelUploadedFiles = document.getElementById('intel-uploaded-files');
+let pendingIntelFiles = [];
+
+intelDropZone.addEventListener('click', () => intelFileInput.click());
+
+intelDropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    intelDropZone.classList.add('border-yellow-500', 'bg-yellow-50');
+});
+
+intelDropZone.addEventListener('dragleave', () => {
+    intelDropZone.classList.remove('border-yellow-500', 'bg-yellow-50');
+});
+
+intelDropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    intelDropZone.classList.remove('border-yellow-500', 'bg-yellow-50');
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+        addIntelFile(files[0]);
+    }
+});
+
+intelFileInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+        addIntelFile(e.target.files[0]);
+    }
+});
+
+function addIntelFile(file) {
+    const fileId = Date.now();
+    pendingIntelFiles.push({ id: fileId, file: file, description: '' });
+    
+    const fileDiv = document.createElement('div');
+    fileDiv.id = `intel-file-${fileId}`;
+    fileDiv.className = 'p-2 bg-yellow-50 rounded-lg border border-yellow-200';
+    fileDiv.innerHTML = `
+        <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center">
+                <i class="fas fa-file-alt text-yellow-600 mr-2"></i>
+                <span class="text-sm text-gray-700">${file.name}</span>
+                <span class="text-xs text-gray-500 ml-2">(${(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+            </div>
+            <button type="button" onclick="removeIntelFile(${fileId})" class="text-red-500 hover:text-red-700">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <input type="text" placeholder="Brief description (e.g., Competitor Analysis)" 
+            class="w-full text-xs p-1 border rounded" 
+            onchange="updateIntelDescription(${fileId}, this.value)">
+    `;
+    intelUploadedFiles.appendChild(fileDiv);
+    document.getElementById('intel_file_count').value = pendingIntelFiles.length;
+}
+
+function removeIntelFile(fileId) {
+    pendingIntelFiles = pendingIntelFiles.filter(f => f.id !== fileId);
+    const fileDiv = document.getElementById(`intel-file-${fileId}`);
+    if (fileDiv) fileDiv.remove();
+    document.getElementById('intel_file_count').value = pendingIntelFiles.length;
+}
+
+function updateIntelDescription(fileId, description) {
+    const item = pendingIntelFiles.find(f => f.id === fileId);
+    if (item) item.description = description;
+}
+
+// Override form submission to include reference and intelligence files
 document.getElementById('proposal-form').addEventListener('submit', async function(e) {
     e.preventDefault();
     
@@ -558,6 +663,13 @@ document.getElementById('proposal-form').addEventListener('submit', async functi
         formData.append(`ref_file_${idx}`, item.file);
     });
     formData.append('ref_file_count', pendingRefFiles.length);
+    
+    // Add intelligence files to form data
+    pendingIntelFiles.forEach((item, idx) => {
+        formData.append(`intel_file_${idx}`, item.file);
+        formData.append(`intel_desc_${idx}`, item.description);
+    });
+    formData.append('intel_file_count', pendingIntelFiles.length);
     
     try {
         const response = await fetch(this.action, {
