@@ -1709,6 +1709,120 @@ def finalize_proposal(id):
     return jsonify({'success': True})
 
 
+@app.route('/proposals/<int:id>/generate-word')
+def generate_proposal_word(id):
+    """Generate SF330 as Word document"""
+    from word_generator import generate_section_a_c, generate_section_e, generate_section_f, generate_section_g, generate_section_h, generate_part_ii, combine_documents
+    
+    proposal = Proposal.query.get_or_404(id)
+    
+    selected_employees = ProposalSelectedEmployee.query.filter_by(proposal_id=id)\
+        .order_by(ProposalSelectedEmployee.display_order).all()
+    selected_projects = ProposalSelectedProject.query.filter_by(proposal_id=id)\
+        .order_by(ProposalSelectedProject.display_order).all()
+    
+    employee_project_matrix = {}
+    for pse in selected_employees:
+        employee_project_matrix[pse.employee_id] = set()
+        for psp in selected_projects:
+            link = EmployeeProjectLink.query.filter_by(
+                employee_id=pse.employee_id,
+                project_id=psp.project_id
+            ).first()
+            if link:
+                employee_project_matrix[pse.employee_id].add(psp.project_id)
+    
+    documents = {}
+    
+    firms_data = [{'firm': proposal.firm, 'role': 'Prime', 'is_prime': True}] if proposal.firm else []
+    doc_a = generate_section_a_c(proposal, firms_data)
+    buffer = io.BytesIO()
+    doc_a.save(buffer)
+    documents['section_a_c'] = buffer.getvalue()
+    
+    section_e_docs = []
+    for pse in selected_employees:
+        employee = pse.employee
+        if not employee:
+            continue
+        experiences = list(employee.project_experiences) if employee else []
+        
+        class EmpWrapper:
+            pass
+        emp = EmpWrapper()
+        emp.name = employee.name
+        emp.proposal_role = pse.role_in_contract or employee.role
+        emp.years_experience = employee.years_experience_total
+        emp.years_with_firm = employee.years_experience_firm
+        emp.education = employee.education
+        emp.registrations = employee.registrations
+        emp.training = employee.training
+        emp.other_qualifications = employee.other_qualifications
+        
+        class ExpWrapper:
+            pass
+        exp_list = []
+        for e in experiences[:5]:
+            exp = ExpWrapper()
+            exp.title = e.project_title
+            exp.location = e.location
+            exp.year_completed = e.year_completed
+            exp.description = e.brief_description
+            exp.role = e.role_performed
+            exp_list.append(exp)
+        
+        doc_e = generate_section_e(emp, proposal, exp_list)
+        buffer = io.BytesIO()
+        doc_e.save(buffer)
+        section_e_docs.append({'name': employee.name, 'data': buffer.getvalue()})
+    
+    documents['section_e'] = section_e_docs
+    
+    section_f_docs = []
+    for idx, psp in enumerate(selected_projects):
+        project = psp.project
+        if not project:
+            continue
+        doc_f = generate_section_f(project, proposal, idx + 1)
+        buffer = io.BytesIO()
+        doc_f.save(buffer)
+        section_f_docs.append({'name': project.title, 'data': buffer.getvalue()})
+    documents['section_f'] = section_f_docs
+    
+    employees_with_roles = [
+        {'employee': pse.employee, 'role': pse.role_in_contract or (pse.employee.role if pse.employee else '')}
+        for pse in selected_employees if pse.employee
+    ]
+    projects = [psp.project for psp in selected_projects if psp.project]
+    doc_g = generate_section_g(employees_with_roles, projects, employee_project_matrix)
+    buffer = io.BytesIO()
+    doc_g.save(buffer)
+    documents['section_g'] = buffer.getvalue()
+    
+    doc_h = generate_section_h(proposal)
+    buffer = io.BytesIO()
+    doc_h.save(buffer)
+    documents['section_h_i'] = buffer.getvalue()
+    
+    if proposal.firm:
+        doc_ii = generate_part_ii(proposal.firm)
+        buffer = io.BytesIO()
+        doc_ii.save(buffer)
+        documents['part_ii'] = buffer.getvalue()
+    
+    combined = combine_documents(documents)
+    
+    filename = f"SF330_{proposal.tracking_number or proposal.id}_{proposal.name or 'proposal'}.docx"
+    filename = filename.replace(' ', '_').replace('/', '-')
+    
+    return send_file(
+        io.BytesIO(combined),
+        mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        as_attachment=True,
+        download_name=filename
+    )
+
+
 @app.route('/api/employees')
 def api_employees():
     employees = Employee.query.order_by(Employee.name).all()

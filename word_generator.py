@@ -21,12 +21,19 @@ def get_cell_text(table, row, col):
 def set_cell_text(table, row, col, text):
     """Set cell text, preserving formatting"""
     try:
+        if row >= len(table.rows) or col >= len(table.rows[row].cells):
+            return
         cell = table.rows[row].cells[col]
+        text_str = str(text) if text else ""
         if cell.paragraphs:
-            cell.paragraphs[0].clear()
-            cell.paragraphs[0].add_run(str(text) if text else "")
+            for run in cell.paragraphs[0].runs:
+                run.text = ""
+            if cell.paragraphs[0].runs:
+                cell.paragraphs[0].runs[0].text = text_str
+            else:
+                cell.paragraphs[0].add_run(text_str)
         else:
-            cell.text = str(text) if text else ""
+            cell.text = text_str
     except Exception as e:
         print(f"Error setting cell [{row}][{col}]: {e}")
 
@@ -63,12 +70,15 @@ def generate_section_a_c(proposal, firms):
     # Section B - Point of Contact (primary firm)
     if proposal.firm:
         firm = proposal.firm
+        poc_name = getattr(firm, 'point_of_contact_name', '') or getattr(firm, 'contact_name', '') or ''
+        poc_title = getattr(firm, 'point_of_contact_title', '') or ''
+        poc_display = f"{poc_name}, {poc_title}" if poc_title else poc_name
         # Row 5-6: POC section
-        set_cell_text(table, 6, 0, f"4.  NAME AND TITLE\n{firm.contact_name or ''}")
+        set_cell_text(table, 6, 0, f"4.  NAME AND TITLE\n{poc_display}")
         set_cell_text(table, 7, 0, f"5.  NAME OF FIRM\n{firm.name or ''}")
-        set_cell_text(table, 8, 0, f"6.  TELEPHONE NUMBER\n{firm.phone or ''}")
-        set_cell_text(table, 8, 4, f"7.  FAX NUMBER\n{firm.fax or ''}")
-        set_cell_text(table, 8, 7, f"8.  E-MAIL ADDRESS\n{firm.email or ''}")
+        set_cell_text(table, 8, 0, f"6.  TELEPHONE NUMBER\n{getattr(firm, 'phone', '') or ''}")
+        set_cell_text(table, 8, 4, f"7.  FAX NUMBER\n{getattr(firm, 'fax', '') or ''}")
+        set_cell_text(table, 8, 7, f"8.  E-MAIL ADDRESS\n{getattr(firm, 'email', '') or ''}")
     
     # Section C - Proposed Team (rows 12-17 typically for team members)
     # The table has rows for up to 6 firms (a through f)
@@ -293,7 +303,10 @@ def generate_section_h(proposal, additional_info=""):
         
         # Name and title
         if proposal.firm:
-            set_cell_text(sig_table, 2, 0, proposal.firm.contact_name or '')
+            poc_name = getattr(proposal.firm, 'point_of_contact_name', '') or ''
+            poc_title = getattr(proposal.firm, 'point_of_contact_title', '') or ''
+            poc_display = f"{poc_name}, {poc_title}" if poc_title else poc_name
+            set_cell_text(sig_table, 2, 0, poc_display)
     
     return doc
 
@@ -321,9 +334,12 @@ def generate_part_ii(firm):
     set_cell_text(table, 4, 7, firm.ownership_type or '')  # Block 5a
     
     # Point of Contact (Block 6)
-    set_cell_text(table, 10, 0, firm.contact_name or '')  # Block 6a
-    set_cell_text(table, 12, 0, firm.phone or '')  # Block 6b
-    set_cell_text(table, 12, 7, firm.email or '')  # Block 6c
+    poc_name = getattr(firm, 'point_of_contact_name', '') or ''
+    poc_title = getattr(firm, 'point_of_contact_title', '') or ''
+    poc_display = f"{poc_name}, {poc_title}" if poc_title else poc_name
+    set_cell_text(table, 10, 0, poc_display)  # Block 6a
+    set_cell_text(table, 12, 0, getattr(firm, 'phone', '') or '')  # Block 6b
+    set_cell_text(table, 12, 7, getattr(firm, 'email', '') or '')  # Block 6c
     
     # Former firm names (Block 8) - if applicable
     # Employee disciplines (Block 9) - would need employee data
