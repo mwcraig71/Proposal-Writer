@@ -51,7 +51,7 @@
                     <select name="firm_id" class="w-full p-2 border rounded-lg">
                         <option value="">-- Select Firm --</option>
                         {% for firm in firms %}
-                        <option value="{{ firm.id }}">{{ firm.name }}</option>
+                        <option value="{{ firm.id }}" {% if loop.first %}selected{% endif %}>{{ firm.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
