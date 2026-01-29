@@ -2113,6 +2113,10 @@ def add_certification_type():
 def get_storage_client():
     """Get object storage client - returns None if not configured"""
     try:
+        # Get bucket ID from environment variable
+        bucket_id = os.environ.get('DEFAULT_OBJECT_STORAGE_BUCKET_ID')
+        if bucket_id:
+            return ObjectStorageClient(bucket_id=bucket_id)
         return ObjectStorageClient()
     except Exception as e:
         print(f"Object storage not available: {e}")
