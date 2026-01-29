@@ -1170,11 +1170,14 @@ def new_proposal():
     
     data = request.form
     rfp_content = None
-    if data.get('rfp_content'):
-        try:
-            rfp_content = bytes.fromhex(data.get('rfp_content'))
-        except:
-            pass
+    rfp_filename = data.get('rfp_filename')
+    
+    # Handle file upload directly
+    if 'rfp_file' in request.files:
+        rfp_file = request.files['rfp_file']
+        if rfp_file and rfp_file.filename:
+            rfp_content = rfp_file.read()
+            rfp_filename = rfp_file.filename
     
     proposal = Proposal(
         tracking_number=data.get('tracking_number'),
@@ -1185,7 +1188,7 @@ def new_proposal():
         solicitation_number=data.get('solicitation_number'),
         firm_id=data.get('firm_id') if data.get('firm_id') else None,
         firm_bio_alternate_id=data.get('firm_bio_alternate_id') if data.get('firm_bio_alternate_id') else None,
-        rfp_filename=data.get('rfp_filename'),
+        rfp_filename=rfp_filename,
         rfp_content=rfp_content,
         rfp_text=data.get('rfp_text')
     )
