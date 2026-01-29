@@ -8,8 +8,11 @@ from models import (
     Firm, Employee, Project, EmployeeProjectLink, Proposal,
     ProposalSelectedEmployee, ProposalSelectedProject, ProposalEmployeeRelevantProject,
     ProjectFirmInvolvement, EmployeeProjectExperience, ProjectAlternateDescription, AISettings,
-    ClientContact, ExperienceAlternateDescription, Certification, CertificationType
+    ClientContact, ExperienceAlternateDescription, Certification, CertificationType,
+    EmployeePhoto, ProjectPhoto
 )
+from replit.object_storage import Client as ObjectStorageClient
+import uuid
 from document_parser import extract_text_from_file
 from gemini_service import detect_document_type, parse_employee_resume, parse_project_sheet, parse_firm_info, find_matching_employee, combine_and_rewrite_text
 from pdf_generator import generate_full_sf330, get_form_fields
@@ -2094,3 +2097,223 @@ def add_certification_type():
         'name': cert_type.name,
         'category': cert_type.category
     })
+
+
+# ============ Photo Upload Routes ============
+
+def get_storage_client():
+    """Get object storage client - returns None if not configured"""
+    try:
+        return ObjectStorageClient()
+    except Exception as e:
+        print(f"Object storage not available: {e}")
+        return None
+
+ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+
+def allowed_image_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
+
+
+@app.route('/employees/<int:id>/photos', methods=['POST'])
+def upload_employee_photo(id):
+    """Upload a photo for an employee"""
+    employee = Employee.query.get_or_404(id)
+    
+    if 'photo' not in request.files:
+        return jsonify({'success': False, 'error': 'No photo file provided'}), 400
+    
+    file = request.files['photo']
+    if file.filename == '':
+        return jsonify({'success': False, 'error': 'No file selected'}), 400
+    
+    if not allowed_image_file(file.filename):
+        return jsonify({'success': False, 'error': 'Invalid file type. Allowed: PNG, JPG, JPEG, GIF, WEBP'}), 400
+    
+    client = get_storage_client()
+    if not client:
+        return jsonify({'success': False, 'error': 'Object storage not configured'}), 500
+    
+    # Generate unique storage path
+    ext = file.filename.rsplit('.', 1)[1].lower()
+    unique_id = str(uuid.uuid4())
+    storage_path = f"employees/{id}/photos/{unique_id}.{ext}"
+    
+    try:
+        # Upload to object storage
+        file_data = file.read()
+        client.upload_from_bytes(storage_path, file_data)
+        
+        # Create database record
+        photo = EmployeePhoto(
+            employee_id=id,
+            filename=secure_filename(file.filename),
+            storage_path=storage_path,
+            caption=request.form.get('caption', ''),
+            file_size=len(file_data),
+            content_type=file.content_type
+        )
+        db.session.add(photo)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'photo': {
+                'id': photo.id,
+                'filename': photo.filename,
+                'caption': photo.caption,
+                'url': f'/photos/employee/{photo.id}'
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/employees/<int:id>/photos/<int:photo_id>', methods=['DELETE'])
+def delete_employee_photo(id, photo_id):
+    """Delete a photo for an employee"""
+    photo = EmployeePhoto.query.filter_by(id=photo_id, employee_id=id).first_or_404()
+    
+    client = get_storage_client()
+    if client:
+        try:
+            client.delete(photo.storage_path)
+        except Exception as e:
+            print(f"Error deleting from storage: {e}")
+    
+    db.session.delete(photo)
+    db.session.commit()
+    
+    return jsonify({'success': True})
+
+
+@app.route('/photos/employee/<int:photo_id>')
+def serve_employee_photo(photo_id):
+    """Serve an employee photo from object storage"""
+    photo = EmployeePhoto.query.get_or_404(photo_id)
+    
+    client = get_storage_client()
+    if not client:
+        return "Object storage not configured", 500
+    
+    try:
+        data = client.download_as_bytes(photo.storage_path)
+        return send_file(
+            io.BytesIO(data),
+            mimetype=photo.content_type or 'image/jpeg',
+            download_name=photo.filename
+        )
+    except Exception as e:
+        return f"Error loading photo: {e}", 404
+
+
+@app.route('/projects/<int:id>/photos', methods=['POST'])
+def upload_project_photo(id):
+    """Upload a photo for a project"""
+    project = Project.query.get_or_404(id)
+    
+    if 'photo' not in request.files:
+        return jsonify({'success': False, 'error': 'No photo file provided'}), 400
+    
+    file = request.files['photo']
+    if file.filename == '':
+        return jsonify({'success': False, 'error': 'No file selected'}), 400
+    
+    if not allowed_image_file(file.filename):
+        return jsonify({'success': False, 'error': 'Invalid file type. Allowed: PNG, JPG, JPEG, GIF, WEBP'}), 400
+    
+    client = get_storage_client()
+    if not client:
+        return jsonify({'success': False, 'error': 'Object storage not configured'}), 500
+    
+    # Generate unique storage path
+    ext = file.filename.rsplit('.', 1)[1].lower()
+    unique_id = str(uuid.uuid4())
+    storage_path = f"projects/{id}/photos/{unique_id}.{ext}"
+    
+    try:
+        # Upload to object storage
+        file_data = file.read()
+        client.upload_from_bytes(storage_path, file_data)
+        
+        # Create database record
+        photo = ProjectPhoto(
+            project_id=id,
+            filename=secure_filename(file.filename),
+            storage_path=storage_path,
+            caption=request.form.get('caption', ''),
+            file_size=len(file_data),
+            content_type=file.content_type
+        )
+        db.session.add(photo)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'photo': {
+                'id': photo.id,
+                'filename': photo.filename,
+                'caption': photo.caption,
+                'url': f'/photos/project/{photo.id}'
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/projects/<int:id>/photos/<int:photo_id>', methods=['DELETE'])
+def delete_project_photo(id, photo_id):
+    """Delete a photo for a project"""
+    photo = ProjectPhoto.query.filter_by(id=photo_id, project_id=id).first_or_404()
+    
+    client = get_storage_client()
+    if client:
+        try:
+            client.delete(photo.storage_path)
+        except Exception as e:
+            print(f"Error deleting from storage: {e}")
+    
+    db.session.delete(photo)
+    db.session.commit()
+    
+    return jsonify({'success': True})
+
+
+@app.route('/photos/project/<int:photo_id>')
+def serve_project_photo(photo_id):
+    """Serve a project photo from object storage"""
+    photo = ProjectPhoto.query.get_or_404(photo_id)
+    
+    client = get_storage_client()
+    if not client:
+        return "Object storage not configured", 500
+    
+    try:
+        data = client.download_as_bytes(photo.storage_path)
+        return send_file(
+            io.BytesIO(data),
+            mimetype=photo.content_type or 'image/jpeg',
+            download_name=photo.filename
+        )
+    except Exception as e:
+        return f"Error loading photo: {e}", 404
+
+
+@app.route('/employees/<int:id>/photos/<int:photo_id>/caption', methods=['PUT'])
+def update_employee_photo_caption(id, photo_id):
+    """Update the caption for an employee photo"""
+    photo = EmployeePhoto.query.filter_by(id=photo_id, employee_id=id).first_or_404()
+    data = request.json
+    photo.caption = data.get('caption', '')
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/projects/<int:id>/photos/<int:photo_id>/caption', methods=['PUT'])
+def update_project_photo_caption(id, photo_id):
+    """Update the caption for a project photo"""
+    photo = ProjectPhoto.query.filter_by(id=photo_id, project_id=id).first_or_404()
+    data = request.json
+    photo.caption = data.get('caption', '')
+    db.session.commit()
+    return jsonify({'success': True})
