@@ -97,6 +97,21 @@
                 <input type="hidden" name="selected_firm_photos" id="selected_firm_photos" value="">
             </div>
             
+            <div class="border-t pt-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Marketing Photos</label>
+                <p class="text-sm text-gray-500 mb-2">Filter by tags and select photos for this proposal</p>
+                
+                <div class="mb-3">
+                    <div class="flex flex-wrap gap-2" id="marketing-tag-filters">
+                        <span class="text-sm text-gray-500">Loading tags...</span>
+                    </div>
+                </div>
+                
+                <div id="marketing-photos-grid" class="grid grid-cols-4 gap-2 mb-2 max-h-64 overflow-y-auto">
+                </div>
+                <input type="hidden" name="selected_marketing_photos" id="selected_marketing_photos" value="">
+            </div>
+            
             <input type="hidden" name="rfp_filename" id="rfp_filename">
             <input type="hidden" name="rfp_text" id="rfp_text">
             <input type="file" name="rfp_file" id="rfp_file_submit" class="hidden">
@@ -356,6 +371,122 @@ function togglePhotoSelection(photoId) {
 function updateSelectedPhotosInput() {
     document.getElementById('selected_firm_photos').value = selectedFirmPhotos.join(',');
 }
+
+// Marketing Photos handling
+let selectedMarketingPhotos = [];
+let allMarketingPhotos = [];
+let selectedMarketingTags = [];
+
+async function loadMarketingTags() {
+    try {
+        const response = await fetch('/api/marketing-photos/tags');
+        const tags = await response.json();
+        const container = document.getElementById('marketing-tag-filters');
+        
+        if (tags.length === 0) {
+            container.innerHTML = '<span class="text-sm text-gray-500">No tags available. <a href="/marketing-photos" class="text-blue-600 underline">Add photos first</a></span>';
+            return;
+        }
+        
+        container.innerHTML = tags.map(tag => `
+            <button type="button" onclick="toggleMarketingTagFilter('${tag}')" 
+                    class="tag-filter px-2 py-1 text-xs rounded-full border ${selectedMarketingTags.includes(tag) ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:border-blue-500'}"
+                    data-tag="${tag}">
+                ${tag}
+            </button>
+        `).join('');
+    } catch (error) {
+        console.error('Error loading marketing tags:', error);
+    }
+}
+
+function toggleMarketingTagFilter(tag) {
+    const index = selectedMarketingTags.indexOf(tag);
+    if (index > -1) {
+        selectedMarketingTags.splice(index, 1);
+    } else {
+        selectedMarketingTags.push(tag);
+    }
+    
+    document.querySelectorAll('.tag-filter').forEach(btn => {
+        const btnTag = btn.getAttribute('data-tag');
+        if (selectedMarketingTags.includes(btnTag)) {
+            btn.classList.remove('bg-white', 'text-gray-700', 'border-gray-300');
+            btn.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
+        } else {
+            btn.classList.remove('bg-blue-600', 'text-white', 'border-blue-600');
+            btn.classList.add('bg-white', 'text-gray-700', 'border-gray-300');
+        }
+    });
+    
+    filterAndDisplayMarketingPhotos();
+}
+
+async function loadMarketingPhotos() {
+    try {
+        const response = await fetch('/api/marketing-photos');
+        allMarketingPhotos = await response.json();
+        filterAndDisplayMarketingPhotos();
+    } catch (error) {
+        console.error('Error loading marketing photos:', error);
+    }
+}
+
+function filterAndDisplayMarketingPhotos() {
+    let filtered = allMarketingPhotos;
+    
+    if (selectedMarketingTags.length > 0) {
+        filtered = allMarketingPhotos.filter(photo => {
+            return photo.tags.some(tag => selectedMarketingTags.includes(tag));
+        });
+    }
+    
+    const container = document.getElementById('marketing-photos-grid');
+    
+    if (filtered.length === 0) {
+        container.innerHTML = '<p class="col-span-4 text-gray-500 text-sm text-center py-2">No photos match the selected filters</p>';
+        return;
+    }
+    
+    container.innerHTML = filtered.map(photo => `
+        <div class="marketing-photo-item cursor-pointer relative ${selectedMarketingPhotos.includes(photo.id) ? 'ring-2 ring-green-500' : ''}" 
+             onclick="toggleMarketingPhotoSelection(${photo.id})" data-marketing-photo-id="${photo.id}">
+            <img src="/storage/${photo.storage_path}" alt="${photo.caption || photo.filename}" 
+                 class="w-full h-16 object-cover rounded" title="${photo.caption || ''}\n${photo.tags.join(', ')}">
+            <div class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-0 hover:bg-opacity-20 transition">
+                ${selectedMarketingPhotos.includes(photo.id) ? '<i class="fas fa-check-circle text-green-500 text-lg"></i>' : ''}
+            </div>
+        </div>
+    `).join('');
+}
+
+function toggleMarketingPhotoSelection(photoId) {
+    const index = selectedMarketingPhotos.indexOf(photoId);
+    if (index > -1) {
+        selectedMarketingPhotos.splice(index, 1);
+    } else {
+        selectedMarketingPhotos.push(photoId);
+    }
+    updateSelectedMarketingPhotosInput();
+    
+    const photoItem = document.querySelector(`[data-marketing-photo-id="${photoId}"]`);
+    if (photoItem) {
+        if (selectedMarketingPhotos.includes(photoId)) {
+            photoItem.classList.add('ring-2', 'ring-green-500');
+            photoItem.querySelector('.absolute').innerHTML = '<i class="fas fa-check-circle text-green-500 text-lg"></i>';
+        } else {
+            photoItem.classList.remove('ring-2', 'ring-green-500');
+            photoItem.querySelector('.absolute').innerHTML = '';
+        }
+    }
+}
+
+function updateSelectedMarketingPhotosInput() {
+    document.getElementById('selected_marketing_photos').value = selectedMarketingPhotos.join(',');
+}
+
+loadMarketingTags();
+loadMarketingPhotos();
 
 // Previous proposal reference upload handling
 const refDropZone = document.getElementById('ref-drop-zone');
