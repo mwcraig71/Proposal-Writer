@@ -356,6 +356,7 @@ class ProjectPhoto(db.Model):
     caption = db.Column(db.String(500))
     file_size = db.Column(db.Integer)
     content_type = db.Column(db.String(100))
+    is_primary = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     project = db.relationship('Project', backref=db.backref('photos', lazy=True, cascade='all, delete-orphan'))

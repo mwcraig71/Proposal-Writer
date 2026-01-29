@@ -2345,3 +2345,18 @@ def update_project_photo_caption(id, photo_id):
     photo.caption = data.get('caption', '')
     db.session.commit()
     return jsonify({'success': True})
+
+
+@app.route('/projects/<int:id>/photos/<int:photo_id>/set-primary', methods=['POST'])
+def set_project_primary_photo(id, photo_id):
+    """Set a photo as the primary photo for a project"""
+    photo = ProjectPhoto.query.filter_by(id=photo_id, project_id=id).first_or_404()
+    
+    # Clear any existing primary photo for this project
+    ProjectPhoto.query.filter_by(project_id=id, is_primary=True).update({'is_primary': False})
+    
+    # Set this photo as primary
+    photo.is_primary = True
+    db.session.commit()
+    
+    return jsonify({'success': True})
