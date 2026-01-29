@@ -136,6 +136,22 @@
             <div id="alternate-bios-list" class="space-y-4">
             </div>
         </div>
+        
+        <div class="bg-white rounded-lg shadow p-6 mt-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold text-gray-800">
+                    <i class="fas fa-images text-purple-600 mr-2"></i> Firm Photos
+                </h2>
+                <label class="cursor-pointer text-blue-600 hover:text-blue-800">
+                    <i class="fas fa-plus"></i> Upload
+                    <input type="file" id="photo-input" accept="image/*" class="hidden" onchange="uploadPhoto(this)">
+                </label>
+            </div>
+            <p class="text-sm text-gray-500 mb-4">Add photos of your firm (office, team, equipment) to include in proposals</p>
+            
+            <div id="firm-photos-grid" class="grid grid-cols-2 gap-3">
+            </div>
+        </div>
     </div>
 </div>
 
@@ -261,6 +277,93 @@ async function confirmDelete() {
     }
 }
 
-document.addEventListener('DOMContentLoaded', loadAlternateBios);
+async function loadFirmPhotos() {
+    try {
+        const response = await fetch(`/api/firms/${firmId}/photos`);
+        const photos = await response.json();
+        const container = document.getElementById('firm-photos-grid');
+        
+        if (photos.length === 0) {
+            container.innerHTML = '<p class="col-span-2 text-gray-500 text-sm text-center py-4">No photos yet. Upload images of your firm.</p>';
+            return;
+        }
+        
+        container.innerHTML = photos.map(photo => `
+            <div class="relative group ${photo.is_primary ? 'ring-2 ring-green-500 rounded-lg' : ''}">
+                <a href="/storage/${photo.storage_path}" target="_blank">
+                    <img src="/storage/${photo.storage_path}" alt="${photo.caption || photo.filename}" 
+                         class="w-full h-24 object-cover rounded-lg cursor-pointer hover:opacity-90">
+                </a>
+                ${photo.is_primary ? '<span class="absolute top-1 left-1 bg-green-500 text-white text-xs px-1 rounded"><i class="fas fa-star"></i></span>' : ''}
+                <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 rounded-b-lg truncate">
+                    ${photo.caption || photo.filename}
+                </div>
+                <div class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition flex gap-1">
+                    ${!photo.is_primary ? `<button onclick="setPrimaryPhoto(${photo.id})" class="bg-green-500 text-white p-1 rounded text-xs" title="Set as Primary"><i class="fas fa-star"></i></button>` : ''}
+                    <button onclick="deletePhoto(${photo.id})" class="bg-red-500 text-white p-1 rounded text-xs" title="Delete"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Error loading photos:', error);
+    }
+}
+
+async function uploadPhoto(input) {
+    if (!input.files || !input.files[0]) return;
+    
+    const file = input.files[0];
+    const formData = new FormData();
+    formData.append('photo', file);
+    
+    try {
+        const response = await fetch(`/firms/${firmId}/photos`, {
+            method: 'POST',
+            body: formData
+        });
+        const result = await response.json();
+        if (result.success) {
+            loadFirmPhotos();
+        } else {
+            alert(result.error || 'Error uploading photo');
+        }
+    } catch (error) {
+        alert('Error uploading photo');
+    }
+    input.value = '';
+}
+
+async function deletePhoto(photoId) {
+    if (!confirm('Delete this photo?')) return;
+    
+    try {
+        const response = await fetch(`/firms/${firmId}/photos/${photoId}`, {method: 'DELETE'});
+        const result = await response.json();
+        if (result.success) {
+            loadFirmPhotos();
+        } else {
+            alert(result.error || 'Error deleting photo');
+        }
+    } catch (error) {
+        alert('Error deleting photo');
+    }
+}
+
+async function setPrimaryPhoto(photoId) {
+    try {
+        const response = await fetch(`/firms/${firmId}/photos/${photoId}/set-primary`, {method: 'POST'});
+        const result = await response.json();
+        if (result.success) {
+            loadFirmPhotos();
+        }
+    } catch (error) {
+        alert('Error setting primary photo');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadAlternateBios();
+    loadFirmPhotos();
+});
 </script>
 {% endblock %}

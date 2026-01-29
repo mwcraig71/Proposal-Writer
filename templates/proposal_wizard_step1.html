@@ -89,6 +89,14 @@
                 <p class="text-sm text-gray-500 mt-1">Choose which firm bio/writeup to use for this proposal.</p>
             </div>
             
+            <div id="firm-photos-section" class="hidden">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Select Firm Photos for Proposal</label>
+                <p class="text-sm text-gray-500 mb-2">Click photos to include them in the proposal</p>
+                <div id="firm-photos-grid" class="grid grid-cols-4 gap-2 mb-2">
+                </div>
+                <input type="hidden" name="selected_firm_photos" id="selected_firm_photos" value="">
+            </div>
+            
             <input type="hidden" name="rfp_filename" id="rfp_filename">
             <input type="hidden" name="rfp_text" id="rfp_text">
             <input type="file" name="rfp_file" id="rfp_file_submit" class="hidden">
@@ -265,12 +273,17 @@ async function handleRfpUpload(file) {
 
 const firmAlts = {{ firm_alts | tojson | safe }};
 
+let selectedFirmPhotos = [];
+
 function updateFirmBioOptions() {
     const firmId = document.getElementById('firm_id').value;
     const bioSection = document.getElementById('firm-bio-section');
     const bioSelect = document.getElementById('firm_bio_alternate_id');
+    const photosSection = document.getElementById('firm-photos-section');
     
     bioSelect.innerHTML = '<option value="">-- Use Main Bio --</option>';
+    selectedFirmPhotos = [];
+    updateSelectedPhotosInput();
     
     if (firmId && firmAlts[firmId] && firmAlts[firmId].length > 0) {
         firmAlts[firmId].forEach(alt => {
@@ -283,6 +296,65 @@ function updateFirmBioOptions() {
     } else {
         bioSection.classList.add('hidden');
     }
+    
+    if (firmId) {
+        loadFirmPhotos(firmId);
+        photosSection.classList.remove('hidden');
+    } else {
+        photosSection.classList.add('hidden');
+        document.getElementById('firm-photos-grid').innerHTML = '';
+    }
+}
+
+async function loadFirmPhotos(firmId) {
+    try {
+        const response = await fetch(`/api/firms/${firmId}/photos`);
+        const photos = await response.json();
+        const container = document.getElementById('firm-photos-grid');
+        
+        if (photos.length === 0) {
+            container.innerHTML = '<p class="col-span-4 text-gray-500 text-sm text-center py-2">No firm photos available</p>';
+            return;
+        }
+        
+        container.innerHTML = photos.map(photo => `
+            <div class="photo-item cursor-pointer relative ${selectedFirmPhotos.includes(photo.id) ? 'ring-2 ring-blue-500' : ''}" 
+                 onclick="togglePhotoSelection(${photo.id})" data-photo-id="${photo.id}">
+                <img src="/storage/${photo.storage_path}" alt="${photo.caption || photo.filename}" 
+                     class="w-full h-16 object-cover rounded">
+                <div class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-0 hover:bg-opacity-20 transition">
+                    ${selectedFirmPhotos.includes(photo.id) ? '<i class="fas fa-check-circle text-blue-500 text-lg"></i>' : ''}
+                </div>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Error loading firm photos:', error);
+    }
+}
+
+function togglePhotoSelection(photoId) {
+    const index = selectedFirmPhotos.indexOf(photoId);
+    if (index > -1) {
+        selectedFirmPhotos.splice(index, 1);
+    } else {
+        selectedFirmPhotos.push(photoId);
+    }
+    updateSelectedPhotosInput();
+    
+    const photoItem = document.querySelector(`[data-photo-id="${photoId}"]`);
+    if (photoItem) {
+        if (selectedFirmPhotos.includes(photoId)) {
+            photoItem.classList.add('ring-2', 'ring-blue-500');
+            photoItem.querySelector('.absolute').innerHTML = '<i class="fas fa-check-circle text-blue-500 text-lg"></i>';
+        } else {
+            photoItem.classList.remove('ring-2', 'ring-blue-500');
+            photoItem.querySelector('.absolute').innerHTML = '';
+        }
+    }
+}
+
+function updateSelectedPhotosInput() {
+    document.getElementById('selected_firm_photos').value = selectedFirmPhotos.join(',');
 }
 
 // Previous proposal reference upload handling

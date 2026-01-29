@@ -362,6 +362,36 @@ class ProjectPhoto(db.Model):
     project = db.relationship('Project', backref=db.backref('photos', lazy=True, cascade='all, delete-orphan'))
 
 
+class FirmPhoto(db.Model):
+    """Stores photo references for firms - actual files in object storage"""
+    __tablename__ = 'firm_photos'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    firm_id = db.Column(db.Integer, db.ForeignKey('firms.id'), nullable=False)
+    filename = db.Column(db.String(500), nullable=False)
+    storage_path = db.Column(db.String(500), nullable=False)
+    caption = db.Column(db.String(500))
+    file_size = db.Column(db.Integer)
+    content_type = db.Column(db.String(100))
+    is_primary = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    firm = db.relationship('Firm', backref=db.backref('photos', lazy=True, cascade='all, delete-orphan'))
+
+
+class ProposalSelectedFirmPhoto(db.Model):
+    """Junction table for firm photos selected for a proposal"""
+    __tablename__ = 'proposal_selected_firm_photos'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    proposal_id = db.Column(db.Integer, db.ForeignKey('proposals.id'), nullable=False)
+    firm_photo_id = db.Column(db.Integer, db.ForeignKey('firm_photos.id'), nullable=False)
+    display_order = db.Column(db.Integer, default=0)
+    
+    proposal = db.relationship('Proposal', backref=db.backref('selected_firm_photos', lazy=True, cascade='all, delete-orphan'))
+    firm_photo = db.relationship('FirmPhoto')
+
+
 class ProposalReference(db.Model):
     """Stores previous proposal documents uploaded as reference for AI-generated content"""
     __tablename__ = 'proposal_references'

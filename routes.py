@@ -1197,6 +1197,22 @@ def new_proposal():
     db.session.add(proposal)
     db.session.commit()
     
+    # Handle selected firm photos
+    selected_photos = data.get('selected_firm_photos', '')
+    if selected_photos and proposal.firm_id:
+        from models import ProposalSelectedFirmPhoto, FirmPhoto
+        photo_ids = [int(pid) for pid in selected_photos.split(',') if pid.strip()]
+        for order, photo_id in enumerate(photo_ids):
+            # Validate photo belongs to the selected firm
+            photo = FirmPhoto.query.filter_by(id=photo_id, firm_id=proposal.firm_id).first()
+            if photo:
+                psfp = ProposalSelectedFirmPhoto(
+                    proposal_id=proposal.id,
+                    firm_photo_id=photo_id,
+                    display_order=order
+                )
+                db.session.add(psfp)
+    
     # Handle reference document uploads (previous proposals)
     ref_count = int(data.get('ref_file_count', 0))
     for i in range(ref_count):
@@ -2519,3 +2535,113 @@ def set_project_primary_photo(id, photo_id):
     db.session.commit()
     
     return jsonify({'success': True})
+
+
+# ============ Firm Photo Routes ============
+
+@app.route('/firms/<int:id>/photos', methods=['POST'])
+def upload_firm_photo(id):
+    """Upload a photo for a firm"""
+    from models import FirmPhoto
+    firm = Firm.query.get_or_404(id)
+    
+    if 'photo' not in request.files:
+        return jsonify({'success': False, 'error': 'No photo file provided'}), 400
+    
+    file = request.files['photo']
+    if file.filename == '':
+        return jsonify({'success': False, 'error': 'No file selected'}), 400
+    
+    if not allowed_image_file(file.filename):
+        return jsonify({'success': False, 'error': 'Invalid file type. Allowed: PNG, JPG, JPEG, GIF, WEBP'}), 400
+    
+    client = get_storage_client()
+    if not client:
+        return jsonify({'success': False, 'error': 'Object storage not configured'}), 500
+    
+    ext = file.filename.rsplit('.', 1)[1].lower()
+    unique_id = str(uuid.uuid4())
+    storage_path = f"firms/{id}/photos/{unique_id}.{ext}"
+    
+    try:
+        file_data = file.read()
+        client.upload_from_bytes(storage_path, file_data)
+        
+        photo = FirmPhoto(
+            firm_id=id,
+            filename=secure_filename(file.filename),
+            storage_path=storage_path,
+            caption=request.form.get('caption', ''),
+            file_size=len(file_data),
+            content_type=file.content_type
+        )
+        db.session.add(photo)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'photo': {
+                'id': photo.id,
+                'filename': photo.filename,
+                'caption': photo.caption,
+                'storage_path': photo.storage_path
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/firms/<int:id>/photos/<int:photo_id>', methods=['DELETE'])
+def delete_firm_photo(id, photo_id):
+    """Delete a firm photo"""
+    from models import FirmPhoto
+    photo = FirmPhoto.query.filter_by(id=photo_id, firm_id=id).first_or_404()
+    
+    client = get_storage_client()
+    if client:
+        try:
+            client.delete(photo.storage_path)
+        except Exception as e:
+            print(f"Error deleting from storage: {e}")
+    
+    db.session.delete(photo)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/firms/<int:id>/photos/<int:photo_id>/caption', methods=['PUT'])
+def update_firm_photo_caption(id, photo_id):
+    """Update a firm photo caption"""
+    from models import FirmPhoto
+    photo = FirmPhoto.query.filter_by(id=photo_id, firm_id=id).first_or_404()
+    data = request.json
+    photo.caption = data.get('caption', '')
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/firms/<int:id>/photos/<int:photo_id>/set-primary', methods=['POST'])
+def set_firm_primary_photo(id, photo_id):
+    """Set a photo as the primary photo for a firm"""
+    from models import FirmPhoto
+    photo = FirmPhoto.query.filter_by(id=photo_id, firm_id=id).first_or_404()
+    
+    FirmPhoto.query.filter_by(firm_id=id, is_primary=True).update({'is_primary': False})
+    photo.is_primary = True
+    db.session.commit()
+    
+    return jsonify({'success': True})
+
+
+@app.route('/api/firms/<int:id>/photos')
+def get_firm_photos(id):
+    """Get all photos for a firm"""
+    from models import FirmPhoto
+    photos = FirmPhoto.query.filter_by(firm_id=id).order_by(FirmPhoto.is_primary.desc(), FirmPhoto.created_at.desc()).all()
+    return jsonify([{
+        'id': p.id,
+        'filename': p.filename,
+        'storage_path': p.storage_path,
+        'caption': p.caption,
+        'is_primary': p.is_primary
+    } for p in photos])

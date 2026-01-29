@@ -68,6 +68,12 @@ The AI parsing enforces consistent formats for personnel data:
 - **Other Qualifications:** Certifications, awards, publications - one per line
 
 ## Recent Changes
+- Added firm photo upload and proposal selection (Jan 2026)
+  - FirmPhoto model stores firm images in Object Storage
+  - Photo gallery on firm edit page with upload, delete, set primary
+  - ProposalSelectedFirmPhoto junction table links photos to proposals
+  - Proposal wizard Step 1 shows firm photos when firm is selected
+  - Click photos to toggle selection for inclusion in proposal
 - Added previous proposal upload for AI reference (Jan 2026)
   - ProposalReference model stores uploaded PDF/Word documents with extracted text
   - Upload previous proposals in Step 1 or Step 4 of proposal wizard
