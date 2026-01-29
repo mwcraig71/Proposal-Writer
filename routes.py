@@ -1192,7 +1192,8 @@ def new_proposal():
         firm_bio_alternate_id=data.get('firm_bio_alternate_id') if data.get('firm_bio_alternate_id') else None,
         rfp_filename=rfp_filename,
         rfp_content=rfp_content,
-        rfp_text=data.get('rfp_text')
+        rfp_text=data.get('rfp_text'),
+        win_theme=data.get('win_theme')
     )
     db.session.add(proposal)
     db.session.commit()
@@ -1254,6 +1255,35 @@ def new_proposal():
                     content_type=ref_file.content_type
                 )
                 db.session.add(ref_doc)
+    
+    # Handle intelligence document uploads
+    from models import ProposalIntelligence
+    intel_count = int(data.get('intel_file_count', 0))
+    for i in range(intel_count):
+        intel_key = f'intel_file_{i}'
+        desc_key = f'intel_desc_{i}'
+        if intel_key in request.files:
+            intel_file = request.files[intel_key]
+            if intel_file and intel_file.filename:
+                file_content = intel_file.read()
+                
+                # Extract text from the intelligence document
+                extracted_text = ""
+                try:
+                    extracted_text = extract_text_from_file(intel_file.filename, file_content)
+                except Exception as e:
+                    print(f"Error extracting text from intelligence doc: {e}")
+                
+                intel_doc = ProposalIntelligence(
+                    proposal_id=proposal.id,
+                    filename=secure_filename(intel_file.filename),
+                    file_content=file_content,
+                    extracted_text=extracted_text,
+                    description=data.get(desc_key, ''),
+                    file_size=len(file_content),
+                    content_type=intel_file.content_type
+                )
+                db.session.add(intel_doc)
     
     db.session.commit()
     
