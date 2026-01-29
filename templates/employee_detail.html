@@ -156,6 +156,38 @@
         <p class="text-gray-500">No projects linked yet.</p>
         {% endif %}
     </div>
+    
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-semibold text-gray-800">Certifications & Licenses</h2>
+            <a href="{{ url_for('employee_certifications', employee_id=employee.id) }}" class="text-blue-600 hover:text-blue-800 text-sm">
+                <i class="fas fa-external-link-alt mr-1"></i>Manage All
+            </a>
+        </div>
+        {% set certs = employee.certifications[:5] %}
+        {% if certs %}
+        <ul class="space-y-2">
+            {% for cert in certs %}
+            <li class="flex justify-between items-center text-sm">
+                <span>
+                    {{ cert.name }}{% if cert.state %} ({{ cert.state }}){% endif %}
+                    {% if cert.level %} - Level {{ cert.level }}{% endif %}
+                </span>
+                {% if cert.status == 'expired' %}
+                <span class="text-red-600">Expired</span>
+                {% elif cert.expiration_date %}
+                <span class="text-gray-500">{{ cert.expiration_date.strftime('%m/%d/%Y') }}</span>
+                {% endif %}
+            </li>
+            {% endfor %}
+            {% if employee.certifications|length > 5 %}
+            <li class="text-sm text-gray-500">+ {{ employee.certifications|length - 5 }} more...</li>
+            {% endif %}
+        </ul>
+        {% else %}
+        <p class="text-gray-500">No certifications recorded.</p>
+        {% endif %}
+    </div>
 </div>
 {% endblock %}
 

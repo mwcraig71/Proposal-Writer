@@ -55,6 +55,7 @@ MVP implementation complete with:
 - **EmployeeProjectLink** - Many-to-many for Section G matrix (links employees to firm projects)
 - **Proposals** - SF330 submission containers
 - **ProposalSelectedEmployee/Project** - Junction tables (ProposalSelectedProject now includes alternate_description_id)
+- **Certification** - Employee certifications, licenses, and training records with PDF storage
 
 ## Running the Application
 The app runs on port 5000. Access via the webview.
@@ -67,6 +68,13 @@ The AI parsing enforces consistent formats for personnel data:
 - **Other Qualifications:** Certifications, awards, publications - one per line
 
 ## Recent Changes
+- Added Certifications & Licenses management section (Jan 2026)
+  - Certification model stores training, licenses, and certifications with PDF blob storage
+  - Categories: NHI Training, Safety, SPRAT, Drone/FAA, PE Licenses by state
+  - Import from License_Survey CSV to bulk create personnel and certifications
+  - Click on certification to upload/view/delete PDF copies
+  - Expiration tracking with status indicators (active, expired, registered)
+  - Certifications page linked from navigation and employee detail page
 - Added "Copy to Resume" feature on project detail page (Jan 2026)
   - Select project description version (main or any alternate) to copy
   - Multi-select employees to copy the project to their resume experience
