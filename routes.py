@@ -1207,7 +1207,7 @@ def new_proposal():
                 # Extract text from the reference document
                 extracted_text = ""
                 try:
-                    extracted_text = extract_text_from_file(file_content, ref_file.filename)
+                    extracted_text = extract_text_from_file(ref_file.filename, file_content)
                 except Exception as e:
                     print(f"Error extracting text from reference doc: {e}")
                 
@@ -1394,9 +1394,17 @@ def upload_reference(id):
     
     file_content = ref_file.read()
     
+    # Validate file type
+    if not allowed_file(ref_file.filename):
+        return jsonify({'error': 'File type not allowed. Only PDF and Word documents are accepted.'}), 400
+    
+    # Check file size (max 50MB)
+    if len(file_content) > 50 * 1024 * 1024:
+        return jsonify({'error': 'File too large. Maximum size is 50MB.'}), 400
+    
     extracted_text = ""
     try:
-        extracted_text = extract_text_from_file(file_content, ref_file.filename)
+        extracted_text = extract_text_from_file(ref_file.filename, file_content)
     except Exception as e:
         print(f"Error extracting text from reference doc: {e}")
     

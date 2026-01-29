@@ -68,6 +68,11 @@ The AI parsing enforces consistent formats for personnel data:
 - **Other Qualifications:** Certifications, awards, publications - one per line
 
 ## Recent Changes
+- Added previous proposal upload for AI reference (Jan 2026)
+  - ProposalReference model stores uploaded PDF/Word documents with extracted text
+  - Upload previous proposals in Step 1 or Step 4 of proposal wizard
+  - Reference text included in AI cover letter generation for style/content matching
+  - Download and delete reference documents from Step 4 review page
 - Added photo upload for personnel and projects (Jan 2026)
   - EmployeePhoto and ProjectPhoto models store photo references with metadata
   - Photos stored in Replit Object Storage for long-term persistence
