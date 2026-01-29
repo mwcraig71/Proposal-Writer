@@ -411,10 +411,18 @@ def parse_firm_website(website_content: str) -> dict:
     
     prompt = f"""You are parsing a company/firm website to extract business information for a government form (SF330).
 
+IMPORTANT: Carefully scan ALL sections of the content including headers, footers, contact sections, and about pages.
+Look specifically for:
+- Phone numbers (often in format xxx-xxx-xxxx or (xxx) xxx-xxxx)
+- Email addresses (look for @ symbols)
+- Physical addresses (street, city, state, zip)
+- Company founding year or "established" dates
+- Contact person names and titles
+
 Extract ONLY the information that is clearly present on the website. Do not make up or guess information.
 
 Website content:
-{website_content[:15000]}
+{website_content[:20000]}
 
 Extract the following fields if present (return null for missing fields):
 {json.dumps(FIRM_WEBSITE_SCHEMA, indent=2)}

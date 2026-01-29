@@ -650,10 +650,10 @@ def scrape_firm_website():
         url = 'https://' + url
     
     try:
-        from web_scraper import get_website_text_content
+        from web_scraper import get_firm_website_content
         from gemini_service import parse_firm_website
         
-        website_content = get_website_text_content(url)
+        website_content = get_firm_website_content(url)
         
         if not website_content:
             return jsonify({'error': 'Could not fetch content from this website. The site may be unavailable or blocking access.'}), 400
