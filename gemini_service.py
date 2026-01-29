@@ -499,7 +499,8 @@ def generate_cover_letter_ai(
     solicitation_number: str,
     style: str = '',
     tone: str = '',
-    custom_instructions: str = ''
+    custom_instructions: str = '',
+    reference_proposals: str = ''
 ) -> dict:
     """Generate a cover letter and written sections using RFP + firm + staff + project data."""
     
@@ -512,6 +513,17 @@ def generate_cover_letter_ai(
         f"- {p['title']}: {p.get('location', '')} for {p.get('owner', '')}"
         for p in projects
     ])
+    
+    reference_section = ""
+    if reference_proposals:
+        reference_section = f"""
+PREVIOUS PROPOSAL REFERENCES:
+The following text is from previously successful proposals. Use these as examples of the firm's writing style, typical project descriptions, and approach language. Adapt relevant content for this specific proposal:
+
+{reference_proposals[:30000]}
+
+---END REFERENCE MATERIALS---
+"""
     
     prompt = f"""You are an expert proposal writer for Architect-Engineer (A/E) federal contracts. Generate a professional cover letter and relevant written sections for an SF330 submission.
 
@@ -531,6 +543,7 @@ RELEVANT PROJECTS:
 
 RFP/RFQ REQUIREMENTS (if available):
 {rfp_text[:15000] if rfp_text else 'RFP text not available'}
+{reference_section}
 
 WRITING SPECIFICATIONS:
 - Style: {style or 'Professional and technical'}

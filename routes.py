@@ -1348,6 +1348,77 @@ def download_rfp(id):
     )
 
 
+@app.route('/proposals/<int:id>/reference/<int:ref_id>/download')
+def download_reference(id, ref_id):
+    """Download a reference document"""
+    ref_doc = ProposalReference.query.filter_by(id=ref_id, proposal_id=id).first_or_404()
+    
+    from io import BytesIO
+    
+    file_ext = ref_doc.filename.rsplit('.', 1)[-1].lower() if '.' in ref_doc.filename else 'pdf'
+    mime_types = {
+        'pdf': 'application/pdf',
+        'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'doc': 'application/msword',
+        'txt': 'text/plain'
+    }
+    
+    return send_file(
+        BytesIO(ref_doc.file_content),
+        mimetype=mime_types.get(file_ext, 'application/octet-stream'),
+        as_attachment=True,
+        download_name=ref_doc.filename
+    )
+
+
+@app.route('/proposals/<int:id>/reference/<int:ref_id>/delete', methods=['POST'])
+def delete_reference(id, ref_id):
+    """Delete a reference document"""
+    ref_doc = ProposalReference.query.filter_by(id=ref_id, proposal_id=id).first_or_404()
+    db.session.delete(ref_doc)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/proposals/<int:id>/reference/upload', methods=['POST'])
+def upload_reference(id):
+    """Upload additional reference documents after proposal creation"""
+    proposal = Proposal.query.get_or_404(id)
+    
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file provided'}), 400
+    
+    ref_file = request.files['file']
+    if not ref_file or not ref_file.filename:
+        return jsonify({'error': 'No file selected'}), 400
+    
+    file_content = ref_file.read()
+    
+    extracted_text = ""
+    try:
+        extracted_text = extract_text_from_file(file_content, ref_file.filename)
+    except Exception as e:
+        print(f"Error extracting text from reference doc: {e}")
+    
+    ref_doc = ProposalReference(
+        proposal_id=proposal.id,
+        filename=secure_filename(ref_file.filename),
+        file_content=file_content,
+        extracted_text=extracted_text,
+        file_size=len(file_content),
+        content_type=ref_file.content_type
+    )
+    db.session.add(ref_doc)
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'id': ref_doc.id,
+        'filename': ref_doc.filename,
+        'file_size': ref_doc.file_size
+    })
+
+
 @app.route('/proposals/<int:id>/generate-cover-letter', methods=['POST'])
 def generate_cover_letter(id):
     """Generate AI cover letter using RFP + firm + staff + project data"""
@@ -1391,6 +1462,12 @@ def generate_cover_letter(id):
             'description': proj.brief_description
         })
     
+    # Gather reference proposal text from uploaded previous proposals
+    reference_proposals_text = ""
+    for ref_doc in proposal.reference_documents:
+        if ref_doc.extracted_text:
+            reference_proposals_text += f"\n\n--- Reference: {ref_doc.filename} ---\n{ref_doc.extracted_text}"
+    
     result = generate_cover_letter_ai(
         rfp_text=proposal.rfp_text or '',
         firm_name=proposal.firm.name if proposal.firm else '',
@@ -1401,7 +1478,8 @@ def generate_cover_letter(id):
         solicitation_number=proposal.solicitation_number or '',
         style=style,
         tone=tone,
-        custom_instructions=custom_instructions
+        custom_instructions=custom_instructions,
+        reference_proposals=reference_proposals_text
     )
     
     proposal.cover_letter = result.get('cover_letter', '')
