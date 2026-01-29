@@ -73,6 +73,45 @@
                 <textarea name="other_qualifications" rows="3" class="w-full p-2 border rounded-lg" placeholder="Awards, certifications, publications..."></textarea>
             </div>
             
+            {% if cert_types_grouped %}
+            <div class="border-t pt-4 mt-4">
+                <h3 class="font-semibold text-gray-800 mb-3">
+                    <i class="fas fa-certificate text-yellow-500 mr-2"></i> Certifications & Licenses
+                </h3>
+                <p class="text-sm text-gray-500 mb-3">Check all certifications this person has. You can add details later.</p>
+                
+                <div class="space-y-4 max-h-64 overflow-y-auto border rounded-lg p-3 bg-gray-50" id="cert-checklist-container">
+                    {% for category, types in cert_types_grouped.items() %}
+                    <div data-category="{{ category }}">
+                        <h4 class="font-medium text-gray-700 text-sm mb-2">{{ category }}</h4>
+                        <div class="grid grid-cols-2 gap-1">
+                            {% for ct in types %}
+                            <label class="flex items-center text-sm cursor-pointer hover:bg-white p-1 rounded">
+                                <input type="checkbox" name="cert_types" value="{{ ct.id }}" class="mr-2 text-blue-600">
+                                <span class="truncate" title="{{ ct.name }}">{{ ct.name }}</span>
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <button type="button" onclick="showAddCertTypeModal()" class="mt-2 text-sm text-blue-600 hover:underline">
+                    <i class="fas fa-plus mr-1"></i> Add New Certification Type
+                </button>
+            </div>
+            {% else %}
+            <div class="border-t pt-4 mt-4">
+                <h3 class="font-semibold text-gray-800 mb-3">
+                    <i class="fas fa-certificate text-yellow-500 mr-2"></i> Certifications & Licenses
+                </h3>
+                <p class="text-sm text-gray-500 mb-2">No certification types in the system yet.</p>
+                <button type="button" onclick="showAddCertTypeModal()" class="text-sm text-blue-600 hover:underline">
+                    <i class="fas fa-plus mr-1"></i> Add New Certification Type
+                </button>
+            </div>
+            {% endif %}
+            
             <button type="submit" class="w-full bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition">
                 <i class="fas fa-save mr-2"></i> Save Personnel
             </button>
@@ -100,4 +139,127 @@
         </div>
     </div>
 </div>
+
+<div id="add-cert-type-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div class="p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold">Add New Certification Type</h3>
+                <button onclick="hideAddCertTypeModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <form id="add-cert-type-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Certification Name *</label>
+                    <input type="text" id="new-cert-name" required class="w-full p-2 border rounded-lg" placeholder="e.g., OSHA-30, NHI-130055">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Category *</label>
+                    <select id="new-cert-category" required class="w-full p-2 border rounded-lg">
+                        <option value="NHI">NHI Training</option>
+                        <option value="Safety">Safety</option>
+                        <option value="SPRAT">SPRAT</option>
+                        <option value="Drone">Drone/FAA</option>
+                        <option value="PE License">PE License</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                    <select id="new-cert-type" class="w-full p-2 border rounded-lg">
+                        <option value="training">Training</option>
+                        <option value="certification">Certification</option>
+                        <option value="license">License</option>
+                    </select>
+                </div>
+                <div class="flex gap-3">
+                    <button type="button" onclick="hideAddCertTypeModal()" class="flex-1 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200">
+                        Cancel
+                    </button>
+                    <button type="submit" class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                        Add & Check
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showAddCertTypeModal() {
+    document.getElementById('add-cert-type-modal').classList.remove('hidden');
+}
+
+function hideAddCertTypeModal() {
+    document.getElementById('add-cert-type-modal').classList.add('hidden');
+    document.getElementById('add-cert-type-form').reset();
+}
+
+document.getElementById('add-cert-type-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const name = document.getElementById('new-cert-name').value.trim();
+    const category = document.getElementById('new-cert-category').value;
+    const certType = document.getElementById('new-cert-type').value;
+    
+    if (!name) {
+        alert('Please enter a certification name');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/certification-types/add', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: name,
+                category: category,
+                cert_type: certType
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success || data.id) {
+            // Add the new checkbox to the form
+            let categoryDiv = document.querySelector(`[data-category="${category}"]`);
+            
+            if (!categoryDiv) {
+                // Create new category section if it doesn't exist
+                const checklistContainer = document.querySelector('.space-y-4.max-h-64');
+                if (checklistContainer) {
+                    categoryDiv = document.createElement('div');
+                    categoryDiv.setAttribute('data-category', category);
+                    categoryDiv.innerHTML = `
+                        <h4 class="font-medium text-gray-700 text-sm mb-2">${category}</h4>
+                        <div class="grid grid-cols-2 gap-1"></div>
+                    `;
+                    checklistContainer.appendChild(categoryDiv);
+                }
+            }
+            
+            if (categoryDiv) {
+                const grid = categoryDiv.querySelector('.grid');
+                const newLabel = document.createElement('label');
+                newLabel.className = 'flex items-center text-sm cursor-pointer hover:bg-white p-1 rounded';
+                newLabel.innerHTML = `
+                    <input type="checkbox" name="cert_types" value="${data.id}" class="mr-2 text-blue-600" checked>
+                    <span class="truncate" title="${name}">${name}</span>
+                `;
+                grid.appendChild(newLabel);
+            }
+            
+            hideAddCertTypeModal();
+        } else {
+            alert(data.message || 'Failed to add certification type');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error adding certification type');
+    }
+});
+</script>
 {% endblock %}

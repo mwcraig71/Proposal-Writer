@@ -8,7 +8,7 @@ from models import (
     Firm, Employee, Project, EmployeeProjectLink, Proposal,
     ProposalSelectedEmployee, ProposalSelectedProject, ProposalEmployeeRelevantProject,
     ProjectFirmInvolvement, EmployeeProjectExperience, ProjectAlternateDescription, AISettings,
-    ClientContact, ExperienceAlternateDescription, Certification
+    ClientContact, ExperienceAlternateDescription, Certification, CertificationType
 )
 from document_parser import extract_text_from_file
 from gemini_service import detect_document_type, parse_employee_resume, parse_project_sheet, parse_firm_info, find_matching_employee, combine_and_rewrite_text
@@ -225,11 +225,36 @@ def add_employee():
             firm_id=int(data.get('firm_id')) if data.get('firm_id') else None
         )
         db.session.add(employee)
+        db.session.flush()  # Get the employee ID
+        
+        # Process checked certifications from the checklist
+        checked_cert_ids = data.getlist('cert_types')
+        for cert_type_id in checked_cert_ids:
+            cert_type = CertificationType.query.get(int(cert_type_id))
+            if cert_type:
+                cert = Certification(
+                    employee_id=employee.id,
+                    name=cert_type.name,
+                    category=cert_type.category,
+                    cert_type=cert_type.cert_type,
+                    status='pending'  # Mark as pending until details are filled
+                )
+                db.session.add(cert)
+        
         db.session.commit()
         return redirect(f'/employees/{employee.id}')
     
     firms = Firm.query.all()
-    return render_template('employee_add.html', firms=firms)
+    # Get certification types grouped by category
+    cert_types = CertificationType.query.order_by(CertificationType.category, CertificationType.sort_order, CertificationType.name).all()
+    cert_types_grouped = {}
+    for ct in cert_types:
+        category = ct.category or 'Other'
+        if category not in cert_types_grouped:
+            cert_types_grouped[category] = []
+        cert_types_grouped[category].append(ct)
+    
+    return render_template('employee_add.html', firms=firms, cert_types_grouped=cert_types_grouped)
 
 
 @app.route('/employees/<int:id>')
@@ -1927,3 +1952,92 @@ def import_certifications_csv():
     db.session.commit()
     flash(f'CSV imported successfully! Created {len(employee_map)} personnel records with certifications.', 'success')
     return redirect(url_for('certifications'))
+
+
+@app.route('/certification-types/seed', methods=['POST'])
+def seed_certification_types():
+    """Seed CertificationType table from existing Certification records"""
+    # Get unique name/category combinations from existing certifications
+    existing_certs = db.session.query(
+        Certification.name, 
+        Certification.category, 
+        Certification.cert_type
+    ).distinct().all()
+    
+    added = 0
+    for cert in existing_certs:
+        if not cert.name:
+            continue
+        # Check if already exists
+        existing = CertificationType.query.filter_by(
+            name=cert.name,
+            category=cert.category
+        ).first()
+        if not existing:
+            cert_type = CertificationType(
+                name=cert.name,
+                category=cert.category or 'Other',
+                cert_type=cert.cert_type or 'certification',
+                has_levels=(cert.category == 'SPRAT'),
+                has_expiration=(cert.category != 'NHI')  # NHI training doesn't typically expire
+            )
+            db.session.add(cert_type)
+            added += 1
+    
+    db.session.commit()
+    flash(f'Seeded {added} certification types from existing records.', 'success')
+    return redirect(url_for('certifications'))
+
+
+@app.route('/api/certification-types')
+def get_certification_types():
+    """Get all certification types grouped by category for the checklist"""
+    types = CertificationType.query.order_by(CertificationType.category, CertificationType.sort_order, CertificationType.name).all()
+    
+    grouped = {}
+    for ct in types:
+        category = ct.category or 'Other'
+        if category not in grouped:
+            grouped[category] = []
+        grouped[category].append({
+            'id': ct.id,
+            'name': ct.name,
+            'category': ct.category,
+            'cert_type': ct.cert_type,
+            'has_levels': ct.has_levels,
+            'has_expiration': ct.has_expiration
+        })
+    
+    return jsonify(grouped)
+
+
+@app.route('/certification-types/add', methods=['POST'])
+def add_certification_type():
+    """Add a new certification type to the master list"""
+    data = request.json
+    
+    # Check if already exists
+    existing = CertificationType.query.filter_by(
+        name=data.get('name'),
+        category=data.get('category')
+    ).first()
+    
+    if existing:
+        return jsonify({'success': False, 'message': 'Certification type already exists', 'id': existing.id})
+    
+    cert_type = CertificationType(
+        name=data.get('name'),
+        category=data.get('category', 'Other'),
+        cert_type=data.get('cert_type', 'certification'),
+        has_levels=data.get('has_levels', False),
+        has_expiration=data.get('has_expiration', True)
+    )
+    db.session.add(cert_type)
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'id': cert_type.id,
+        'name': cert_type.name,
+        'category': cert_type.category
+    })

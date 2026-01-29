@@ -272,6 +272,25 @@ class Certification(db.Model):
     employee = db.relationship('Employee', backref=db.backref('certifications', lazy=True, cascade='all, delete-orphan'))
 
 
+class CertificationType(db.Model):
+    """Master list of certification types for the checklist when adding personnel"""
+    __tablename__ = 'certification_types'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), nullable=False)
+    category = db.Column(db.String(100))  # 'NHI', 'Safety', 'SPRAT', 'Drone', 'PE License'
+    cert_type = db.Column(db.String(100), default='certification')  # 'training', 'license', 'certification'
+    default_state = db.Column(db.String(50))  # For PE licenses, default state
+    has_levels = db.Column(db.Boolean, default=False)  # True for SPRAT which has levels
+    has_expiration = db.Column(db.Boolean, default=True)  # Most certs expire
+    sort_order = db.Column(db.Integer, default=0)  # For display ordering within category
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    __table_args__ = (
+        db.UniqueConstraint('name', 'category', name='uq_cert_type_name_category'),
+    )
+
+
 class AISettings(db.Model):
     __tablename__ = 'ai_settings'
     
