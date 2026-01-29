@@ -68,6 +68,12 @@ The AI parsing enforces consistent formats for personnel data:
 - **Other Qualifications:** Certifications, awards, publications - one per line
 
 ## Recent Changes
+- Added photo upload for personnel and projects (Jan 2026)
+  - EmployeePhoto and ProjectPhoto models store photo references with metadata
+  - Photos stored in Replit Object Storage for long-term persistence
+  - Photo gallery on employee and project detail pages
+  - Upload with optional caption, delete functionality
+  - Click to open full-size photo in new tab
 - Added certification checklist for new personnel (Jan 2026)
   - CertificationType model stores master list of certification types
   - Add Personnel page shows checkboxes grouped by category (NHI, Safety, SPRAT, Drone, PE License)
