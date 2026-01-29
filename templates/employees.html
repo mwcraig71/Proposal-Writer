@@ -19,18 +19,18 @@
 </div>
 
 {% if employees %}
-<div class="bg-white rounded-lg shadow overflow-hidden">
-    <table class="w-full">
+<div class="bg-white rounded-lg shadow overflow-hidden overflow-x-auto">
+    <table class="w-full table-fixed">
         <thead class="bg-gray-50">
             <tr>
-                <th class="px-4 py-3 text-left">
+                <th class="w-10 px-4 py-3 text-left">
                     <input type="checkbox" id="selectAll" onchange="toggleSelectAll()" class="w-4 h-4 text-blue-600 rounded">
                 </th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Experience</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th class="w-36 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                <th class="w-24 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Experience</th>
+                <th class="w-20 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
         </thead>
         <tbody class="divide-y divide-gray-200">
@@ -39,15 +39,19 @@
                 <td class="px-4 py-4">
                     <input type="checkbox" class="employee-checkbox w-4 h-4 text-blue-600 rounded" value="{{ employee.id }}" onchange="updateMergeButton()">
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="font-medium text-gray-900">{{ employee.name }}</div>
+                <td class="px-4 py-4">
+                    <div class="font-medium text-gray-900 truncate" title="{{ employee.name }}">{{ employee.name }}</div>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ employee.title or '-' }}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ employee.role or '-' }}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-gray-600">
-                    {{ employee.years_experience_total or '-' }} years
+                <td class="px-4 py-4 text-gray-600">
+                    <div class="truncate" title="{{ employee.title or '-' }}">{{ employee.title or '-' }}</div>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap">
+                <td class="px-4 py-4 text-gray-600">
+                    <div class="truncate" title="{{ employee.role or '-' }}">{{ employee.role or '-' }}</div>
+                </td>
+                <td class="px-4 py-4 whitespace-nowrap text-gray-600">
+                    {{ employee.years_experience_total or '-' }} yrs
+                </td>
+                <td class="px-4 py-4 whitespace-nowrap">
                     <div class="flex gap-3">
                         <a href="/employees/{{ employee.id }}" class="text-blue-600 hover:text-blue-800" title="Edit">
                             <i class="fas fa-edit"></i>
