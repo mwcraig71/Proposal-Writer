@@ -15,6 +15,7 @@ dependencies = [
     "pypdf>=6.6.2",
     "python-docx>=1.2.0",
     "python-magic>=0.4.27",
+    "replit-object-storage>=1.0.2",
     "requests>=2.32.5",
     "sift-stack-py>=0.9.6",
     "sqlalchemy>=2.0.46",
