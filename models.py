@@ -326,3 +326,35 @@ class AISettings(db.Model):
             setting = AISettings(setting_key=key, setting_value=value)
             db.session.add(setting)
         db.session.commit()
+
+
+class EmployeePhoto(db.Model):
+    """Stores photo references for employees - actual files in object storage"""
+    __tablename__ = 'employee_photos'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False)
+    filename = db.Column(db.String(500), nullable=False)
+    storage_path = db.Column(db.String(500), nullable=False)
+    caption = db.Column(db.String(500))
+    file_size = db.Column(db.Integer)
+    content_type = db.Column(db.String(100))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    employee = db.relationship('Employee', backref=db.backref('photos', lazy=True, cascade='all, delete-orphan'))
+
+
+class ProjectPhoto(db.Model):
+    """Stores photo references for projects - actual files in object storage"""
+    __tablename__ = 'project_photos'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=False)
+    filename = db.Column(db.String(500), nullable=False)
+    storage_path = db.Column(db.String(500), nullable=False)
+    caption = db.Column(db.String(500))
+    file_size = db.Column(db.Integer)
+    content_type = db.Column(db.String(100))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    project = db.relationship('Project', backref=db.backref('photos', lazy=True, cascade='all, delete-orphan'))
