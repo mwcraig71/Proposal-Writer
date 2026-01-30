@@ -1,5 +1,6 @@
 import os
 from flask import Flask
+from flask_session import Session
 from database import db
 
 app = Flask(__name__)
@@ -10,6 +11,11 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_pre_ping": True,
 }
 app.config["MAX_CONTENT_LENGTH"] = 100 * 1024 * 1024  # 100MB max upload
+
+app.config["SESSION_TYPE"] = "filesystem"
+app.config["SESSION_FILE_DIR"] = "/tmp/flask_session"
+app.config["SESSION_PERMANENT"] = False
+Session(app)
 
 db.init_app(app)
 
