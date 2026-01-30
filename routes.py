@@ -2333,6 +2333,61 @@ def save_settings():
     return redirect(url_for('settings'))
 
 
+@app.route('/data/export')
+def export_data():
+    from data_export import export_all_data
+    from datetime import datetime
+    
+    data = export_all_data()
+    json_str = json.dumps(data, indent=2, ensure_ascii=False)
+    
+    filename = f"sf330_data_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    
+    return send_file(
+        io.BytesIO(json_str.encode('utf-8')),
+        mimetype='application/json',
+        as_attachment=True,
+        download_name=filename
+    )
+
+
+@app.route('/data/import', methods=['POST'])
+def import_data():
+    from data_export import import_all_data
+    
+    if 'file' not in request.files:
+        flash('No file uploaded', 'error')
+        return redirect(url_for('settings'))
+    
+    file = request.files['file']
+    if file.filename == '':
+        flash('No file selected', 'error')
+        return redirect(url_for('settings'))
+    
+    if not file.filename.endswith('.json'):
+        flash('Please upload a JSON file', 'error')
+        return redirect(url_for('settings'))
+    
+    try:
+        content = file.read().decode('utf-8')
+        data = json.loads(content)
+        
+        clear_existing = request.form.get('clear_existing') == 'on'
+        results = import_all_data(data, clear_existing=clear_existing)
+        
+        if results['success']:
+            summary = ', '.join([f"{k}: {v}" for k, v in results['imported'].items() if v > 0])
+            flash(f'Data imported successfully! {summary}', 'success')
+        else:
+            flash(f'Import failed: {", ".join(results["errors"])}', 'error')
+    except json.JSONDecodeError:
+        flash('Invalid JSON file', 'error')
+    except Exception as e:
+        flash(f'Import error: {str(e)}', 'error')
+    
+    return redirect(url_for('settings'))
+
+
 @app.route('/contacts')
 def contacts():
     all_contacts = ClientContact.query.order_by(ClientContact.name).all()

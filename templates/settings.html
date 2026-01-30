@@ -46,5 +46,57 @@
             </button>
         </div>
     </form>
+    
+    <div class="bg-white rounded-lg shadow p-6 mt-8">
+        <h2 class="text-xl font-semibold text-gray-800 mb-6">
+            <i class="fas fa-database text-green-600 mr-2"></i>
+            Data Management
+        </h2>
+        
+        <div class="grid md:grid-cols-2 gap-6">
+            <div class="border rounded-lg p-4">
+                <h3 class="font-medium text-gray-800 mb-2">
+                    <i class="fas fa-download text-blue-600 mr-2"></i>
+                    Export Data
+                </h3>
+                <p class="text-sm text-gray-600 mb-4">Download all your data (firms, personnel, projects, proposals, etc.) as a JSON file for backup or transfer.</p>
+                <a href="/data/export" class="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                    <i class="fas fa-file-export mr-2"></i>
+                    Export to JSON
+                </a>
+            </div>
+            
+            <div class="border rounded-lg p-4">
+                <h3 class="font-medium text-gray-800 mb-2">
+                    <i class="fas fa-upload text-green-600 mr-2"></i>
+                    Import Data
+                </h3>
+                <p class="text-sm text-gray-600 mb-4">Upload a previously exported JSON file to restore or merge data.</p>
+                <form method="POST" action="/data/import" enctype="multipart/form-data">
+                    <input type="file" name="file" accept=".json" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 mb-3">
+                    <div class="flex items-center mb-3">
+                        <input type="checkbox" name="clear_existing" id="clear_existing" class="w-4 h-4 text-red-600 rounded mr-2">
+                        <label for="clear_existing" class="text-sm text-gray-600">Clear existing data before import</label>
+                    </div>
+                    <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
+                        <i class="fas fa-file-import mr-2"></i>
+                        Import from JSON
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
+            <h3 class="font-medium text-yellow-800 mb-2">
+                <i class="fas fa-exclamation-triangle mr-1"></i>
+                Important Notes
+            </h3>
+            <ul class="text-sm text-yellow-700 space-y-1">
+                <li>Export does not include uploaded files (photos, PDFs) - only text data</li>
+                <li>Checking "Clear existing data" will delete all current records before importing</li>
+                <li>Without clearing, imported records will be added alongside existing data</li>
+            </ul>
+        </div>
+    </div>
 </div>
 {% endblock %}

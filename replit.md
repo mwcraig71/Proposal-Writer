@@ -68,6 +68,11 @@ The AI parsing enforces consistent formats for personnel data:
 - **Other Qualifications:** Certifications, awards, publications - one per line
 
 ## Recent Changes
+- Added data export/import functionality (Jan 2026)
+  - Export all database records to JSON file from Settings page
+  - Import data from JSON to restore or transfer between instances
+  - Option to clear existing data before import or merge with existing
+  - Handles ID remapping for foreign key relationships during import
 - Added portfolio website scraping for project import (Jan 2026)
   - "From Website" tab in Import Projects modal
   - Enter portfolio page URL to scrape projects from company websites
