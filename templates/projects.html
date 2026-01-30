@@ -12,6 +12,9 @@
         <button id="mergeSelectedBtn" onclick="mergeSelected()" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition hidden">
             <i class="fas fa-code-merge mr-2"></i> Merge Selected
         </button>
+        <button onclick="openImportModal()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">
+            <i class="fas fa-file-import mr-2"></i> Import Projects
+        </button>
         <a href="/projects/add" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
             <i class="fas fa-plus mr-2"></i> Add Project
         </a>
@@ -120,5 +123,267 @@ async function deleteProject(id, title) {
         alert('Error deleting project: ' + error.message);
     }
 }
+
+function openImportModal() {
+    document.getElementById('importModal').classList.remove('hidden');
+}
+
+function closeImportModal() {
+    document.getElementById('importModal').classList.add('hidden');
+    document.getElementById('importStatus').classList.add('hidden');
+    document.getElementById('parsedProjectsPreview').classList.add('hidden');
+    document.getElementById('importFile').value = '';
+}
+
+let parsedProjectsData = null;
+let lastUploadedFile = null;
+
+async function parseImportFile() {
+    const fileInput = document.getElementById('importFile');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        alert('Please select a file');
+        return;
+    }
+    
+    lastUploadedFile = file;
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const statusDiv = document.getElementById('importStatus');
+    statusDiv.classList.remove('hidden');
+    statusDiv.innerHTML = '<div class="flex items-center"><i class="fas fa-spinner fa-spin mr-2"></i> Parsing document for projects...</div>';
+    statusDiv.className = 'mt-4 p-3 rounded-lg bg-blue-50 text-blue-700';
+    
+    try {
+        const response = await fetch('/upload', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.error) {
+            statusDiv.innerHTML = '<i class="fas fa-exclamation-circle mr-2"></i> ' + data.error;
+            statusDiv.className = 'mt-4 p-3 rounded-lg bg-red-50 text-red-700';
+            return;
+        }
+        
+        if (data.doc_type === 'projects' && data.parsed_data && data.parsed_data.projects) {
+            parsedProjectsData = data.parsed_data;
+            const projects = data.parsed_data.projects;
+            
+            statusDiv.innerHTML = `<i class="fas fa-check-circle mr-2"></i> Found ${projects.length} projects in the document`;
+            statusDiv.className = 'mt-4 p-3 rounded-lg bg-green-50 text-green-700';
+            
+            const previewDiv = document.getElementById('parsedProjectsPreview');
+            previewDiv.classList.remove('hidden');
+            
+            let previewHtml = '<div class="max-h-64 overflow-y-auto space-y-2">';
+            projects.forEach((proj, idx) => {
+                previewHtml += `
+                    <div class="p-3 bg-gray-50 rounded border">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <label class="flex items-center">
+                                    <input type="checkbox" class="project-import-check w-4 h-4 mr-2 text-blue-600" data-index="${idx}" checked>
+                                    <span class="font-medium">${proj.title || proj.contract_number || 'Untitled'}</span>
+                                </label>
+                                <div class="text-sm text-gray-600 ml-6">
+                                    ${proj.client ? `<span class="mr-3">Client: ${proj.client}</span>` : ''}
+                                    ${proj.contract_value ? `<span class="mr-3">Value: ${proj.contract_value}</span>` : ''}
+                                </div>
+                                ${proj.description ? `<div class="text-sm text-gray-500 ml-6 mt-1 line-clamp-2">${proj.description.substring(0, 150)}...</div>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            previewHtml += '</div>';
+            previewHtml += `
+                <div class="mt-4 flex justify-between items-center">
+                    <label class="flex items-center text-sm text-gray-600">
+                        <input type="checkbox" id="selectAllImport" checked onchange="toggleAllImportProjects()" class="w-4 h-4 mr-2">
+                        Select All
+                    </label>
+                    <button onclick="saveImportedProjects()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                        <i class="fas fa-save mr-2"></i> Save Selected Projects
+                    </button>
+                </div>
+            `;
+            
+            previewDiv.innerHTML = previewHtml;
+        } else if (data.doc_type === 'project') {
+            statusDiv.innerHTML = '<i class="fas fa-info-circle mr-2"></i> This looks like a single project. You can <button onclick="forceMultiProjectParse()" class="underline text-blue-600 hover:text-blue-800">try parsing as multiple projects anyway</button>, or use the regular upload to import it.';
+            statusDiv.className = 'mt-4 p-3 rounded-lg bg-yellow-50 text-yellow-700';
+        } else {
+            statusDiv.innerHTML = '<i class="fas fa-exclamation-circle mr-2"></i> Could not detect multiple projects. <button onclick="forceMultiProjectParse()" class="underline text-blue-600 hover:text-blue-800">Try parsing as multiple projects</button>';
+            statusDiv.className = 'mt-4 p-3 rounded-lg bg-yellow-50 text-yellow-700';
+        }
+        
+    } catch (error) {
+        statusDiv.innerHTML = '<i class="fas fa-exclamation-circle mr-2"></i> Error: ' + error.message;
+        statusDiv.className = 'mt-4 p-3 rounded-lg bg-red-50 text-red-700';
+    }
+}
+
+function toggleAllImportProjects() {
+    const selectAll = document.getElementById('selectAllImport');
+    document.querySelectorAll('.project-import-check').forEach(cb => cb.checked = selectAll.checked);
+}
+
+async function forceMultiProjectParse() {
+    if (!lastUploadedFile) {
+        alert('Please select a file first');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('file', lastUploadedFile);
+    
+    const statusDiv = document.getElementById('importStatus');
+    statusDiv.innerHTML = '<div class="flex items-center"><i class="fas fa-spinner fa-spin mr-2"></i> Force parsing as multiple projects...</div>';
+    statusDiv.className = 'mt-4 p-3 rounded-lg bg-blue-50 text-blue-700';
+    
+    try {
+        const response = await fetch('/upload-multi-projects', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.error) {
+            statusDiv.innerHTML = '<i class="fas fa-exclamation-circle mr-2"></i> ' + data.error;
+            statusDiv.className = 'mt-4 p-3 rounded-lg bg-red-50 text-red-700';
+            return;
+        }
+        
+        if (data.parsed_data && data.parsed_data.projects && data.parsed_data.projects.length > 0) {
+            parsedProjectsData = data.parsed_data;
+            const projects = data.parsed_data.projects;
+            
+            statusDiv.innerHTML = `<i class="fas fa-check-circle mr-2"></i> Found ${projects.length} projects in the document`;
+            statusDiv.className = 'mt-4 p-3 rounded-lg bg-green-50 text-green-700';
+            
+            const previewDiv = document.getElementById('parsedProjectsPreview');
+            previewDiv.classList.remove('hidden');
+            
+            let previewHtml = '<div class="max-h-64 overflow-y-auto space-y-2">';
+            projects.forEach((proj, idx) => {
+                previewHtml += `
+                    <div class="p-3 bg-gray-50 rounded border">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <label class="flex items-center">
+                                    <input type="checkbox" class="project-import-check w-4 h-4 mr-2 text-blue-600" data-index="${idx}" checked>
+                                    <span class="font-medium">${proj.title || proj.contract_number || 'Untitled'}</span>
+                                </label>
+                                <div class="text-sm text-gray-600 ml-6">
+                                    ${proj.client ? `<span class="mr-3">Client: ${proj.client}</span>` : ''}
+                                    ${proj.contract_value ? `<span class="mr-3">Value: ${proj.contract_value}</span>` : ''}
+                                </div>
+                                ${proj.description ? `<div class="text-sm text-gray-500 ml-6 mt-1 line-clamp-2">${proj.description.substring(0, 150)}...</div>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            previewHtml += '</div>';
+            previewHtml += `
+                <div class="mt-4 flex justify-between items-center">
+                    <label class="flex items-center text-sm text-gray-600">
+                        <input type="checkbox" id="selectAllImport" checked onchange="toggleAllImportProjects()" class="w-4 h-4 mr-2">
+                        Select All
+                    </label>
+                    <button onclick="saveImportedProjects()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                        <i class="fas fa-save mr-2"></i> Save Selected Projects
+                    </button>
+                </div>
+            `;
+            
+            previewDiv.innerHTML = previewHtml;
+        } else {
+            statusDiv.innerHTML = '<i class="fas fa-exclamation-circle mr-2"></i> No projects found in this document.';
+            statusDiv.className = 'mt-4 p-3 rounded-lg bg-red-50 text-red-700';
+        }
+        
+    } catch (error) {
+        statusDiv.innerHTML = '<i class="fas fa-exclamation-circle mr-2"></i> Error: ' + error.message;
+        statusDiv.className = 'mt-4 p-3 rounded-lg bg-red-50 text-red-700';
+    }
+}
+
+async function saveImportedProjects() {
+    if (!parsedProjectsData) return;
+    
+    const checkedBoxes = document.querySelectorAll('.project-import-check:checked');
+    const selectedIndices = Array.from(checkedBoxes).map(cb => parseInt(cb.dataset.index));
+    
+    if (selectedIndices.length === 0) {
+        alert('Please select at least one project to import');
+        return;
+    }
+    
+    const selectedProjects = selectedIndices.map(idx => parsedProjectsData.projects[idx]);
+    
+    const statusDiv = document.getElementById('importStatus');
+    statusDiv.innerHTML = '<div class="flex items-center"><i class="fas fa-spinner fa-spin mr-2"></i> Saving projects...</div>';
+    statusDiv.className = 'mt-4 p-3 rounded-lg bg-blue-50 text-blue-700';
+    
+    try {
+        const response = await fetch('/save-parsed-data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                doc_type: 'projects',
+                parsed_data: { projects: selectedProjects }
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            statusDiv.innerHTML = `<i class="fas fa-check-circle mr-2"></i> ${data.message}`;
+            statusDiv.className = 'mt-4 p-3 rounded-lg bg-green-50 text-green-700';
+            
+            setTimeout(() => {
+                location.reload();
+            }, 1500);
+        } else {
+            statusDiv.innerHTML = '<i class="fas fa-exclamation-circle mr-2"></i> ' + (data.error || 'Failed to save projects');
+            statusDiv.className = 'mt-4 p-3 rounded-lg bg-red-50 text-red-700';
+        }
+    } catch (error) {
+        statusDiv.innerHTML = '<i class="fas fa-exclamation-circle mr-2"></i> Error: ' + error.message;
+        statusDiv.className = 'mt-4 p-3 rounded-lg bg-red-50 text-red-700';
+    }
+}
 </script>
+
+<div id="importModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div class="p-6 border-b flex justify-between items-center">
+            <h2 class="text-xl font-semibold text-gray-800">Import Multiple Projects</h2>
+            <button onclick="closeImportModal()" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="p-6">
+            <p class="text-gray-600 mb-4">Upload a document containing multiple projects (like a references table or project list). Supported formats: PDF, DOCX, XLSX, TXT.</p>
+            
+            <div class="flex items-center gap-4">
+                <input type="file" id="importFile" accept=".pdf,.docx,.doc,.xlsx,.xls,.txt" class="flex-1 border rounded-lg p-2">
+                <button onclick="parseImportFile()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                    <i class="fas fa-search mr-2"></i> Parse
+                </button>
+            </div>
+            
+            <div id="importStatus" class="mt-4 p-3 rounded-lg hidden"></div>
+            
+            <div id="parsedProjectsPreview" class="mt-4 hidden"></div>
+        </div>
+    </div>
+</div>
 {% endblock %}

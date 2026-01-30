@@ -224,6 +224,76 @@ Return ONLY the JSON object, no markdown formatting or explanation."""
     return result
 
 
+MULTI_PROJECT_SCHEMA = {
+    "projects": [
+        {
+            "contract_number": "string (contract or project number/ID)",
+            "title": "string (project name or contract title)",
+            "location": "string (city, state where work was performed)",
+            "client": "string (client organization name)",
+            "primary_contact_name": "string (primary reference contact name)",
+            "primary_contact_phone": "string (primary contact phone number)",
+            "primary_contact_email": "string (primary contact email)",
+            "alternate_contact_name": "string (alternate reference contact name)",
+            "alternate_contact_phone": "string (alternate contact phone number)", 
+            "alternate_contact_email": "string (alternate contact email)",
+            "contract_value": "string (contract value/cost)",
+            "year_completed": "string (year completed or date range)",
+            "delivery_method": "string (project delivery method if mentioned)",
+            "description": "string (description of work performed)"
+        }
+    ]
+}
+
+
+@retry(
+    stop=stop_after_attempt(5),
+    wait=wait_exponential(multiplier=1, min=2, max=60),
+    retry=retry_if_exception(is_rate_limit_error),
+    reraise=True
+)
+def parse_multiple_projects(text: str) -> dict:
+    """Parse a document containing multiple projects in table or list format (like a references sheet)."""
+    prompt = f"""You are a data extraction assistant for SF330 federal forms.
+Extract ALL project/contract references from the following document. This document contains multiple projects in a table or list format (often a references appendix or project experience table).
+
+Return ONLY valid JSON matching this schema:
+{json.dumps(MULTI_PROJECT_SCHEMA, indent=2)}
+
+EXTRACTION GUIDELINES:
+1. Extract EVERY project/contract mentioned in the document
+2. For each project, capture:
+   - Contract/project number or ID
+   - Project title or contract name  
+   - Location (city, state)
+   - Client/owner organization
+   - Primary contact name, phone, and email
+   - Alternate contact name, phone, and email (if provided)
+   - Contract value/cost
+   - Year completed or date range
+   - Delivery method (if mentioned)
+   - Description of work performed
+3. If a field is not found for a project, use null
+4. Parse phone numbers in format: xxx-xxx-xxxx
+5. Capture the full description of work for each project
+
+Text to parse:
+{text}
+
+Return ONLY the JSON object, no markdown formatting or explanation."""
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json"
+        )
+    )
+    
+    result = json.loads(response.text or '{"projects": []}')
+    return result
+
+
 @retry(
     stop=stop_after_attempt(5),
     wait=wait_exponential(multiplier=1, min=2, max=60),
@@ -233,11 +303,14 @@ Return ONLY the JSON object, no markdown formatting or explanation."""
 def detect_document_type(text: str) -> str:
     prompt = f"""Analyze the following document text and determine if it is primarily:
 1. An employee resume/CV (contains personal info, education, experience of one person)
-2. A project description/sheet (contains project details, scope, owner, costs)
-3. A firm profile (contains company information, address, capabilities)
-4. Unknown
+2. A project description/sheet (contains details about a SINGLE project - scope, owner, costs)
+3. A project references table (contains MULTIPLE projects/contracts listed in a table or list format, often with contact info and contract values - like a references appendix)
+4. A firm profile (contains company information, address, capabilities)
+5. Unknown
 
-Return ONLY one of these exact strings: "employee", "project", "firm", or "unknown"
+Return ONLY one of these exact strings: "employee", "project", "projects", "firm", or "unknown"
+- Return "project" for a SINGLE project description
+- Return "projects" for MULTIPLE projects in a table/list format (references appendix)
 
 Text to analyze (first 2000 characters):
 {text[:2000]}
@@ -250,7 +323,7 @@ Return ONLY the type string, nothing else."""
     )
     
     result = (response.text or "unknown").strip().lower()
-    if result not in ["employee", "project", "firm", "unknown"]:
+    if result not in ["employee", "project", "projects", "firm", "unknown"]:
         return "unknown"
     return result
 

@@ -16,7 +16,7 @@ from models import (
 from replit.object_storage import Client as ObjectStorageClient
 import uuid
 from document_parser import extract_text_from_file
-from gemini_service import detect_document_type, parse_employee_resume, parse_project_sheet, parse_firm_info, find_matching_employee, combine_and_rewrite_text
+from gemini_service import detect_document_type, parse_employee_resume, parse_project_sheet, parse_multiple_projects, parse_firm_info, find_matching_employee, combine_and_rewrite_text
 from pdf_generator import generate_full_sf330, get_form_fields
 import io
 
@@ -103,6 +103,8 @@ def upload():
             parsed_data = parse_employee_resume(text)
         elif doc_type == 'project':
             parsed_data = parse_project_sheet(text)
+        elif doc_type == 'projects':
+            parsed_data = parse_multiple_projects(text)
         elif doc_type == 'firm':
             parsed_data = parse_firm_info(text)
         else:
@@ -114,6 +116,35 @@ def upload():
         
         return jsonify({
             'doc_type': doc_type,
+            'parsed_data': parsed_data,
+            'raw_text': text[:2000]
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/upload-multi-projects', methods=['POST'])
+def upload_multi_projects():
+    """Force parse a document as multiple projects, bypassing auto-detection."""
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file provided'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+    
+    if not allowed_file(file.filename):
+        return jsonify({'error': 'File type not allowed. Supported: PDF, DOCX, XLSX, TXT'}), 400
+    
+    try:
+        file_content = file.read()
+        text = extract_text_from_file(file.filename, file_content)
+        
+        parsed_data = parse_multiple_projects(text)
+        
+        return jsonify({
+            'doc_type': 'projects',
             'parsed_data': parsed_data,
             'raw_text': text[:2000]
         })
@@ -247,6 +278,47 @@ def save_parsed_data():
             db.session.add(firm)
             db.session.commit()
             return jsonify({'success': True, 'id': firm.id, 'message': 'Firm saved successfully'})
+        
+        elif doc_type == 'projects':
+            projects_list = parsed_data.get('projects', [])
+            saved_ids = []
+            for proj_data in projects_list:
+                contact_info = []
+                if proj_data.get('primary_contact_email'):
+                    contact_info.append(f"Primary Email: {proj_data.get('primary_contact_email')}")
+                if proj_data.get('alternate_contact_name'):
+                    alt_contact = f"Alternate Contact: {proj_data.get('alternate_contact_name')}"
+                    if proj_data.get('alternate_contact_phone'):
+                        alt_contact += f", {proj_data.get('alternate_contact_phone')}"
+                    if proj_data.get('alternate_contact_email'):
+                        alt_contact += f", {proj_data.get('alternate_contact_email')}"
+                    contact_info.append(alt_contact)
+                if proj_data.get('contract_number'):
+                    contact_info.insert(0, f"Contract #: {proj_data.get('contract_number')}")
+                
+                project = Project(
+                    title=proj_data.get('title') or proj_data.get('contract_number') or 'Untitled Project',
+                    location=proj_data.get('location'),
+                    year_completed_professional=proj_data.get('year_completed'),
+                    owner_name=proj_data.get('client'),
+                    owner_contact_name=proj_data.get('primary_contact_name'),
+                    owner_contact_phone=proj_data.get('primary_contact_phone'),
+                    project_cost=proj_data.get('contract_value'),
+                    project_delivery_method=proj_data.get('delivery_method'),
+                    brief_description=proj_data.get('description'),
+                    relevance_writeup='\n'.join(contact_info) if contact_info else None
+                )
+                db.session.add(project)
+                db.session.flush()
+                saved_ids.append(project.id)
+            
+            db.session.commit()
+            return jsonify({
+                'success': True, 
+                'ids': saved_ids, 
+                'count': len(saved_ids),
+                'message': f'{len(saved_ids)} projects saved successfully'
+            })
         
         else:
             return jsonify({'error': 'Invalid document type'}), 400
