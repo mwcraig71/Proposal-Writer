@@ -48,14 +48,14 @@ const getLayoutedElements = (nodes, edges, direction = 'TB') => {
 }
 
 const initialNodes = [
-  { id: 'pm', type: 'custom', data: { role: 'Project Manager (PM)', assignedStaff: null, isTaskLead: false }, position: { x: 0, y: 0 } },
-  { id: 'safety', type: 'custom', data: { role: 'Safety Officer', assignedStaff: null, isTaskLead: false }, position: { x: 0, y: 0 } },
-  { id: 'qaqc', type: 'custom', data: { role: 'QA/QC Manager', assignedStaff: null, isTaskLead: false }, position: { x: 0, y: 0 } },
-  { id: 'topside', type: 'custom', data: { role: 'Top Side Inspection Task Lead', assignedStaff: null, isTaskLead: true, parentId: 'qaqc' }, position: { x: 0, y: 0 } },
-  { id: 'underwater', type: 'custom', data: { role: 'Underwater Inspection Task Lead', assignedStaff: null, isTaskLead: true, parentId: 'qaqc' }, position: { x: 0, y: 0 } },
-  { id: 'loadrating', type: 'custom', data: { role: 'Load Rating Task Lead', assignedStaff: null, isTaskLead: true, parentId: 'qaqc' }, position: { x: 0, y: 0 } },
-  { id: 'loadtesting', type: 'custom', data: { role: 'Load Testing Task Lead', assignedStaff: null, isTaskLead: true, parentId: 'qaqc' }, position: { x: 0, y: 0 } },
-  { id: 'ndt', type: 'custom', data: { role: 'NDT Task Lead', assignedStaff: null, isTaskLead: true, parentId: 'qaqc' }, position: { x: 0, y: 0 } },
+  { id: 'pm', type: 'custom', data: { role: 'Project Manager (PM)', assignedStaff: null, isTaskLead: false, canDelete: false, notes: '' }, position: { x: 0, y: 0 } },
+  { id: 'safety', type: 'custom', data: { role: 'Safety Officer', assignedStaff: null, isTaskLead: false, canDelete: false, notes: '' }, position: { x: 0, y: 0 } },
+  { id: 'qaqc', type: 'custom', data: { role: 'QA/QC Manager', assignedStaff: null, isTaskLead: false, canDelete: false, notes: '' }, position: { x: 0, y: 0 } },
+  { id: 'topside', type: 'custom', data: { role: 'Top Side Inspection Task Lead', assignedStaff: null, isTaskLead: true, parentId: 'qaqc', canDelete: true, notes: '' }, position: { x: 0, y: 0 } },
+  { id: 'underwater', type: 'custom', data: { role: 'Underwater Inspection Task Lead', assignedStaff: null, isTaskLead: true, parentId: 'qaqc', canDelete: true, notes: '' }, position: { x: 0, y: 0 } },
+  { id: 'loadrating', type: 'custom', data: { role: 'Load Rating Task Lead', assignedStaff: null, isTaskLead: true, parentId: 'qaqc', canDelete: true, notes: '' }, position: { x: 0, y: 0 } },
+  { id: 'loadtesting', type: 'custom', data: { role: 'Load Testing Task Lead', assignedStaff: null, isTaskLead: true, parentId: 'qaqc', canDelete: true, notes: '' }, position: { x: 0, y: 0 } },
+  { id: 'ndt', type: 'custom', data: { role: 'NDT Task Lead', assignedStaff: null, isTaskLead: true, parentId: 'qaqc', canDelete: true, notes: '' }, position: { x: 0, y: 0 } },
 ]
 
 const initialEdges = [
@@ -228,6 +228,33 @@ function OrgChartFlow() {
     )
   }, [setNodes])
 
+  const deleteNode = useCallback((nodeId) => {
+    const nodeToDelete = nodes.find(n => n.id === nodeId)
+    if (!nodeToDelete || !nodeToDelete.data.canDelete) return
+    
+    if (!confirm(`Delete "${nodeToDelete.data.role}"? This will also remove any team members under it.`)) return
+
+    const childNodes = nodes.filter(n => n.data.parentId === nodeId)
+    const nodesToDelete = [nodeId, ...childNodes.map(n => n.id)]
+    
+    setNodes((nds) => nds.filter(n => !nodesToDelete.includes(n.id)))
+    setEdges((eds) => eds.filter(e => !nodesToDelete.includes(e.source) && !nodesToDelete.includes(e.target)))
+  }, [nodes, setNodes, setEdges])
+
+  const editNotes = useCallback((nodeId, currentNotes) => {
+    const newNotes = prompt('Enter notes for this role:', currentNotes)
+    if (newNotes !== null) {
+      setNodes((nds) =>
+        nds.map((node) => {
+          if (node.id === nodeId) {
+            return { ...node, data: { ...node.data, notes: newNotes } }
+          }
+          return node
+        })
+      )
+    }
+  }, [setNodes])
+
   const addTeamMember = useCallback((parentNodeId) => {
     const parentNode = nodes.find(n => n.id === parentNodeId)
     if (!parentNode) return
@@ -242,7 +269,8 @@ function OrgChartFlow() {
         assignedStaff: null, 
         isTeamMember: true,
         parentId: parentNodeId,
-        onAddTeamMember: addTeamMember
+        canDelete: true,
+        notes: ''
       },
     }
     const newEdge = {
@@ -276,7 +304,8 @@ function OrgChartFlow() {
         assignedStaff: null, 
         isTaskLead: true,
         parentId: 'qaqc',
-        onAddTeamMember: addTeamMember
+        canDelete: true,
+        notes: ''
       },
     }
     const newEdge = {
@@ -299,16 +328,18 @@ function OrgChartFlow() {
     ...node,
     data: {
       ...node.data,
-      onAddTeamMember: addTeamMember
+      onAddTeamMember: addTeamMember,
+      onDeleteNode: deleteNode,
+      onEditNotes: editNotes
     }
   }))
 
   return (
     <div className="flex h-screen w-full">
       <div className="w-64 bg-gray-100 border-r border-gray-300 flex flex-col">
-        <div className="p-4 bg-blue-800 text-white">
+        <div className="p-4 bg-gray-900 text-white">
           <h2 className="text-lg font-bold">Available Staff</h2>
-          <p className="text-sm text-blue-200">Drag to assign</p>
+          <p className="text-sm text-gray-400">Drag to assign</p>
         </div>
         <div className="flex-1 overflow-y-auto p-2">
           {staff.length === 0 ? (
@@ -317,7 +348,7 @@ function OrgChartFlow() {
             staff.map((person) => (
               <div
                 key={person.id}
-                className="staff-item p-3 mb-2 bg-white rounded shadow hover:shadow-md border border-gray-200 hover:border-blue-400 transition-all"
+                className="staff-item p-3 mb-2 bg-white rounded shadow hover:shadow-md border border-gray-200 hover:border-red-500 transition-all cursor-grab"
                 draggable
                 onDragStart={(e) => onDragStart(e, person)}
               >
@@ -351,13 +382,13 @@ function OrgChartFlow() {
           <Panel position="top-right" className="flex gap-2">
             <button
               onClick={addNewServiceType}
-              className="px-4 py-2 bg-orange-500 text-white rounded shadow hover:bg-orange-600 transition-colors font-medium"
+              className="px-4 py-2 bg-red-600 text-white rounded shadow hover:bg-red-700 transition-colors font-medium"
             >
               + Add Service Type
             </button>
             <button
               onClick={onResetLayout}
-              className="px-4 py-2 bg-blue-600 text-white rounded shadow hover:bg-blue-700 transition-colors font-medium"
+              className="px-4 py-2 bg-gray-800 text-white rounded shadow hover:bg-gray-900 transition-colors font-medium"
             >
               Reset Layout
             </button>
@@ -366,9 +397,9 @@ function OrgChartFlow() {
       </div>
 
       <div className="w-64 bg-gray-50 border-l border-gray-300 flex flex-col">
-        <div className="p-4 bg-green-800 text-white">
+        <div className="p-4 bg-red-700 text-white">
           <h2 className="text-lg font-bold">Assigned Staff</h2>
-          <p className="text-sm text-green-200">Current assignments</p>
+          <p className="text-sm text-red-200">Current assignments</p>
         </div>
         <div className="flex-1 overflow-y-auto p-2">
           {nodes.filter(n => n.data.assignedStaff).length === 0 ? (
@@ -380,10 +411,13 @@ function OrgChartFlow() {
                 className="p-3 mb-2 bg-white rounded shadow border border-gray-200"
               >
                 <div className="font-medium text-gray-800 text-sm">{node.data.role}</div>
-                <div className="text-xs text-green-600 font-medium">{node.data.assignedStaff}</div>
+                <div className="text-xs text-red-600 font-medium">{node.data.assignedStaff}</div>
+                {node.data.notes && (
+                  <div className="text-[10px] text-gray-500 italic mt-1">{node.data.notes}</div>
+                )}
                 <button
                   onClick={() => removeStaffFromNode(node.id)}
-                  className="mt-1 text-xs text-red-500 hover:text-red-700"
+                  className="mt-1 text-xs text-gray-500 hover:text-red-600"
                 >
                   Remove
                 </button>
