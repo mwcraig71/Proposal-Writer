@@ -3847,7 +3847,7 @@ def _scrape_marketing_photos_impl():
         visited_pages = set()
         pages_to_visit = [url]
         all_img_urls = set()
-        max_pages = 50
+        max_pages = 10  # Reduced to prevent timeout in production
         
         def extract_images_from_soup(soup, page_url):
             """Extract all image URLs from a BeautifulSoup object"""
