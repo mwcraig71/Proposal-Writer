@@ -151,17 +151,32 @@
         <div class="bg-white rounded-lg shadow p-6">
             <h2 class="text-xl font-semibold text-gray-800 mb-4">Team Members</h2>
             
-            {% if employees %}
-            <ul class="space-y-2 mb-4">
-                {% for employee in employees %}
-                <li class="p-3 bg-gray-50 rounded-lg">
-                    <a href="/employees/{{ employee.id }}" class="text-blue-600 hover:underline font-medium">{{ employee.name }}</a>
-                    <p class="text-sm text-gray-500">{{ employee.role }}</p>
+            {% if employee_links %}
+            <ul class="space-y-2 mb-4" id="team-members-list">
+                {% for link in employee_links %}
+                <li class="p-3 bg-gray-50 rounded-lg" id="team-member-{{ link.id }}">
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <a href="/employees/{{ link.employee.id }}" class="text-blue-600 hover:underline font-medium">{{ link.employee.name }}</a>
+                            <div class="flex items-center mt-1">
+                                <input type="text" 
+                                       id="role-{{ link.id }}" 
+                                       value="{{ link.role_on_project or '' }}" 
+                                       placeholder="Role on this project" 
+                                       class="text-sm text-gray-600 border-b border-transparent hover:border-gray-300 focus:border-blue-500 focus:outline-none bg-transparent w-full"
+                                       onchange="updateTeamRole({{ link.id }}, this.value)">
+                            </div>
+                            <p class="text-xs text-gray-400 mt-1">{{ link.employee.title or '' }}</p>
+                        </div>
+                        <button onclick="removeTeamMember({{ link.id }}, '{{ link.employee.name | e }}')" class="text-red-500 hover:text-red-700 ml-2" title="Remove from project">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
                 </li>
                 {% endfor %}
             </ul>
             {% else %}
-            <p class="text-gray-500 mb-4">No team members linked yet.</p>
+            <p class="text-gray-500 mb-4" id="no-team-msg">No team members linked yet.</p>
             {% endif %}
             
             <div class="border-t pt-4">
@@ -452,6 +467,45 @@ document.getElementById('link-btn').addEventListener('click', async () => {
         alert('Error: ' + error.message);
     }
 });
+
+async function updateTeamRole(linkId, role) {
+    try {
+        const response = await fetch('/projects/{{ project.id }}/team/' + linkId, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role_on_project: role })
+        });
+        const result = await response.json();
+        if (!result.success) {
+            alert('Error updating role');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+async function removeTeamMember(linkId, employeeName) {
+    if (!confirm('Remove ' + employeeName + ' from this project?')) {
+        return;
+    }
+    try {
+        const response = await fetch('/projects/{{ project.id }}/team/' + linkId, {
+            method: 'DELETE'
+        });
+        const result = await response.json();
+        if (result.success) {
+            document.getElementById('team-member-' + linkId).remove();
+            const list = document.getElementById('team-members-list');
+            if (list && list.children.length === 0) {
+                list.outerHTML = '<p class="text-gray-500 mb-4" id="no-team-msg">No team members linked yet.</p>';
+            }
+        } else {
+            alert('Error removing team member');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
 
 document.getElementById('add-alt-btn').addEventListener('click', async () => {
     const label = prompt('Enter a label for this alternate (e.g., "Bridge Focus", "Highway Version"):');

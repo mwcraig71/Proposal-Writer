@@ -926,9 +926,9 @@ def add_project():
 @app.route('/projects/<int:id>')
 def project_detail(id):
     project = Project.query.get_or_404(id)
-    employees = Employee.query.join(EmployeeProjectLink).filter(EmployeeProjectLink.project_id == id).all()
+    employee_links = EmployeeProjectLink.query.filter_by(project_id=id).all()
     all_employees = Employee.query.all()
-    return render_template('project_detail.html', project=project, employees=employees, all_employees=all_employees)
+    return render_template('project_detail.html', project=project, employee_links=employee_links, all_employees=all_employees)
 
 
 @app.route('/projects/<int:id>', methods=['PUT'])
@@ -958,6 +958,29 @@ def delete_project(id):
     ProposalEmployeeRelevantProject.query.filter_by(project_id=id).delete()
     ProposalSelectedProject.query.filter_by(project_id=id).delete()
     db.session.delete(project)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/projects/<int:project_id>/team/<int:link_id>', methods=['PUT'])
+def update_project_team_member(project_id, link_id):
+    link = EmployeeProjectLink.query.get_or_404(link_id)
+    if link.project_id != project_id:
+        return jsonify({'success': False, 'error': 'Invalid link'}), 400
+    
+    data = request.json
+    link.role_on_project = data.get('role_on_project', link.role_on_project)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/projects/<int:project_id>/team/<int:link_id>', methods=['DELETE'])
+def remove_project_team_member(project_id, link_id):
+    link = EmployeeProjectLink.query.get_or_404(link_id)
+    if link.project_id != project_id:
+        return jsonify({'success': False, 'error': 'Invalid link'}), 400
+    
+    db.session.delete(link)
     db.session.commit()
     return jsonify({'success': True})
 
