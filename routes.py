@@ -3397,12 +3397,13 @@ def marketing_photos():
         all_tags.update(photo.get_tags_list())
     all_tags = sorted(all_tags)
     
-    # Filter photos by selected tags if any
+    # Filter photos by selected tags if any (AND logic - must have ALL selected tags)
     if selected_tags:
         filtered_photos = []
         for photo in photos:
-            photo_tags = photo.get_tags_list()
-            if any(tag in photo_tags for tag in selected_tags):
+            photo_tags = [t.lower() for t in photo.get_tags_list()]
+            # Check if ALL selected tags are present in photo's tags
+            if all(tag.lower() in photo_tags for tag in selected_tags):
                 filtered_photos.append(photo)
         photos = filtered_photos
     
@@ -3702,6 +3703,30 @@ def add_tag_to_marketing_photo(photo_id):
         else:
             marketing_photo.tags = new_tag
         db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'tags': marketing_photo.get_tags_list()
+    })
+
+
+@app.route('/api/marketing-photos/<int:photo_id>/remove-tag', methods=['POST'])
+def remove_tag_from_marketing_photo(photo_id):
+    """Remove a tag from a marketing photo"""
+    from models import MarketingPhoto
+    
+    marketing_photo = MarketingPhoto.query.get_or_404(photo_id)
+    data = request.get_json()
+    tag_to_remove = data.get('tag', '').strip()
+    
+    if not tag_to_remove:
+        return jsonify({'success': False, 'error': 'Tag is required'}), 400
+    
+    current_tags = marketing_photo.get_tags_list()
+    # Remove the tag (case-insensitive match)
+    new_tags = [t for t in current_tags if t.lower() != tag_to_remove.lower()]
+    marketing_photo.tags = ','.join(new_tags) if new_tags else None
+    db.session.commit()
     
     return jsonify({
         'success': True,
