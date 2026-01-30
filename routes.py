@@ -3564,6 +3564,16 @@ def copy_marketing_to_employee(photo_id, employee_id):
             content_type=marketing_photo.content_type
         )
         db.session.add(photo)
+        
+        # Add employee name as tag to marketing photo
+        employee_tag = f"#{employee.name.replace(' ', '')}"
+        existing_tags = marketing_photo.tags or ""
+        if employee_tag.lower() not in existing_tags.lower():
+            if existing_tags:
+                marketing_photo.tags = f"{existing_tags},{employee_tag}"
+            else:
+                marketing_photo.tags = employee_tag
+        
         db.session.commit()
         
         return jsonify({
@@ -3611,6 +3621,16 @@ def copy_marketing_to_project(photo_id, project_id):
             content_type=marketing_photo.content_type
         )
         db.session.add(photo)
+        
+        # Add project name as tag to marketing photo
+        project_tag = f"#{project.title.replace(' ', '')}"
+        existing_tags = marketing_photo.tags or ""
+        if project_tag.lower() not in existing_tags.lower():
+            if existing_tags:
+                marketing_photo.tags = f"{existing_tags},{project_tag}"
+            else:
+                marketing_photo.tags = project_tag
+        
         db.session.commit()
         
         return jsonify({
@@ -3638,6 +3658,59 @@ def get_all_marketing_tags():
     for photo in photos:
         all_tags.update(photo.get_tags_list())
     return jsonify(sorted(all_tags))
+
+
+@app.route('/api/marketing-photos/<int:photo_id>/add-tag', methods=['POST'])
+def add_tag_to_marketing_photo(photo_id):
+    """Add a tag to a marketing photo"""
+    from models import MarketingPhoto
+    
+    marketing_photo = MarketingPhoto.query.get_or_404(photo_id)
+    data = request.get_json()
+    new_tag = data.get('tag', '').strip()
+    
+    if not new_tag:
+        return jsonify({'success': False, 'error': 'Tag is required'}), 400
+    
+    # Ensure tag starts with #
+    if not new_tag.startswith('#'):
+        new_tag = f"#{new_tag}"
+    
+    # Remove spaces from tag
+    new_tag = new_tag.replace(' ', '')
+    
+    existing_tags = marketing_photo.tags or ""
+    if new_tag.lower() not in existing_tags.lower():
+        if existing_tags:
+            marketing_photo.tags = f"{existing_tags},{new_tag}"
+        else:
+            marketing_photo.tags = new_tag
+        db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'tags': marketing_photo.get_tags_list()
+    })
+
+
+@app.route('/api/projects-list')
+def get_projects_list():
+    """Get all projects for dropdown (alphabetically sorted)"""
+    projects = Project.query.order_by(Project.title).all()
+    return jsonify([{
+        'id': p.id,
+        'title': p.title
+    } for p in projects])
+
+
+@app.route('/api/employees-list')
+def get_employees_list():
+    """Get all employees for dropdown (alphabetically sorted)"""
+    employees = Employee.query.order_by(Employee.name).all()
+    return jsonify([{
+        'id': e.id,
+        'name': e.name
+    } for e in employees])
 
 
 @app.route('/marketing-photos/scrape', methods=['POST'])

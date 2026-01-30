@@ -135,6 +135,20 @@
                         </span>
                         {% endfor %}
                     </div>
+                    <div class="flex gap-1 mb-2">
+                        <div class="relative flex-1">
+                            <select onchange="addTagFromSelect({{ photo.id }}, this, 'project')" 
+                                class="w-full text-xs py-1 px-2 border border-gray-300 rounded bg-blue-50 text-blue-700 cursor-pointer hover:bg-blue-100">
+                                <option value="">+ Project</option>
+                            </select>
+                        </div>
+                        <div class="relative flex-1">
+                            <select onchange="addTagFromSelect({{ photo.id }}, this, 'staff')"
+                                class="w-full text-xs py-1 px-2 border border-gray-300 rounded bg-green-50 text-green-700 cursor-pointer hover:bg-green-100">
+                                <option value="">+ Staff</option>
+                            </select>
+                        </div>
+                    </div>
                     <input type="text" value="{{ photo.tags or '' }}" placeholder="Add tags..."
                         class="w-full text-xs text-gray-500 border-0 border-b border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 p-0 pb-1"
                         onblur="updatePhoto({{ photo.id }}, null, this.value)">
@@ -153,6 +167,69 @@
 </div>
 
 <script>
+let projectsList = [];
+let staffList = [];
+
+// Load projects and staff lists on page load
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        const [projectsRes, staffRes] = await Promise.all([
+            fetch('/api/projects-list'),
+            fetch('/api/employees-list')
+        ]);
+        projectsList = await projectsRes.json();
+        staffList = await staffRes.json();
+        
+        // Populate all dropdowns
+        document.querySelectorAll('select').forEach(select => {
+            const type = select.onchange.toString().includes("'project'") ? 'project' : 'staff';
+            populateDropdown(select, type);
+        });
+    } catch (error) {
+        console.error('Error loading lists:', error);
+    }
+});
+
+function populateDropdown(select, type) {
+    const items = type === 'project' ? projectsList : staffList;
+    const label = type === 'project' ? '+ Project' : '+ Staff';
+    
+    select.innerHTML = `<option value="">${label}</option>`;
+    items.forEach(item => {
+        const name = type === 'project' ? item.title : item.name;
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        select.appendChild(option);
+    });
+}
+
+async function addTagFromSelect(photoId, selectElement, type) {
+    const name = selectElement.value;
+    if (!name) return;
+    
+    const tag = name.replace(/\s+/g, '');
+    
+    try {
+        const response = await fetch(`/api/marketing-photos/${photoId}/add-tag`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tag: tag })
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+            location.reload();
+        } else {
+            alert('Error adding tag: ' + result.error);
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+    
+    selectElement.value = '';
+}
+
 function deletePhoto(id) {
     if (confirm('Are you sure you want to delete this photo?')) {
         fetch(`/marketing-photos/${id}`, { method: 'DELETE' })
