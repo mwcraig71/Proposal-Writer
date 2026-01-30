@@ -153,6 +153,22 @@ def upload_multi_projects():
         return jsonify({'error': str(e)}), 500
 
 
+def safe_int(value):
+    """Convert value to integer safely, extracting numbers from strings like '15 Years'"""
+    if value is None:
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        import re
+        numbers = re.findall(r'\d+', value)
+        if numbers:
+            return int(numbers[0])
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return None
+
 @app.route('/save-parsed-data', methods=['POST'])
 def save_parsed_data():
     data = request.json
@@ -181,8 +197,8 @@ def save_parsed_data():
                 name=name,
                 title=parsed_data.get('title'),
                 role=parsed_data.get('role'),
-                years_experience_total=parsed_data.get('years_experience_total'),
-                years_experience_firm=parsed_data.get('years_experience_firm'),
+                years_experience_total=safe_int(parsed_data.get('years_experience_total')),
+                years_experience_firm=safe_int(parsed_data.get('years_experience_firm')),
                 education=parsed_data.get('education'),
                 registrations=parsed_data.get('registrations'),
                 training=parsed_data.get('training'),
