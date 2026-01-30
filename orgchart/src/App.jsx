@@ -83,8 +83,8 @@ const getLayoutedElements = (nodes, edges, direction = 'TB') => {
 const initialNodes = [
   { id: 'pm', type: 'custom', data: { role: 'Project Manager (PM)', assignedStaff: null, isTaskLead: false, canDelete: false, notes: '' }, position: { x: 400, y: 0 } },
   { id: 'junction', type: 'junction', data: {}, position: { x: 400, y: 100 } },
-  { id: 'safety', type: 'custom', data: { role: 'Safety Officer', assignedStaff: null, isTaskLead: false, canDelete: false, notes: '' }, position: { x: 150, y: 100 } },
-  { id: 'qaqc', type: 'custom', data: { role: 'QA/QC Manager', assignedStaff: null, isTaskLead: false, canDelete: false, notes: '' }, position: { x: 650, y: 100 } },
+  { id: 'safety', type: 'custom', data: { role: 'Safety Officer', assignedStaff: null, isTaskLead: false, canDelete: false, connectFromSide: 'right' }, position: { x: 150, y: 100 } },
+  { id: 'qaqc', type: 'custom', data: { role: 'QA/QC Manager', assignedStaff: null, isTaskLead: false, canDelete: false, connectFromSide: 'left' }, position: { x: 650, y: 100 } },
   { id: 'topside', type: 'custom', data: { role: 'Top Side Inspection Task Lead', assignedStaff: null, isTaskLead: true, parentId: 'junction', canDelete: true, notes: '' }, position: { x: 0, y: 250 } },
   { id: 'underwater', type: 'custom', data: { role: 'Underwater Inspection Task Lead', assignedStaff: null, isTaskLead: true, parentId: 'junction', canDelete: true, notes: '' }, position: { x: 200, y: 250 } },
   { id: 'loadrating', type: 'custom', data: { role: 'Load Rating Task Lead', assignedStaff: null, isTaskLead: true, parentId: 'junction', canDelete: true, notes: '' }, position: { x: 400, y: 250 } },
@@ -94,8 +94,8 @@ const initialNodes = [
 
 const initialEdges = [
   { id: 'e-pm-junction', source: 'pm', target: 'junction', type: 'smoothstep' },
-  { id: 'e-junction-safety', source: 'junction', target: 'safety', type: 'smoothstep' },
-  { id: 'e-junction-qaqc', source: 'junction', target: 'qaqc', type: 'smoothstep' },
+  { id: 'e-junction-safety', source: 'junction', sourceHandle: 'left', target: 'safety', targetHandle: 'right', type: 'smoothstep' },
+  { id: 'e-junction-qaqc', source: 'junction', sourceHandle: 'right', target: 'qaqc', targetHandle: 'left', type: 'smoothstep' },
   { id: 'e-junction-topside', source: 'junction', target: 'topside', type: 'smoothstep' },
   { id: 'e-junction-underwater', source: 'junction', target: 'underwater', type: 'smoothstep' },
   { id: 'e-junction-loadrating', source: 'junction', target: 'loadrating', type: 'smoothstep' },
