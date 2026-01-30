@@ -23,17 +23,17 @@
 
 {% if projects %}
 <div class="bg-white rounded-lg shadow overflow-hidden">
-    <table class="w-full">
+    <table class="w-full table-fixed">
         <thead class="bg-gray-50">
             <tr>
-                <th class="px-4 py-3 text-left">
+                <th class="w-12 px-4 py-3 text-left">
                     <input type="checkbox" id="selectAll" onchange="toggleSelectAll()" class="w-4 h-4 text-blue-600 rounded">
                 </th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Owner</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Year Completed</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th class="w-1/4 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                <th class="w-1/5 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                <th class="w-1/4 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Owner</th>
+                <th class="w-24 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Year</th>
+                <th class="w-20 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
         </thead>
         <tbody class="divide-y divide-gray-200">
@@ -43,10 +43,10 @@
                     <input type="checkbox" class="project-checkbox w-4 h-4 text-blue-600 rounded" value="{{ project.id }}" onchange="updateMergeButton()">
                 </td>
                 <td class="px-6 py-4">
-                    <div class="font-medium text-gray-900">{{ project.title }}</div>
+                    <div class="font-medium text-gray-900 truncate" title="{{ project.title }}">{{ project.title }}</div>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ project.location or '-' }}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ project.owner_name or '-' }}</td>
+                <td class="px-6 py-4 text-gray-600 truncate" title="{{ project.location or '' }}">{{ project.location or '-' }}</td>
+                <td class="px-6 py-4 text-gray-600 truncate" title="{{ project.owner_name or '' }}">{{ project.owner_name or '-' }}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ project.year_completed_professional or '-' }}</td>
                 <td class="px-6 py-4 whitespace-nowrap">
                     <div class="flex gap-3">
