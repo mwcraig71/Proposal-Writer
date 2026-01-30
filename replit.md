@@ -68,6 +68,9 @@ The AI parsing enforces consistent formats for personnel data:
 - **Other Qualifications:** Certifications, awards, publications - one per line
 
 ## Recent Changes
+- Implemented Flask-Session with filesystem storage to fix session cookie size limit (Jan 2026)
+  - Resume parsing now successfully extracts: name, title, years of experience (total and with firm), bio, education, PE/SE registrations, NHI training courses, and project experience
+  - Session data stored in /tmp/flask_session instead of browser cookies to handle large parsed data (>4KB)
 - Added Word document generation for SF330 forms (Jan 2026)
   - word_generator.py module fills Word templates with proposal data
   - Templates stored in templates/sf330_word/ for each section (A/C, E, F, G, H/I, Part II)
