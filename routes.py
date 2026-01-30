@@ -3505,7 +3505,7 @@ def get_all_marketing_tags():
 
 @app.route('/marketing-photos/scrape', methods=['POST'])
 def scrape_marketing_photos():
-    """Scrape images from a website and add them to marketing photos"""
+    """Scrape images from a website (crawling multiple pages) and add them to marketing photos"""
     from models import MarketingPhoto
     from bs4 import BeautifulSoup
     from urllib.parse import urljoin, urlparse
@@ -3529,38 +3529,109 @@ def scrape_marketing_photos():
     
     try:
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         }
-        response = requests.get(url, headers=headers, timeout=30)
-        response.raise_for_status()
         
-        soup = BeautifulSoup(response.text, 'html.parser')
+        base_domain = urlparse(url).netloc
+        visited_pages = set()
+        pages_to_visit = [url]
+        all_img_urls = set()
+        max_pages = 50
         
-        img_urls = set()
-        for img in soup.find_all('img'):
-            src = img.get('src') or img.get('data-src') or img.get('data-lazy-src')
-            if src:
-                full_url = urljoin(url, src)
-                if full_url.startswith(('http://', 'https://')):
-                    img_urls.add(full_url)
+        def extract_images_from_soup(soup, page_url):
+            """Extract all image URLs from a BeautifulSoup object"""
+            img_urls = set()
+            for img in soup.find_all('img'):
+                for attr in ['src', 'data-src', 'data-lazy-src', 'data-original', 'data-srcset']:
+                    src = img.get(attr)
+                    if src:
+                        if attr == 'data-srcset' or attr == 'srcset':
+                            for part in src.split(','):
+                                s = part.strip().split()[0]
+                                full_url = urljoin(page_url, s)
+                                if full_url.startswith(('http://', 'https://')):
+                                    img_urls.add(full_url)
+                        else:
+                            full_url = urljoin(page_url, src)
+                            if full_url.startswith(('http://', 'https://')):
+                                img_urls.add(full_url)
+            
+            for source in soup.find_all('source'):
+                srcset = source.get('srcset')
+                if srcset:
+                    for part in srcset.split(','):
+                        src = part.strip().split()[0]
+                        full_url = urljoin(page_url, src)
+                        if full_url.startswith(('http://', 'https://')):
+                            img_urls.add(full_url)
+            
+            for div in soup.find_all(style=True):
+                style = div.get('style', '')
+                if 'background' in style and 'url(' in style:
+                    import re
+                    urls = re.findall(r'url\([\'"]?([^\'")\s]+)[\'"]?\)', style)
+                    for u in urls:
+                        full_url = urljoin(page_url, u)
+                        if full_url.startswith(('http://', 'https://')):
+                            img_urls.add(full_url)
+            
+            return img_urls
         
-        for source in soup.find_all('source'):
-            srcset = source.get('srcset')
-            if srcset:
-                for part in srcset.split(','):
-                    src = part.strip().split()[0]
-                    full_url = urljoin(url, src)
-                    if full_url.startswith(('http://', 'https://')):
-                        img_urls.add(full_url)
+        def extract_links_from_soup(soup, page_url):
+            """Extract internal links from a page"""
+            links = set()
+            for a in soup.find_all('a', href=True):
+                href = a['href']
+                full_url = urljoin(page_url, href)
+                parsed = urlparse(full_url)
+                if parsed.netloc == base_domain and parsed.scheme in ('http', 'https'):
+                    clean_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+                    if not any(ext in clean_url.lower() for ext in ['.pdf', '.doc', '.zip', '.mp4', '.mp3']):
+                        links.add(clean_url)
+            return links
+        
+        pages_crawled = 0
+        while pages_to_visit and pages_crawled < max_pages:
+            current_page = pages_to_visit.pop(0)
+            if current_page in visited_pages:
+                continue
+            
+            visited_pages.add(current_page)
+            pages_crawled += 1
+            
+            try:
+                print(f"Crawling page {pages_crawled}: {current_page}")
+                response = requests.get(current_page, headers=headers, timeout=15)
+                if response.status_code != 200:
+                    continue
+                
+                soup = BeautifulSoup(response.text, 'html.parser')
+                
+                page_images = extract_images_from_soup(soup, current_page)
+                all_img_urls.update(page_images)
+                
+                page_links = extract_links_from_soup(soup, current_page)
+                for link in page_links:
+                    if link not in visited_pages:
+                        pages_to_visit.append(link)
+                        
+            except Exception as e:
+                print(f"Error crawling {current_page}: {e}")
+                continue
+        
+        print(f"Crawled {pages_crawled} pages, found {len(all_img_urls)} unique image URLs")
         
         imported_count = 0
         skipped_count = 0
+        error_count = 0
         min_size_bytes = min_size_kb * 1024
         
-        for img_url in img_urls:
+        for img_url in all_img_urls:
             try:
                 img_response = requests.get(img_url, headers=headers, timeout=15)
-                img_response.raise_for_status()
+                if img_response.status_code != 200:
+                    error_count += 1
+                    continue
                 
                 content_type = img_response.headers.get('content-type', '')
                 if not content_type.startswith('image/'):
@@ -3590,7 +3661,7 @@ def scrape_marketing_photos():
                 photo = MarketingPhoto(
                     filename=secure_filename(original_filename),
                     storage_path=storage_path,
-                    caption=f"Imported from {urlparse(url).netloc}",
+                    caption=f"Imported from {base_domain}",
                     tags=','.join(tags_list),
                     file_size=len(img_data),
                     content_type=content_type
@@ -3600,15 +3671,15 @@ def scrape_marketing_photos():
                 
             except Exception as e:
                 print(f"Error downloading image {img_url}: {e}")
-                skipped_count += 1
+                error_count += 1
                 continue
         
         db.session.commit()
         
         if imported_count > 0:
-            flash(f'Successfully imported {imported_count} images (skipped {skipped_count} images under {min_size_kb}KB or invalid)', 'success')
+            flash(f'Crawled {pages_crawled} pages. Imported {imported_count} images (skipped {skipped_count} under {min_size_kb}KB, {error_count} errors)', 'success')
         else:
-            flash(f'No images found over {min_size_kb}KB. Skipped {skipped_count} smaller images.', 'warning')
+            flash(f'Crawled {pages_crawled} pages. No images found over {min_size_kb}KB. Found {len(all_img_urls)} images total, skipped {skipped_count} small, {error_count} errors.', 'warning')
             
     except requests.RequestException as e:
         flash(f'Error fetching website: {str(e)}', 'error')
