@@ -137,6 +137,7 @@ def import_all_data(data, clear_existing=False):
     }
     
     id_maps = {
+        'client_contacts': {},
         'firms': {},
         'employees': {},
         'projects': {},
@@ -185,9 +186,10 @@ def import_all_data(data, clear_existing=False):
             filtered_item = filter_model_fields(ClientContact, item)
             contact = ClientContact(**filtered_item)
             db.session.add(contact)
+            db.session.flush()
+            id_maps['client_contacts'][old_id] = contact.id
             count += 1
         results['imported']['client_contacts'] = count
-        db.session.flush()
         
         count = 0
         for item in data.get('firms', []):
@@ -298,6 +300,9 @@ def import_all_data(data, clear_existing=False):
             old_id = item.pop('id', None)
             item.pop('created_at', None)
             item.pop('updated_at', None)
+            old_contact_id = item.pop('owner_contact_id', None)
+            if old_contact_id:
+                item['owner_contact_id'] = id_maps['client_contacts'].get(old_contact_id)
             filtered_item = filter_model_fields(Project, item)
             proj = Project(**filtered_item)
             db.session.add(proj)
