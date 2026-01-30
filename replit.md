@@ -68,6 +68,12 @@ The AI parsing enforces consistent formats for personnel data:
 - **Other Qualifications:** Certifications, awards, publications - one per line
 
 ## Recent Changes
+- Added portfolio website scraping for project import (Jan 2026)
+  - "From Website" tab in Import Projects modal
+  - Enter portfolio page URL to scrape projects from company websites
+  - Handles pagination and follows individual project links for details
+  - AI extracts project title, location, client, year, cost, and description
+  - Preview and select which projects to import
 - Added multi-project import functionality (Jan 2026)
   - Parse multiple projects from a single document (like references tables or appendices)
   - "Import Projects" button on Projects page opens upload modal
