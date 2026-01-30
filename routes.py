@@ -40,13 +40,13 @@ def login():
     app_password = os.environ.get('APP_PASSWORD')
     if not app_password:
         session['authenticated'] = True
-        return redirect(url_for('home'))
+        return redirect(url_for('index'))
     
     if request.method == 'POST':
         password = request.form.get('password', '')
         if password == app_password:
             session['authenticated'] = True
-            next_url = request.args.get('next', url_for('home'))
+            next_url = request.args.get('next', url_for('index'))
             return redirect(next_url)
         else:
             flash('Incorrect password', 'error')
