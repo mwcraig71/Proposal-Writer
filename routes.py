@@ -3535,6 +3535,90 @@ def get_marketing_photos_api():
     } for p in photos])
 
 
+@app.route('/api/marketing-photos/<int:photo_id>/copy-to-employee/<int:employee_id>', methods=['POST'])
+def copy_marketing_to_employee(photo_id, employee_id):
+    """Copy a marketing photo to an employee"""
+    from models import MarketingPhoto, EmployeePhoto
+    from replit.object_storage import Client
+    import uuid
+    
+    marketing_photo = MarketingPhoto.query.get_or_404(photo_id)
+    employee = Employee.query.get_or_404(employee_id)
+    
+    try:
+        client = Client()
+        original_data = client.download_as_bytes(marketing_photo.storage_path)
+        
+        new_filename = f"{uuid.uuid4()}_{marketing_photo.filename}"
+        new_storage_path = f"employee_photos/{new_filename}"
+        client.upload_from_bytes(new_storage_path, original_data)
+        
+        photo = EmployeePhoto(
+            employee_id=employee.id,
+            filename=marketing_photo.filename,
+            storage_path=new_storage_path,
+            caption=marketing_photo.caption,
+            file_size=marketing_photo.file_size,
+            content_type=marketing_photo.content_type
+        )
+        db.session.add(photo)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'photo': {
+                'id': photo.id,
+                'url': f'/photos/employee/{photo.id}',
+                'caption': photo.caption,
+                'filename': photo.filename
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/marketing-photos/<int:photo_id>/copy-to-project/<int:project_id>', methods=['POST'])
+def copy_marketing_to_project(photo_id, project_id):
+    """Copy a marketing photo to a project"""
+    from models import MarketingPhoto, ProjectPhoto
+    from replit.object_storage import Client
+    import uuid
+    
+    marketing_photo = MarketingPhoto.query.get_or_404(photo_id)
+    project = Project.query.get_or_404(project_id)
+    
+    try:
+        client = Client()
+        original_data = client.download_as_bytes(marketing_photo.storage_path)
+        
+        new_filename = f"{uuid.uuid4()}_{marketing_photo.filename}"
+        new_storage_path = f"project_photos/{new_filename}"
+        client.upload_from_bytes(new_storage_path, original_data)
+        
+        photo = ProjectPhoto(
+            project_id=project.id,
+            filename=marketing_photo.filename,
+            storage_path=new_storage_path,
+            caption=marketing_photo.caption,
+            file_size=marketing_photo.file_size,
+            content_type=marketing_photo.content_type
+        )
+        db.session.add(photo)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'photo': {
+                'id': photo.id,
+                'url': f'/photos/project/{photo.id}',
+                'caption': photo.caption,
+                'filename': photo.filename
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/marketing-photos/tags')
 def get_all_marketing_tags():
     """Get all unique tags from marketing photos"""

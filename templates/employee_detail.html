@@ -261,10 +261,30 @@
             <input type="file" id="photo-file" accept="image/*" class="hidden">
             <button type="button" onclick="document.getElementById('photo-file').click()" 
                     class="flex-1 text-sm bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition">
-                <i class="fas fa-camera mr-1"></i> Upload Photo
+                <i class="fas fa-camera mr-1"></i> Upload
+            </button>
+            <button type="button" onclick="openMarketingPicker()" 
+                    class="flex-1 text-sm bg-purple-600 text-white px-3 py-2 rounded-lg hover:bg-purple-700 transition">
+                <i class="fas fa-images mr-1"></i> Marketing
             </button>
         </form>
         <input type="text" id="photo-caption" placeholder="Caption (optional)" class="w-full mt-2 p-2 border rounded-lg text-sm hidden">
+    </div>
+    
+    <div id="marketing-picker-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[80vh] overflow-hidden">
+            <div class="flex justify-between items-center p-4 border-b">
+                <h3 class="text-lg font-semibold">Choose from Marketing Photos</h3>
+                <button onclick="closeMarketingPicker()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="p-4 overflow-y-auto max-h-[60vh]">
+                <div id="marketing-photos-grid" class="grid grid-cols-4 gap-3">
+                </div>
+                <p id="no-marketing-photos" class="text-gray-500 text-center py-8 hidden">No marketing photos available. Add some in the Marketing Photos section first.</p>
+            </div>
+        </div>
     </div>
     
     <div class="bg-white rounded-lg shadow p-6">
@@ -455,6 +475,76 @@
 <script>
 const allEmployees = {{ employees|tojson|safe if employees else '[]' }};
 const employeeId = {{ employee.id }};
+
+// Marketing photo picker
+async function openMarketingPicker() {
+    const modal = document.getElementById('marketing-picker-modal');
+    const grid = document.getElementById('marketing-photos-grid');
+    const noPhotos = document.getElementById('no-marketing-photos');
+    
+    grid.innerHTML = '<p class="col-span-4 text-center py-4 text-gray-500">Loading...</p>';
+    modal.classList.remove('hidden');
+    
+    try {
+        const response = await fetch('/api/marketing-photos');
+        const photos = await response.json();
+        
+        if (photos.length === 0) {
+            grid.innerHTML = '';
+            noPhotos.classList.remove('hidden');
+        } else {
+            noPhotos.classList.add('hidden');
+            grid.innerHTML = photos.map(p => `
+                <div class="relative cursor-pointer group border rounded-lg overflow-hidden hover:ring-2 hover:ring-purple-500" onclick="selectMarketingPhoto(${p.id})">
+                    <img src="${p.url}" alt="${p.caption || p.filename}" class="w-full h-24 object-cover">
+                    <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition flex items-center justify-center">
+                        <i class="fas fa-plus-circle text-white text-2xl opacity-0 group-hover:opacity-100 transition"></i>
+                    </div>
+                    ${p.caption ? `<div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60 text-white text-xs p-1 truncate">${p.caption}</div>` : ''}
+                </div>
+            `).join('');
+        }
+    } catch (error) {
+        grid.innerHTML = '<p class="col-span-4 text-center py-4 text-red-500">Error loading photos</p>';
+    }
+}
+
+function closeMarketingPicker() {
+    document.getElementById('marketing-picker-modal').classList.add('hidden');
+}
+
+async function selectMarketingPhoto(photoId) {
+    try {
+        const response = await fetch(`/api/marketing-photos/${photoId}/copy-to-employee/${employeeId}`, { method: 'POST' });
+        const result = await response.json();
+        
+        if (result.success) {
+            const gallery = document.getElementById('photo-gallery');
+            const noPhotosMsg = document.getElementById('no-photos-msg');
+            if (noPhotosMsg) noPhotosMsg.remove();
+            
+            const photoDiv = document.createElement('div');
+            photoDiv.className = 'relative group';
+            photoDiv.dataset.photoId = result.photo.id;
+            photoDiv.innerHTML = `
+                <img src="${result.photo.url}" alt="${result.photo.caption || result.photo.filename}" 
+                     class="w-full h-32 object-cover rounded-lg cursor-pointer"
+                     onclick="openPhotoViewer(${result.photo.id}, '${result.photo.caption || ''}')">
+                <button onclick="deletePhoto(${result.photo.id})" 
+                        class="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                    <i class="fas fa-times text-xs"></i>
+                </button>
+                ${result.photo.caption ? `<div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 rounded-b-lg truncate">${result.photo.caption}</div>` : ''}
+            `;
+            gallery.appendChild(photoDiv);
+            closeMarketingPicker();
+        } else {
+            alert('Error adding photo: ' + result.error);
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
 
 // Photo upload handling
 document.getElementById('photo-file').addEventListener('change', async (e) => {
