@@ -3796,6 +3796,17 @@ def get_employees_list():
 def scrape_marketing_photos():
     """Scrape images from a website (crawling multiple pages) and add them to marketing photos"""
     try:
+        return _scrape_marketing_photos_impl()
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Scrape error: {error_details}")
+        flash(f'Scraping failed: {str(e)}', 'error')
+        return redirect(url_for('marketing_photos'))
+
+def _scrape_marketing_photos_impl():
+    """Implementation of image scraping"""
+    try:
         from models import MarketingPhoto
         from bs4 import BeautifulSoup
         from urllib.parse import urljoin, urlparse
