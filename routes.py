@@ -3795,13 +3795,20 @@ def get_employees_list():
 @app.route('/marketing-photos/scrape', methods=['POST'])
 def scrape_marketing_photos():
     """Scrape images from a website (crawling multiple pages) and add them to marketing photos"""
-    from models import MarketingPhoto
-    from bs4 import BeautifulSoup
-    from urllib.parse import urljoin, urlparse
-    import requests
+    try:
+        from models import MarketingPhoto
+        from bs4 import BeautifulSoup
+        from urllib.parse import urljoin, urlparse
+        import requests
+    except ImportError as e:
+        flash(f'Missing required library: {str(e)}', 'error')
+        return redirect(url_for('marketing_photos'))
     
     url = request.form.get('website_url', '').strip()
-    min_size_kb = int(request.form.get('min_size_kb', 100))
+    try:
+        min_size_kb = int(request.form.get('min_size_kb', 100))
+    except (ValueError, TypeError):
+        min_size_kb = 100
     default_tag = request.form.get('default_tag', '').strip()
     
     if not url:
@@ -3811,9 +3818,13 @@ def scrape_marketing_photos():
     if not url.startswith(('http://', 'https://')):
         url = 'https://' + url
     
-    client = get_storage_client()
-    if not client:
-        flash('Object storage not configured', 'error')
+    try:
+        client = get_storage_client()
+        if not client:
+            flash('Object storage not configured', 'error')
+            return redirect(url_for('marketing_photos'))
+    except Exception as e:
+        flash(f'Object storage error: {str(e)}', 'error')
         return redirect(url_for('marketing_photos'))
     
     try:
