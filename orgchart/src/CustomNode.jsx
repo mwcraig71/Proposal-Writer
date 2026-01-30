@@ -21,20 +21,6 @@ function CustomNode({ data, selected, id }) {
     }
   }
 
-  const handleAddTeamMemberToList = (event) => {
-    event.stopPropagation()
-    if (data.onAddTeamMemberToList) {
-      data.onAddTeamMemberToList(id)
-    }
-  }
-
-  const handleRemoveTeamMemberFromList = (event, index) => {
-    event.stopPropagation()
-    if (data.onRemoveTeamMemberFromList) {
-      data.onRemoveTeamMemberFromList(id, index)
-    }
-  }
-
   const handleDelete = (event) => {
     event.stopPropagation()
     if (data.onDeleteNode) {
@@ -44,7 +30,6 @@ function CustomNode({ data, selected, id }) {
 
   const isTaskLead = data.isTaskLead
   const isTeamMember = data.isTeamMember
-  const isActualTeamMember = data.isActualTeamMember
   const connectFromSide = data.connectFromSide
 
   return (
@@ -90,11 +75,8 @@ function CustomNode({ data, selected, id }) {
         {isTaskLead && (
           <div className="text-[10px] text-red-600 font-bold uppercase tracking-wide mb-1">Task Lead</div>
         )}
-        {isTeamMember && !isActualTeamMember && (
+        {isTeamMember && (
           <div className="text-[10px] text-gray-600 font-bold uppercase tracking-wide mb-1">Team Leader</div>
-        )}
-        {isActualTeamMember && (
-          <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wide mb-1">Team Member</div>
         )}
         <div className="font-semibold text-gray-900 text-sm leading-tight break-words">
           {data.role}
@@ -117,34 +99,6 @@ function CustomNode({ data, selected, id }) {
           >
             + Team Leader
           </button>
-        )}
-        {isTeamMember && !isActualTeamMember && (
-          <>
-            {data.teamMembers && data.teamMembers.length > 0 && (
-              <div className="mt-2 border-t border-gray-300 pt-2">
-                <div className="text-[9px] text-gray-500 uppercase font-bold mb-1">Team Members:</div>
-                {data.teamMembers.map((member, index) => (
-                  <div key={index} className="flex items-center justify-between text-xs text-gray-700 py-0.5 hover:bg-gray-100 rounded px-1">
-                    <span>{member}</span>
-                    <button
-                      onClick={(e) => handleRemoveTeamMemberFromList(e, index)}
-                      className="text-red-500 hover:text-red-700 text-[10px] ml-1"
-                      title="Remove team member"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-            <button
-              onClick={handleAddTeamMemberToList}
-              className="mt-2 text-[9px] px-2 py-0.5 text-white rounded transition-colors bg-gray-600 hover:bg-gray-700"
-              title="Add a team member to this team leader"
-            >
-              + Team Member
-            </button>
-          </>
         )}
       </div>
       <Handle

@@ -291,8 +291,7 @@ function OrgChartFlow() {
         assignedStaff: null, 
         isTeamMember: true,
         parentId: parentNodeId,
-        canDelete: true,
-        teamMembers: []
+        canDelete: true
       },
     }
     const newEdge = {
@@ -346,53 +345,12 @@ function OrgChartFlow() {
     }, 50)
   }, [nodes, edges, setNodes, setEdges, addTeamMember])
 
-  const addTeamMemberToList = useCallback((nodeId) => {
-    const memberName = prompt('Enter team member name:')
-    if (!memberName || memberName.trim() === '') return
-    
-    setNodes((nds) =>
-      nds.map((node) => {
-        if (node.id === nodeId) {
-          const currentMembers = node.data.teamMembers || []
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              teamMembers: [...currentMembers, memberName.trim()]
-            }
-          }
-        }
-        return node
-      })
-    )
-  }, [setNodes])
-
-  const removeTeamMemberFromList = useCallback((nodeId, index) => {
-    setNodes((nds) =>
-      nds.map((node) => {
-        if (node.id === nodeId) {
-          const currentMembers = node.data.teamMembers || []
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              teamMembers: currentMembers.filter((_, i) => i !== index)
-            }
-          }
-        }
-        return node
-      })
-    )
-  }, [setNodes])
-
   const nodesWithCallbacks = nodes.map(node => ({
     ...node,
     data: {
       ...node.data,
       onAddTeamMember: addTeamMember,
-      onDeleteNode: deleteNode,
-      onAddTeamMemberToList: addTeamMemberToList,
-      onRemoveTeamMemberFromList: removeTeamMemberFromList
+      onDeleteNode: deleteNode
     }
   }))
 
