@@ -81,7 +81,7 @@ const getLayoutedElements = (nodes, edges, direction = 'TB') => {
 }
 
 const initialNodes = [
-  { id: 'pm', type: 'custom', data: { role: 'Project Manager (PM)', assignedStaff: null, isTaskLead: false, canDelete: false, notes: '' }, position: { x: 400, y: 0 } },
+  { id: 'pm', type: 'custom', data: { role: 'Project Manager (PM)', assignedStaff: null, isTaskLead: false, canDelete: false, isPM: true }, position: { x: 400, y: 0 } },
   { id: 'junction', type: 'junction', data: {}, position: { x: 400, y: 100 } },
   { id: 'safety', type: 'custom', data: { role: 'Safety Officer', assignedStaff: null, isTaskLead: false, canDelete: false, connectFromSide: 'right' }, position: { x: 150, y: 100 } },
   { id: 'qaqc', type: 'custom', data: { role: 'QA/QC Manager', assignedStaff: null, isTaskLead: false, canDelete: false, connectFromSide: 'left' }, position: { x: 650, y: 100 } },
@@ -277,6 +277,36 @@ function OrgChartFlow() {
     setEdges((eds) => eds.filter(e => !nodesToDelete.includes(e.source) && !nodesToDelete.includes(e.target)))
   }, [nodes, setNodes, setEdges])
 
+  const addDPM = useCallback((pmNodeId) => {
+    const pmNode = nodes.find(n => n.id === pmNodeId)
+    if (!pmNode) return
+
+    const newNodeId = `dpm-${Date.now()}`
+    const newNode = {
+      id: newNodeId,
+      type: 'custom',
+      position: { x: pmNode.position.x + 220, y: pmNode.position.y },
+      data: { 
+        role: 'Deputy Project Manager (DPM)', 
+        assignedStaff: null, 
+        isDPM: true,
+        canDelete: true,
+        connectFromSide: 'left'
+      },
+    }
+    const newEdge = {
+      id: `e-pm-${newNodeId}`,
+      source: pmNodeId,
+      target: newNodeId,
+      sourceHandle: 'bottom',
+      targetHandle: 'left',
+      type: 'smoothstep'
+    }
+    
+    setNodes((nds) => [...nds, newNode])
+    setEdges((eds) => [...eds, newEdge])
+  }, [nodes, setNodes, setEdges])
+
   const addTeamMember = useCallback((parentNodeId) => {
     const parentNode = nodes.find(n => n.id === parentNodeId)
     if (!parentNode) return
@@ -350,7 +380,8 @@ function OrgChartFlow() {
     data: {
       ...node.data,
       onAddTeamMember: addTeamMember,
-      onDeleteNode: deleteNode
+      onDeleteNode: deleteNode,
+      onAddDPM: addDPM
     }
   }))
 

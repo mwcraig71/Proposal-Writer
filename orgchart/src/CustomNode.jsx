@@ -21,6 +21,13 @@ function CustomNode({ data, selected, id }) {
     }
   }
 
+  const handleAddDPM = (event) => {
+    event.stopPropagation()
+    if (data.onAddDPM) {
+      data.onAddDPM(id)
+    }
+  }
+
   const handleDelete = (event) => {
     event.stopPropagation()
     if (data.onDeleteNode) {
@@ -90,6 +97,15 @@ function CustomNode({ data, selected, id }) {
           >
             {data.assignedStaff}
           </div>
+        )}
+        {data.isPM && (
+          <button
+            onClick={handleAddDPM}
+            className="mt-2 text-[9px] px-2 py-0.5 text-white rounded transition-colors bg-gray-800 hover:bg-gray-900"
+            title="Add a Deputy Project Manager"
+          >
+            + DPM
+          </button>
         )}
         {isTaskLead && (
           <button
