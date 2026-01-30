@@ -147,6 +147,8 @@ class Project(db.Model):
     owner_name = db.Column(db.String(255))
     owner_contact_name = db.Column(db.String(255))
     owner_contact_phone = db.Column(db.String(50))
+    owner_contact_email = db.Column(db.String(255))
+    owner_contact_id = db.Column(db.Integer, db.ForeignKey('client_contacts.id'), nullable=True)
     project_cost = db.Column(db.String(100))
     project_delivery_method = db.Column(db.String(255))
     brief_description = db.Column(db.Text)

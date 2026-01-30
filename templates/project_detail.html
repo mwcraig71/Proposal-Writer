@@ -40,15 +40,20 @@
                     <label class="block text-sm font-medium text-gray-700 mb-1">Owner Name</label>
                     <input type="text" name="owner_name" id="owner_name" value="{{ project.owner_name or '' }}" class="w-full p-2 border rounded-lg">
                 </div>
-                <div class="relative">
+                <div class="relative md:col-span-2">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Owner Contact Name</label>
+                    <input type="hidden" name="owner_contact_id" id="owner_contact_id" value="{{ project.owner_contact_id or '' }}">
                     <input type="text" name="owner_contact_name" id="owner_contact_name" value="{{ project.owner_contact_name or '' }}" class="w-full p-2 border rounded-lg" autocomplete="off">
                     <div id="contact-dropdown" class="hidden absolute z-10 w-full bg-white border rounded-lg shadow-lg mt-1 max-h-60 overflow-y-auto"></div>
-                    <p class="text-xs text-gray-500 mt-1">Start typing to search saved contacts</p>
+                    <p class="text-xs text-gray-500 mt-1">Start typing to search saved contacts, or enter a new name</p>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Owner Contact Phone</label>
                     <input type="text" name="owner_contact_phone" id="owner_contact_phone" value="{{ project.owner_contact_phone or '' }}" class="w-full p-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Owner Contact Email</label>
+                    <input type="email" name="owner_contact_email" id="owner_contact_email" value="{{ project.owner_contact_email or '' }}" class="w-full p-2 border rounded-lg">
                 </div>
             </div>
             
@@ -364,11 +369,15 @@ async function setAsPrimary(photoId) {
 const contactInput = document.getElementById('owner_contact_name');
 const contactDropdown = document.getElementById('contact-dropdown');
 let searchTimeout;
+let currentSearchQuery = '';
 
 if (contactInput && contactDropdown) {
 contactInput.addEventListener('input', function() {
     clearTimeout(searchTimeout);
     const query = this.value.trim();
+    currentSearchQuery = query;
+    
+    document.getElementById('owner_contact_id').value = '';
     
     if (query.length < 2) {
         contactDropdown.classList.add('hidden');
@@ -380,30 +389,48 @@ contactInput.addEventListener('input', function() {
             const response = await fetch(`/api/contacts/search?q=${encodeURIComponent(query)}`);
             const contacts = await response.json();
             
-            if (contacts.length === 0) {
-                contactDropdown.classList.add('hidden');
-                return;
+            let html = '';
+            
+            if (contacts.length > 0) {
+                html = contacts.map(c => `
+                    <div class="contact-option p-3 hover:bg-blue-50 cursor-pointer border-b" 
+                         data-id="${c.id}" data-name="${c.name}" data-agency="${c.agency}" data-phone="${c.phone}" data-email="${c.email}">
+                        <div class="font-medium">${c.name}</div>
+                        <div class="text-sm text-gray-500">${c.agency || ''} ${c.role ? '- ' + c.role : ''}</div>
+                        <div class="text-xs text-gray-400">${c.phone || ''} ${c.email ? '| ' + c.email : ''}</div>
+                    </div>
+                `).join('');
             }
             
-            contactDropdown.innerHTML = contacts.map(c => `
-                <div class="contact-option p-3 hover:bg-blue-50 cursor-pointer border-b last:border-b-0" 
-                     data-name="${c.name}" data-agency="${c.agency}" data-phone="${c.phone}">
-                    <div class="font-medium">${c.name}</div>
-                    <div class="text-sm text-gray-500">${c.agency || ''} ${c.role ? '- ' + c.role : ''}</div>
-                    <div class="text-xs text-gray-400">${c.phone || ''}</div>
+            html += `
+                <div class="add-new-contact p-3 hover:bg-green-50 cursor-pointer bg-gray-50 border-t" data-name="${query}">
+                    <div class="font-medium text-green-600"><i class="fas fa-plus mr-2"></i>Add "${query}" as new contact</div>
+                    <div class="text-xs text-gray-500">Will be added to Contacts after saving</div>
                 </div>
-            `).join('');
+            `;
             
+            contactDropdown.innerHTML = html;
             contactDropdown.classList.remove('hidden');
             
             contactDropdown.querySelectorAll('.contact-option').forEach(opt => {
                 opt.addEventListener('click', function() {
+                    document.getElementById('owner_contact_id').value = this.dataset.id;
                     document.getElementById('owner_contact_name').value = this.dataset.name;
                     document.getElementById('owner_name').value = this.dataset.agency;
                     document.getElementById('owner_contact_phone').value = this.dataset.phone;
+                    document.getElementById('owner_contact_email').value = this.dataset.email;
                     contactDropdown.classList.add('hidden');
                 });
             });
+            
+            const addNewBtn = contactDropdown.querySelector('.add-new-contact');
+            if (addNewBtn) {
+                addNewBtn.addEventListener('click', function() {
+                    document.getElementById('owner_contact_id').value = '';
+                    document.getElementById('owner_contact_name').value = this.dataset.name;
+                    contactDropdown.classList.add('hidden');
+                });
+            }
         } catch (error) {
             console.error('Search error:', error);
         }

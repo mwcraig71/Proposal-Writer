@@ -1018,12 +1018,34 @@ def update_project(id):
     project.owner_name = data.get('owner_name', project.owner_name)
     project.owner_contact_name = data.get('owner_contact_name', project.owner_contact_name)
     project.owner_contact_phone = data.get('owner_contact_phone', project.owner_contact_phone)
+    project.owner_contact_email = data.get('owner_contact_email', project.owner_contact_email)
     project.project_cost = data.get('project_cost', project.project_cost)
     project.brief_description = data.get('brief_description', project.brief_description)
     project.relevance_writeup = data.get('relevance_writeup', project.relevance_writeup)
     
+    owner_contact_id = data.get('owner_contact_id')
+    if owner_contact_id:
+        project.owner_contact_id = int(owner_contact_id)
+    else:
+        project.owner_contact_id = None
+        contact_name = data.get('owner_contact_name', '').strip()
+        if contact_name:
+            existing = ClientContact.query.filter(ClientContact.name.ilike(contact_name)).first()
+            if existing:
+                project.owner_contact_id = existing.id
+            else:
+                new_contact = ClientContact(
+                    name=contact_name,
+                    agency=data.get('owner_name', ''),
+                    phone=data.get('owner_contact_phone', ''),
+                    email=data.get('owner_contact_email', '')
+                )
+                db.session.add(new_contact)
+                db.session.flush()
+                project.owner_contact_id = new_contact.id
+    
     db.session.commit()
-    return jsonify({'success': True})
+    return jsonify({'success': True, 'contact_created': owner_contact_id is None and project.owner_contact_id is not None})
 
 
 @app.route('/projects/<int:id>', methods=['DELETE'])
