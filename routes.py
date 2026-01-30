@@ -505,12 +505,20 @@ def add_employee():
 
 @app.route('/employees/<int:id>')
 def employee_detail(id):
+    from models import MarketingPhoto
     employee = Employee.query.get_or_404(id)
     projects = Project.query.join(EmployeeProjectLink).filter(EmployeeProjectLink.employee_id == id).all()
     project_experiences = EmployeeProjectExperience.query.filter_by(employee_id=id).order_by(EmployeeProjectExperience.year_completed.desc()).all()
     firms = Firm.query.all()
     employees = [{'id': e.id, 'name': e.name} for e in Employee.query.order_by(Employee.name).all()]
-    return render_template('employee_detail.html', employee=employee, projects=projects, project_experiences=project_experiences, firms=firms, employees=employees)
+    
+    # Find marketing photos tagged with this employee's name
+    employee_tag = f"#{employee.name.replace(' ', '')}"
+    all_marketing = MarketingPhoto.query.all()
+    marketing_photos = [p for p in all_marketing if employee_tag.lower() in (p.tags or '').lower()]
+    
+    return render_template('employee_detail.html', employee=employee, projects=projects, project_experiences=project_experiences, 
+                           firms=firms, employees=employees, marketing_photos=marketing_photos)
 
 
 @app.route('/employees/<int:id>', methods=['PUT'])
@@ -1019,10 +1027,18 @@ def add_project():
 
 @app.route('/projects/<int:id>')
 def project_detail(id):
+    from models import MarketingPhoto
     project = Project.query.get_or_404(id)
     employee_links = EmployeeProjectLink.query.filter_by(project_id=id).all()
     all_employees = Employee.query.all()
-    return render_template('project_detail.html', project=project, employee_links=employee_links, all_employees=all_employees)
+    
+    # Find marketing photos tagged with this project's name
+    project_tag = f"#{project.title.replace(' ', '')}"
+    all_marketing = MarketingPhoto.query.all()
+    marketing_photos = [p for p in all_marketing if project_tag.lower() in (p.tags or '').lower()]
+    
+    return render_template('project_detail.html', project=project, employee_links=employee_links, 
+                           all_employees=all_employees, marketing_photos=marketing_photos)
 
 
 @app.route('/projects/<int:id>', methods=['PUT'])
