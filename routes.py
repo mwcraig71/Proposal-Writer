@@ -461,14 +461,55 @@ def toggle_sf330_include(id, exp_id):
     return jsonify({'success': True, 'sf330_include': exp.sf330_include})
 
 
-@app.route('/employees/<int:id>/merge-experiences', methods=['POST'])
-def merge_experiences(id):
-    """AI merge multiple project experiences into one"""
-    from gemini_service import merge_project_experiences
+@app.route('/employees/<int:id>/get-experiences')
+def get_experiences(id):
+    """Get experiences by IDs for merge modal"""
+    ids = request.args.get('ids', '').split(',')
+    ids = [int(i) for i in ids if i.isdigit()]
+    
+    experiences = EmployeeProjectExperience.query.filter(
+        EmployeeProjectExperience.id.in_(ids),
+        EmployeeProjectExperience.employee_id == id
+    ).all()
+    
+    return jsonify([{
+        'id': e.id,
+        'project_title': e.project_title,
+        'location': e.location,
+        'owner_name': e.owner_name,
+        'project_cost': e.project_cost,
+        'year_completed': e.year_completed,
+        'role_performed': e.role_performed,
+        'brief_description': e.brief_description,
+        'firm_name': e.firm_name
+    } for e in experiences])
+
+
+@app.route('/api/ai-merge-field', methods=['POST'])
+def ai_merge_field():
+    """AI merge a single field from multiple values"""
+    from gemini_service import merge_field_values
     
     data = request.json
+    field_key = data.get('field_key')
+    values = data.get('values', [])
+    
+    if len(values) < 2:
+        return jsonify({'success': False, 'error': 'Need at least 2 values to merge'})
+    
+    try:
+        merged_value = merge_field_values(field_key, values)
+        return jsonify({'success': True, 'merged_value': merged_value})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/employees/<int:id>/save-merged-experience', methods=['POST'])
+def save_merged_experience(id):
+    """Save a manually merged experience"""
+    data = request.json
     experience_ids = data.get('experience_ids', [])
-    custom_instructions = data.get('custom_instructions', '')
+    merged_data = data.get('merged_data', {})
     
     if len(experience_ids) < 2:
         return jsonify({'success': False, 'error': 'Need at least 2 experiences to merge'})
@@ -482,18 +523,16 @@ def merge_experiences(id):
         return jsonify({'success': False, 'error': 'Could not find all selected experiences'})
     
     try:
-        merged = merge_project_experiences(experiences, custom_instructions)
-        
         new_exp = EmployeeProjectExperience(
             employee_id=id,
-            project_title=merged.get('project_title', experiences[0].project_title),
-            location=merged.get('location', experiences[0].location),
-            owner_name=merged.get('owner_name', experiences[0].owner_name),
-            project_cost=merged.get('project_cost', experiences[0].project_cost),
-            year_completed=merged.get('year_completed', experiences[0].year_completed),
-            role_performed=merged.get('role_performed', experiences[0].role_performed),
-            brief_description=merged.get('brief_description', ''),
-            firm_name=merged.get('firm_name', experiences[0].firm_name),
+            project_title=merged_data.get('project_title', ''),
+            location=merged_data.get('location', ''),
+            owner_name=merged_data.get('owner_name', ''),
+            project_cost=merged_data.get('project_cost', ''),
+            year_completed=merged_data.get('year_completed', ''),
+            role_performed=merged_data.get('role_performed', ''),
+            brief_description=merged_data.get('brief_description', ''),
+            firm_name=merged_data.get('firm_name', ''),
             is_current_firm=any(e.is_current_firm for e in experiences),
             sf330_include=any(e.sf330_include for e in experiences)
         )

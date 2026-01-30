@@ -480,6 +480,74 @@ Return a valid JSON object with the extracted data. Use null for any field where
     wait=wait_exponential(multiplier=1, min=2, max=10),
     retry=retry_if_exception(is_rate_limit_error)
 )
+def merge_field_values(field_key: str, values: list) -> str:
+    """Merge multiple field values into one using AI."""
+    from models import AISettings
+    
+    style = AISettings.get_value('writing_style', 'professional and technical')
+    tone = AISettings.get_value('writing_tone', 'formal but accessible')
+    
+    field_labels = {
+        'project_title': 'Project Title',
+        'location': 'Location',
+        'owner_name': 'Owner/Client',
+        'project_cost': 'Project Cost',
+        'year_completed': 'Year Completed',
+        'role_performed': 'Role Performed',
+        'firm_name': 'Firm Name',
+        'brief_description': 'Project Description'
+    }
+    
+    field_label = field_labels.get(field_key, field_key)
+    is_description = field_key == 'brief_description'
+    
+    values_text = '\n'.join([f"Value {i+1}: {v}" for i, v in enumerate(values)])
+    
+    if is_description:
+        prompt = f"""You are a professional technical writer for SF330 Architect-Engineer Qualifications forms.
+
+Merge these project descriptions into ONE comprehensive description:
+
+WRITING STYLE: {style}
+WRITING TONE: {tone}
+
+{values_text}
+
+Create a single merged description that:
+1. Combines all key information from each description
+2. Eliminates redundancy
+3. Maintains technical accuracy
+4. Is suitable for federal A/E qualification submissions
+5. Is 200-400 words
+
+Return ONLY the merged description text, no explanations."""
+    else:
+        prompt = f"""Merge these {field_label} values into one concise combined value:
+
+{values_text}
+
+Rules:
+- For locations: combine if different, or use the most specific
+- For costs: show range if different, or combine totals
+- For years: show range (e.g., "2018-2023") if different
+- For names: combine with commas or slashes if different
+- Keep it concise
+
+Return ONLY the merged value, no explanations."""
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt
+    )
+    
+    return (response.text or "").strip()
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    retry=retry_if_exception(is_rate_limit_error)
+)
 def merge_project_experiences(experiences: list, custom_instructions: str = '') -> dict:
     """Merge multiple project experiences into one using AI."""
     from models import AISettings

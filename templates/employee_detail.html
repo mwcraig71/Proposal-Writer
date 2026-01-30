@@ -362,6 +362,30 @@
     </div>
 </div>
 
+<div id="merge-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl max-w-5xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div class="p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold">Merge Projects</h3>
+                <button onclick="closeMergeModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <p class="text-sm text-gray-600 mb-4">For each field, select which value to keep or click "AI Merge" to combine them.</p>
+            
+            <div id="merge-fields-container" class="space-y-4">
+            </div>
+            
+            <div class="flex justify-end space-x-3 mt-6 pt-4 border-t">
+                <button type="button" onclick="closeMergeModal()" class="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-50">Cancel</button>
+                <button type="button" onclick="saveMergedProject()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                    <i class="fas fa-check mr-1"></i> Save Merged Project
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div id="alt-desc-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
     <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
         <div class="p-6">
@@ -944,6 +968,9 @@ async function toggleSF330Include(expId) {
     }
 }
 
+let mergeProjectsData = [];
+let mergeFieldSelections = {};
+
 async function mergeSelectedProjects() {
     const checkboxes = document.querySelectorAll('.project-select-cb:checked');
     const expIds = Array.from(checkboxes).map(cb => parseInt(cb.dataset.expId));
@@ -953,20 +980,162 @@ async function mergeSelectedProjects() {
         return;
     }
     
-    const customInstructions = prompt('Enter any custom instructions for merging (optional):', '');
+    try {
+        const response = await fetch(`/employees/${employeeId}/get-experiences?ids=${expIds.join(',')}`);
+        const projects = await response.json();
+        mergeProjectsData = projects;
+        showMergeModal(projects);
+    } catch (error) {
+        alert('Error loading projects: ' + error.message);
+    }
+}
+
+function showMergeModal(projects) {
+    const container = document.getElementById('merge-fields-container');
+    const fields = [
+        {key: 'project_title', label: 'Project Title', type: 'text'},
+        {key: 'location', label: 'Location', type: 'text'},
+        {key: 'owner_name', label: 'Owner', type: 'text'},
+        {key: 'project_cost', label: 'Cost', type: 'text'},
+        {key: 'year_completed', label: 'Year', type: 'text'},
+        {key: 'role_performed', label: 'Role', type: 'text'},
+        {key: 'firm_name', label: 'Firm', type: 'text'},
+        {key: 'brief_description', label: 'Description', type: 'textarea'}
+    ];
+    
+    mergeFieldSelections = {};
+    
+    let html = '';
+    fields.forEach(field => {
+        const values = projects.map((p, i) => ({index: i, value: p[field.key] || ''}));
+        const hasMultipleValues = new Set(values.map(v => v.value)).size > 1;
+        
+        html += `<div class="border rounded-lg p-4">
+            <div class="flex justify-between items-center mb-2">
+                <label class="font-semibold text-gray-700">${field.label}</label>
+                ${hasMultipleValues ? `<button onclick="aiMergeField('${field.key}')" class="text-purple-600 hover:text-purple-800 text-sm">
+                    <i class="fas fa-magic mr-1"></i> AI Merge
+                </button>` : ''}
+            </div>
+            <div class="space-y-2" id="field-options-${field.key}">`;
+        
+        values.forEach((v, i) => {
+            if (v.value) {
+                const isChecked = i === 0 ? 'checked' : '';
+                if (field.type === 'textarea') {
+                    html += `<label class="flex items-start p-2 border rounded hover:bg-gray-50 cursor-pointer">
+                        <input type="radio" name="merge-${field.key}" value="${i}" ${isChecked} class="mt-1 mr-3" onchange="selectFieldValue('${field.key}', ${i})">
+                        <div class="flex-1">
+                            <span class="text-xs text-blue-600 font-medium">Project ${i+1}</span>
+                            <p class="text-sm text-gray-700 whitespace-pre-wrap">${v.value}</p>
+                        </div>
+                    </label>`;
+                } else {
+                    html += `<label class="flex items-center p-2 border rounded hover:bg-gray-50 cursor-pointer">
+                        <input type="radio" name="merge-${field.key}" value="${i}" ${isChecked} class="mr-3" onchange="selectFieldValue('${field.key}', ${i})">
+                        <span class="text-xs text-blue-600 font-medium mr-2">Project ${i+1}:</span>
+                        <span class="text-gray-700">${v.value}</span>
+                    </label>`;
+                }
+            }
+        });
+        
+        html += `<div id="ai-merged-${field.key}" class="hidden"></div>`;
+        html += `</div></div>`;
+        
+        mergeFieldSelections[field.key] = {source: 0, value: values[0]?.value || ''};
+    });
+    
+    container.innerHTML = html;
+    document.getElementById('merge-modal').classList.remove('hidden');
+}
+
+function closeMergeModal() {
+    document.getElementById('merge-modal').classList.add('hidden');
+}
+
+function selectFieldValue(fieldKey, index) {
+    mergeFieldSelections[fieldKey] = {
+        source: index,
+        value: mergeProjectsData[index]?.[fieldKey] || ''
+    };
+}
+
+async function aiMergeField(fieldKey) {
+    const values = mergeProjectsData.map(p => p[fieldKey]).filter(v => v);
+    if (values.length < 2) {
+        alert('Not enough values to merge');
+        return;
+    }
+    
+    const btn = event.target.closest('button');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Merging...';
+    btn.disabled = true;
     
     try {
-        const response = await fetch(`/employees/${employeeId}/merge-experiences`, {
+        const response = await fetch('/api/ai-merge-field', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ experience_ids: expIds, custom_instructions: customInstructions })
+            body: JSON.stringify({ field_key: fieldKey, values: values })
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+            const container = document.getElementById(`ai-merged-${fieldKey}`);
+            const isTextarea = fieldKey === 'brief_description';
+            
+            container.innerHTML = `<label class="flex items-${isTextarea ? 'start' : 'center'} p-2 border-2 border-purple-300 bg-purple-50 rounded hover:bg-purple-100 cursor-pointer">
+                <input type="radio" name="merge-${fieldKey}" value="ai" class="${isTextarea ? 'mt-1 ' : ''}mr-3" onchange="selectAIMergedValue('${fieldKey}', this)">
+                <div class="flex-1">
+                    <span class="text-xs text-purple-600 font-medium"><i class="fas fa-magic mr-1"></i>AI Merged</span>
+                    <${isTextarea ? 'p class="text-sm text-gray-700 whitespace-pre-wrap mt-1"' : 'span class="ml-2 text-gray-700"'}>${result.merged_value}</${isTextarea ? 'p' : 'span'}>
+                </div>
+            </label>`;
+            container.classList.remove('hidden');
+            
+            container.querySelector('input[type="radio"]').checked = true;
+            mergeFieldSelections[fieldKey] = {source: 'ai', value: result.merged_value};
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        alert('Error merging field: ' + error.message);
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+
+function selectAIMergedValue(fieldKey, radio) {
+    const container = document.getElementById(`ai-merged-${fieldKey}`);
+    const text = container.querySelector('p, span:last-child')?.textContent || '';
+    mergeFieldSelections[fieldKey] = {source: 'ai', value: text};
+}
+
+async function saveMergedProject() {
+    const mergedData = {};
+    for (const [key, sel] of Object.entries(mergeFieldSelections)) {
+        mergedData[key] = sel.value;
+    }
+    
+    const expIds = mergeProjectsData.map(p => p.id);
+    
+    try {
+        const response = await fetch(`/employees/${employeeId}/save-merged-experience`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                experience_ids: expIds, 
+                merged_data: mergedData 
+            })
         });
         const result = await response.json();
         if (result.success) {
             alert('Projects merged successfully!');
             window.location.reload();
         } else {
-            alert('Error merging projects: ' + result.error);
+            alert('Error: ' + result.error);
         }
     } catch (error) {
         alert('Error: ' + error.message);
