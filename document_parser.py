@@ -2,8 +2,10 @@ import io
 import os
 from typing import Optional
 from docx import Document
+from docx.oxml.ns import qn
 from pypdf import PdfReader
 from openpyxl import load_workbook
+import xml.etree.ElementTree as ET
 
 
 def extract_text_from_pdf(file_content: bytes) -> str:
@@ -21,111 +23,144 @@ def extract_text_from_pdf(file_content: bytes) -> str:
 
 def extract_text_from_docx(file_content: bytes) -> str:
     """
-    Extract text from Word documents, handling two-column layouts.
-    For resumes with left sidebar (credentials) and right main content (experience),
-    we extract columns separately to preserve structure for AI parsing.
+    Extract ALL text from Word documents including text boxes, shapes, and tables.
+    Uses XML parsing to ensure no content is missed.
     """
     try:
         doc = Document(io.BytesIO(file_content))
+        all_text_parts = []
         
-        # First, check if document uses tables for layout (common for two-column resumes)
-        has_layout_table = False
-        layout_table = None
+        # Method 1: Extract from document body XML directly to get ALL content
+        # This captures text boxes, shapes, and other elements that doc.paragraphs misses
+        namespaces = {
+            'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main',
+            'wp': 'http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing',
+            'a': 'http://schemas.openxmlformats.org/drawingml/2006/main',
+            'wps': 'http://schemas.microsoft.com/office/word/2010/wordprocessingShape',
+            'mc': 'http://schemas.openxmlformats.org/markup-compatibility/2006',
+            'v': 'urn:schemas-microsoft-com:vml',
+        }
         
+        def extract_all_text_from_element(element):
+            """Recursively extract all text from an XML element"""
+            texts = []
+            # Get text from 'w:t' elements (main text)
+            for t_elem in element.iter(qn('w:t')):
+                if t_elem.text:
+                    texts.append(t_elem.text)
+            return ''.join(texts)
+        
+        def process_element_recursive(element, depth=0):
+            """Process element and all children recursively"""
+            text_items = []
+            
+            # Check if this is a paragraph
+            if element.tag == qn('w:p'):
+                para_text = extract_all_text_from_element(element)
+                if para_text.strip():
+                    text_items.append(para_text.strip())
+            
+            # Check for text in drawing/shape elements
+            elif 'drawing' in element.tag or 'txbxContent' in element.tag:
+                for child in element:
+                    text_items.extend(process_element_recursive(child, depth + 1))
+            
+            # Process children
+            for child in element:
+                text_items.extend(process_element_recursive(child, depth + 1))
+            
+            return text_items
+        
+        # Extract from main document body using recursive XML parsing
+        body = doc.element.body
+        xml_extracted = process_element_recursive(body)
+        
+        # Method 2: Standard paragraph extraction (backup)
+        para_text = []
+        for para in doc.paragraphs:
+            if para.text.strip():
+                para_text.append(para.text.strip())
+        
+        # Method 3: Table extraction
+        table_text = []
         for table in doc.tables:
-            # Check if this looks like a layout table (typically 2 columns, spanning document)
-            if len(table.columns) == 2:
-                has_layout_table = True
-                layout_table = table
-                break
+            for row in table.rows:
+                row_texts = []
+                for cell in row.cells:
+                    cell_text = cell.text.strip()
+                    if cell_text:
+                        row_texts.append(cell_text)
+                if row_texts:
+                    table_text.append(" | ".join(row_texts))
         
-        if has_layout_table and layout_table:
-            # Extract two-column layout with clear section markers
-            left_column_text = []
-            right_column_text = []
-            
-            for row in layout_table.rows:
-                cells = row.cells
-                if len(cells) >= 2:
-                    # Left column - usually credentials
-                    left_text = cells[0].text.strip()
-                    if left_text:
-                        left_column_text.append(left_text)
-                    
-                    # Right column - usually bio and experience
-                    right_text = cells[1].text.strip()
-                    if right_text:
-                        right_column_text.append(right_text)
-                elif len(cells) == 1:
-                    # Single cell spanning - add to right
-                    text = cells[0].text.strip()
-                    if text:
-                        right_column_text.append(text)
-            
-            # Also get any paragraphs outside the table (headers, footers)
-            header_text = []
-            for para in doc.paragraphs:
-                if para.text.strip():
-                    header_text.append(para.text.strip())
-            
-            # Combine with clear section markers to help AI understand structure
-            result_parts = []
-            
-            if header_text:
-                result_parts.append("=== DOCUMENT HEADER ===")
-                result_parts.extend(header_text)
-            
-            if left_column_text:
-                result_parts.append("\n=== LEFT COLUMN (CREDENTIALS/QUALIFICATIONS) ===")
-                result_parts.append("\n".join(left_column_text))
-            
-            if right_column_text:
-                result_parts.append("\n=== RIGHT COLUMN (BIO AND EXPERIENCE) ===")
-                result_parts.append("\n".join(right_column_text))
-            
-            return "\n".join(result_parts)
-        
-        else:
-            # Standard document without layout table - extract in order
-            text_parts = []
-            
-            # Interleave paragraphs and tables in document order
-            body = doc.element.body
-            for child in body:
-                if child.tag.endswith('p'):  # Paragraph
-                    for para in doc.paragraphs:
-                        if para._element == child:
-                            if para.text.strip():
-                                text_parts.append(para.text.strip())
-                            break
-                elif child.tag.endswith('tbl'):  # Table
-                    for table in doc.tables:
-                        if table._tbl == child:
-                            for row in table.rows:
-                                row_text = []
-                                for cell in row.cells:
-                                    if cell.text.strip():
-                                        row_text.append(cell.text.strip())
-                                if row_text:
-                                    text_parts.append(" | ".join(row_text))
-                            break
-            
-            # Fallback if element-based extraction didn't work
-            if not text_parts:
-                for para in doc.paragraphs:
-                    if para.text.strip():
-                        text_parts.append(para.text)
+        # Method 4: Try to extract from textboxes in drawing elements
+        textbox_text = []
+        try:
+            for element in body.iter():
+                # Look for txbxContent which contains text box content
+                if 'txbxContent' in element.tag:
+                    for p in element.iter(qn('w:p')):
+                        p_text = extract_all_text_from_element(p)
+                        if p_text.strip():
+                            textbox_text.append(p_text.strip())
                 
-                for table in doc.tables:
-                    for row in table.rows:
-                        row_text = []
-                        for cell in row.cells:
-                            if cell.text.strip():
-                                row_text.append(cell.text.strip())
-                        if row_text:
-                            text_parts.append(" | ".join(row_text))
+                # Also check for text in VML shapes (legacy Word format)
+                if element.tag and 'textbox' in element.tag.lower():
+                    for p in element.iter(qn('w:p')):
+                        p_text = extract_all_text_from_element(p)
+                        if p_text.strip():
+                            textbox_text.append(p_text.strip())
+        except Exception:
+            pass
+        
+        # Combine all extracted text, preferring the method that got the most content
+        all_sources = [
+            ('xml_recursive', xml_extracted),
+            ('paragraphs', para_text),
+            ('textboxes', textbox_text),
+        ]
+        
+        # Use the source with the most content
+        best_source = max(all_sources, key=lambda x: len('\n'.join(x[1])))
+        all_text_parts = best_source[1]
+        
+        # Always add table text at the end
+        if table_text:
+            all_text_parts.append("\n=== TABLE CONTENT ===")
+            all_text_parts.extend(table_text)
+        
+        # If we got very little text, try raw XML extraction as last resort
+        if len('\n'.join(all_text_parts)) < 500:
+            # Get raw text from all 'w:t' elements in document
+            raw_texts = []
+            for t_elem in body.iter(qn('w:t')):
+                if t_elem.text:
+                    raw_texts.append(t_elem.text)
             
-            return "\n".join(text_parts)
+            # Group consecutive texts into lines
+            if raw_texts:
+                all_text_parts = []
+                current_line = []
+                for text in raw_texts:
+                    current_line.append(text)
+                    # Check if this looks like end of a line/paragraph
+                    if text.endswith('.') or text.endswith(':') or text.endswith('\n'):
+                        all_text_parts.append(''.join(current_line))
+                        current_line = []
+                if current_line:
+                    all_text_parts.append(''.join(current_line))
+        
+        result = "\n".join(all_text_parts)
+        
+        # Debug: if still short, log what we found
+        if len(result) < 500:
+            print(f"WARNING: Short extraction ({len(result)} chars). Methods tried:")
+            for name, texts in all_sources:
+                print(f"  {name}: {len(texts)} items, {len(''.join(texts))} chars")
+            print(f"  tables: {len(table_text)} items")
+        
+        return result
+        
     except Exception as e:
         raise ValueError(f"Failed to parse DOCX: {str(e)}")
 
