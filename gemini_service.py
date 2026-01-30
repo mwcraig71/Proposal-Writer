@@ -607,6 +607,76 @@ IMPORTANT:
         return {"projects": []}
 
 
+TEAM_PERSONNEL_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "personnel": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "title": {"type": "string"},
+                    "role": {"type": "string"},
+                    "education": {"type": "string"},
+                    "registrations": {"type": "string"},
+                    "bio": {"type": "string"},
+                    "years_experience": {"type": "integer"}
+                },
+                "required": ["name"]
+            }
+        }
+    }
+}
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    retry=retry_if_exception(is_rate_limit_error)
+)
+def parse_team_personnel(website_content: str) -> dict:
+    """Parse scraped team/about website content to extract personnel information."""
+    
+    prompt = f"""You are parsing a company team/about page to extract personnel information for SF330 forms.
+
+Extract ALL team members mentioned. For each person, capture:
+- Full name
+- Job title (e.g., "Senior Structural Engineer", "Project Manager")
+- Role/discipline (e.g., "Structural Engineering", "Bridge Inspection")
+- Education (degrees, institutions, years if mentioned)
+- Professional registrations (PE licenses, certifications)
+- Biography/summary of experience
+- Years of experience if mentioned
+
+Website content:
+{website_content[:30000]}
+
+Return ONLY valid JSON matching this schema:
+{json.dumps(TEAM_PERSONNEL_SCHEMA, indent=2)}
+
+IMPORTANT:
+1. Extract every distinct team member mentioned
+2. Use null for missing fields
+3. For education, format as: "Degree, Major, Institution (Year)" - one per line
+4. For registrations, format as: "License Type #Number, State" - one per line
+5. Capture full bio/experience text for each person"""
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json"
+        )
+    )
+    
+    try:
+        result = json.loads(response.text)
+        return result
+    except json.JSONDecodeError:
+        return {"personnel": []}
+
+
 @retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=2, max=10),

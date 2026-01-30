@@ -12,6 +12,9 @@
         <button id="mergeSelectedBtn" onclick="mergeSelected()" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition hidden">
             <i class="fas fa-code-merge mr-2"></i> Merge Selected
         </button>
+        <button onclick="document.getElementById('import-modal').classList.remove('hidden')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">
+            <i class="fas fa-globe mr-2"></i> Import from Website
+        </button>
         <a href="/employees/add" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
             <i class="fas fa-plus mr-2"></i> Add Personnel
         </a>
@@ -77,7 +80,151 @@
 </div>
 {% endif %}
 
+<div id="import-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-bold text-gray-800">
+                <i class="fas fa-globe text-green-600 mr-2"></i>
+                Import Personnel from Website
+            </h2>
+            <button onclick="document.getElementById('import-modal').classList.add('hidden')" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Team/About Page URL</label>
+            <div class="flex gap-2">
+                <input type="url" id="website-url" placeholder="https://example.com/about-us/" class="flex-1 p-3 border rounded-lg focus:ring-2 focus:ring-green-500">
+                <button onclick="scrapePersonnel()" id="scrape-btn" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition">
+                    <i class="fas fa-search mr-2"></i> Fetch
+                </button>
+            </div>
+            <p class="text-sm text-gray-500 mt-1">Enter the URL of a company's team, about, or leadership page</p>
+        </div>
+        
+        <div id="scrape-loading" class="hidden text-center py-8">
+            <i class="fas fa-spinner fa-spin text-4xl text-green-600 mb-4"></i>
+            <p class="text-gray-600">Scraping website and extracting personnel...</p>
+            <p class="text-sm text-gray-500">This may take up to a minute</p>
+        </div>
+        
+        <div id="scrape-results" class="hidden">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="font-semibold text-gray-700">Found Personnel (<span id="personnel-count">0</span>)</h3>
+                <label class="flex items-center">
+                    <input type="checkbox" id="select-all-personnel" onchange="toggleSelectAllPersonnel()" checked class="mr-2">
+                    Select All
+                </label>
+            </div>
+            <div id="personnel-list" class="space-y-2 max-h-80 overflow-y-auto border rounded-lg p-2"></div>
+            
+            <div class="mt-4 flex justify-end gap-3">
+                <button onclick="document.getElementById('import-modal').classList.add('hidden')" class="px-4 py-2 border rounded-lg hover:bg-gray-50">
+                    Cancel
+                </button>
+                <button onclick="saveSelectedPersonnel()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
+                    <i class="fas fa-save mr-2"></i> Save Selected
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+let scrapedPersonnel = [];
+
+async function scrapePersonnel() {
+    const url = document.getElementById('website-url').value.trim();
+    if (!url) {
+        alert('Please enter a URL');
+        return;
+    }
+    
+    document.getElementById('scrape-loading').classList.remove('hidden');
+    document.getElementById('scrape-results').classList.add('hidden');
+    document.getElementById('scrape-btn').disabled = true;
+    
+    try {
+        const response = await fetch('/employees/scrape-website', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success && result.personnel.length > 0) {
+            scrapedPersonnel = result.personnel;
+            renderPersonnelList();
+            document.getElementById('scrape-results').classList.remove('hidden');
+        } else if (result.personnel && result.personnel.length === 0) {
+            alert('No personnel found on this page. Try a different URL.');
+        } else {
+            alert('Error: ' + (result.error || 'Could not parse website'));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    } finally {
+        document.getElementById('scrape-loading').classList.add('hidden');
+        document.getElementById('scrape-btn').disabled = false;
+    }
+}
+
+function renderPersonnelList() {
+    const container = document.getElementById('personnel-list');
+    document.getElementById('personnel-count').textContent = scrapedPersonnel.length;
+    
+    container.innerHTML = scrapedPersonnel.map((p, i) => `
+        <div class="border rounded-lg p-3 bg-gray-50">
+            <div class="flex items-start">
+                <input type="checkbox" class="personnel-cb mt-1 mr-3" data-index="${i}" checked>
+                <div class="flex-1">
+                    <div class="font-semibold text-gray-800">${p.name || 'Unknown'}</div>
+                    <div class="text-sm text-gray-600">${p.title || ''}</div>
+                    ${p.role ? `<div class="text-sm text-blue-600">${p.role}</div>` : ''}
+                    ${p.bio ? `<div class="text-sm text-gray-500 mt-1 line-clamp-2">${p.bio.substring(0, 150)}${p.bio.length > 150 ? '...' : ''}</div>` : ''}
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function toggleSelectAllPersonnel() {
+    const checked = document.getElementById('select-all-personnel').checked;
+    document.querySelectorAll('.personnel-cb').forEach(cb => cb.checked = checked);
+}
+
+async function saveSelectedPersonnel() {
+    const selected = [];
+    document.querySelectorAll('.personnel-cb:checked').forEach(cb => {
+        selected.push(scrapedPersonnel[parseInt(cb.dataset.index)]);
+    });
+    
+    if (selected.length === 0) {
+        alert('Please select at least one person to import');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/employees/save-batch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ personnel: selected })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            alert(`Successfully imported ${result.saved} personnel!`);
+            location.reload();
+        } else {
+            alert('Error saving personnel');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
 function toggleSelectAll() {
     const selectAll = document.getElementById('selectAll');
     const checkboxes = document.querySelectorAll('.employee-checkbox');

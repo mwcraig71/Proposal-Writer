@@ -334,6 +334,71 @@ def employees():
     return render_template('employees.html', employees=employees)
 
 
+@app.route('/employees/scrape-website', methods=['POST'])
+def scrape_employees_from_website():
+    from web_scraper import scrape_team_page
+    from gemini_service import parse_team_personnel
+    
+    data = request.json
+    url = data.get('url', '').strip()
+    
+    if not url:
+        return jsonify({'success': False, 'error': 'URL is required'})
+    
+    try:
+        scraped = scrape_team_page(url)
+        if not scraped.get('content'):
+            return jsonify({'success': False, 'error': 'Could not fetch content from website'})
+        
+        parsed = parse_team_personnel(scraped['content'])
+        personnel = parsed.get('personnel', [])
+        
+        return jsonify({
+            'success': True,
+            'personnel': personnel,
+            'profiles_found': len(scraped.get('profile_links', []))
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/employees/save-batch', methods=['POST'])
+def save_employees_batch():
+    data = request.json
+    personnel = data.get('personnel', [])
+    firm_id = data.get('firm_id')
+    
+    saved_count = 0
+    for person in personnel:
+        name = person.get('name', '').strip()
+        if not name:
+            continue
+        
+        name_parts = name.split()
+        first_name = name_parts[0] if name_parts else None
+        last_name = name_parts[-1] if len(name_parts) > 1 else None
+        middle_name = ' '.join(name_parts[1:-1]) if len(name_parts) > 2 else None
+        
+        employee = Employee(
+            name=name,
+            first_name=first_name,
+            middle_name=middle_name,
+            last_name=last_name,
+            title=person.get('title'),
+            role=person.get('role'),
+            years_experience_total=person.get('years_experience'),
+            education=person.get('education'),
+            registrations=person.get('registrations'),
+            bio=person.get('bio'),
+            firm_id=int(firm_id) if firm_id else None
+        )
+        db.session.add(employee)
+        saved_count += 1
+    
+    db.session.commit()
+    return jsonify({'success': True, 'saved': saved_count})
+
+
 @app.route('/employees/add', methods=['GET', 'POST'])
 def add_employee():
     if request.method == 'POST':

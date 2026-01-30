@@ -165,3 +165,50 @@ def scrape_portfolio_projects(url: str, max_pages: int = 5) -> dict:
         'project_links': project_links,
         'pages_scraped': pages_scraped
     }
+
+
+def scrape_team_page(url: str) -> dict:
+    """
+    Scrape a team/about page to extract personnel information.
+    Follows individual team member profile links for more details.
+    Returns dict with 'content' (text for AI parsing) and 'profile_links' (found URLs).
+    """
+    all_content = []
+    profile_links = []
+    
+    parsed = urlparse(url)
+    base_url = f"{parsed.scheme}://{parsed.netloc}"
+    
+    html = fetch_raw_html(url)
+    if not html:
+        return {'content': '', 'profile_links': [], 'error': 'Could not fetch page'}
+    
+    soup = BeautifulSoup(html, 'html.parser')
+    
+    for script in soup(["script", "style", "noscript"]):
+        script.decompose()
+    
+    for link in soup.find_all('a', href=True):
+        href = link['href']
+        if any(x in href.lower() for x in ['/team/', '/people/', '/staff/', '/leadership/', '/about-us/', '/our-team/']):
+            full_url = urljoin(base_url, href)
+            if full_url not in profile_links and full_url != url:
+                if not any(x in full_url for x in ['#', 'javascript:', 'mailto:']):
+                    profile_links.append(full_url)
+    
+    main_content = get_website_text_content(url)
+    if main_content:
+        all_content.append(f"=== MAIN TEAM PAGE ===\n{main_content}")
+    
+    for profile_url in profile_links[:20]:
+        try:
+            profile_content = get_website_text_content(profile_url)
+            if profile_content and len(profile_content) > 50:
+                all_content.append(f"=== PROFILE: {profile_url} ===\n{profile_content}")
+        except:
+            pass
+    
+    return {
+        'content': "\n\n".join(all_content),
+        'profile_links': profile_links
+    }

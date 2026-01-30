@@ -68,6 +68,12 @@ The AI parsing enforces consistent formats for personnel data:
 - **Other Qualifications:** Certifications, awards, publications - one per line
 
 ## Recent Changes
+- Added personnel import from company websites (Jan 2026)
+  - "Import from Website" button on Personnel page
+  - Enter a team/about page URL to scrape personnel information
+  - AI extracts name, title, role, education, registrations, and bio
+  - Preview and select which personnel to import
+  - Works with company about-us, team, and leadership pages
 - Added data export/import functionality (Jan 2026)
   - Export all database records to JSON file from Settings page
   - Import data from JSON to restore or transfer between instances
