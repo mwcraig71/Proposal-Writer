@@ -12,60 +12,95 @@ import {
 import '@xyflow/react/dist/style.css'
 import dagre from 'dagre'
 import CustomNode from './CustomNode'
+import JunctionNode from './JunctionNode'
 
-const nodeTypes = { custom: CustomNode }
+const nodeTypes = { custom: CustomNode, junction: JunctionNode }
 
-const nodeWidth = 180
-const nodeHeight = 80
+const nodeWidth = 192
+const nodeHeight = 100
+const junctionSize = 12
 
 const getLayoutedElements = (nodes, edges, direction = 'TB') => {
-  const dagreGraph = new dagre.graphlib.Graph()
-  dagreGraph.setDefaultEdgeLabel(() => ({}))
-  dagreGraph.setGraph({ rankdir: direction, nodesep: 50, ranksep: 80 })
-
-  nodes.forEach((node) => {
-    dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight })
-  })
-
-  edges.forEach((edge) => {
-    dagreGraph.setEdge(edge.source, edge.target)
-  })
-
-  dagre.layout(dagreGraph)
-
+  const pmNode = nodes.find(n => n.id === 'pm')
+  const junctionNode = nodes.find(n => n.id === 'junction')
+  const safetyNode = nodes.find(n => n.id === 'safety')
+  const qaqcNode = nodes.find(n => n.id === 'qaqc')
+  
+  const serviceNodes = nodes.filter(n => n.data?.isTaskLead)
+  const teamNodes = nodes.filter(n => n.data?.isTeamMember)
+  
+  const centerX = 500
+  const pmY = 20
+  const junctionY = pmY + nodeHeight + 30
+  const staffY = junctionY - (nodeHeight / 2) + (junctionSize / 2)
+  const serviceY = junctionY + 80
+  
   const layoutedNodes = nodes.map((node) => {
-    const nodeWithPosition = dagreGraph.node(node.id)
-    return {
-      ...node,
-      position: {
-        x: nodeWithPosition.x - nodeWidth / 2,
-        y: nodeWithPosition.y - nodeHeight / 2,
-      },
+    if (node.id === 'pm') {
+      return { ...node, position: { x: centerX - nodeWidth / 2, y: pmY } }
     }
+    if (node.id === 'junction') {
+      return { ...node, position: { x: centerX - junctionSize / 2, y: junctionY } }
+    }
+    if (node.id === 'safety') {
+      return { ...node, position: { x: centerX - nodeWidth - 100, y: staffY } }
+    }
+    if (node.id === 'qaqc') {
+      return { ...node, position: { x: centerX + 100, y: staffY } }
+    }
+    
+    if (node.data?.isTaskLead) {
+      const serviceIndex = serviceNodes.findIndex(n => n.id === node.id)
+      const totalServices = serviceNodes.length
+      const spacing = nodeWidth + 20
+      const totalWidth = totalServices * spacing - 20
+      const startX = centerX - totalWidth / 2
+      return { ...node, position: { x: startX + serviceIndex * spacing, y: serviceY } }
+    }
+    
+    if (node.data?.isTeamMember) {
+      const parentNode = nodes.find(n => n.id === node.data.parentId)
+      if (parentNode) {
+        const siblingsUnderSameParent = teamNodes.filter(n => n.data.parentId === node.data.parentId)
+        const siblingIndex = siblingsUnderSameParent.findIndex(n => n.id === node.id)
+        const parentPos = parentNode.position || { x: centerX, y: serviceY }
+        return { 
+          ...node, 
+          position: { 
+            x: parentPos.x + (siblingIndex * 50) - ((siblingsUnderSameParent.length - 1) * 25), 
+            y: parentPos.y + nodeHeight + 40 + (siblingIndex * 20)
+          } 
+        }
+      }
+    }
+    
+    return node
   })
 
   return { nodes: layoutedNodes, edges }
 }
 
 const initialNodes = [
-  { id: 'pm', type: 'custom', data: { role: 'Project Manager (PM)', assignedStaff: null, isTaskLead: false, canDelete: false, notes: '' }, position: { x: 0, y: 0 } },
-  { id: 'safety', type: 'custom', data: { role: 'Safety Officer', assignedStaff: null, isTaskLead: false, canDelete: false, notes: '' }, position: { x: 0, y: 0 } },
-  { id: 'qaqc', type: 'custom', data: { role: 'QA/QC Manager', assignedStaff: null, isTaskLead: false, canDelete: false, notes: '' }, position: { x: 0, y: 0 } },
-  { id: 'topside', type: 'custom', data: { role: 'Top Side Inspection Task Lead', assignedStaff: null, isTaskLead: true, parentId: 'qaqc', canDelete: true, notes: '' }, position: { x: 0, y: 0 } },
-  { id: 'underwater', type: 'custom', data: { role: 'Underwater Inspection Task Lead', assignedStaff: null, isTaskLead: true, parentId: 'qaqc', canDelete: true, notes: '' }, position: { x: 0, y: 0 } },
-  { id: 'loadrating', type: 'custom', data: { role: 'Load Rating Task Lead', assignedStaff: null, isTaskLead: true, parentId: 'qaqc', canDelete: true, notes: '' }, position: { x: 0, y: 0 } },
-  { id: 'loadtesting', type: 'custom', data: { role: 'Load Testing Task Lead', assignedStaff: null, isTaskLead: true, parentId: 'qaqc', canDelete: true, notes: '' }, position: { x: 0, y: 0 } },
-  { id: 'ndt', type: 'custom', data: { role: 'NDT Task Lead', assignedStaff: null, isTaskLead: true, parentId: 'qaqc', canDelete: true, notes: '' }, position: { x: 0, y: 0 } },
+  { id: 'pm', type: 'custom', data: { role: 'Project Manager (PM)', assignedStaff: null, isTaskLead: false, canDelete: false, notes: '' }, position: { x: 400, y: 0 } },
+  { id: 'junction', type: 'junction', data: {}, position: { x: 400, y: 100 } },
+  { id: 'safety', type: 'custom', data: { role: 'Safety Officer', assignedStaff: null, isTaskLead: false, canDelete: false, notes: '' }, position: { x: 150, y: 100 } },
+  { id: 'qaqc', type: 'custom', data: { role: 'QA/QC Manager', assignedStaff: null, isTaskLead: false, canDelete: false, notes: '' }, position: { x: 650, y: 100 } },
+  { id: 'topside', type: 'custom', data: { role: 'Top Side Inspection Task Lead', assignedStaff: null, isTaskLead: true, parentId: 'junction', canDelete: true, notes: '' }, position: { x: 0, y: 250 } },
+  { id: 'underwater', type: 'custom', data: { role: 'Underwater Inspection Task Lead', assignedStaff: null, isTaskLead: true, parentId: 'junction', canDelete: true, notes: '' }, position: { x: 200, y: 250 } },
+  { id: 'loadrating', type: 'custom', data: { role: 'Load Rating Task Lead', assignedStaff: null, isTaskLead: true, parentId: 'junction', canDelete: true, notes: '' }, position: { x: 400, y: 250 } },
+  { id: 'loadtesting', type: 'custom', data: { role: 'Load Testing Task Lead', assignedStaff: null, isTaskLead: true, parentId: 'junction', canDelete: true, notes: '' }, position: { x: 600, y: 250 } },
+  { id: 'ndt', type: 'custom', data: { role: 'NDT Task Lead', assignedStaff: null, isTaskLead: true, parentId: 'junction', canDelete: true, notes: '' }, position: { x: 800, y: 250 } },
 ]
 
 const initialEdges = [
-  { id: 'e-pm-safety', source: 'pm', target: 'safety', type: 'smoothstep' },
-  { id: 'e-safety-qaqc', source: 'safety', target: 'qaqc', type: 'smoothstep' },
-  { id: 'e-qaqc-topside', source: 'qaqc', target: 'topside', type: 'smoothstep' },
-  { id: 'e-qaqc-underwater', source: 'qaqc', target: 'underwater', type: 'smoothstep' },
-  { id: 'e-qaqc-loadrating', source: 'qaqc', target: 'loadrating', type: 'smoothstep' },
-  { id: 'e-qaqc-loadtesting', source: 'qaqc', target: 'loadtesting', type: 'smoothstep' },
-  { id: 'e-qaqc-ndt', source: 'qaqc', target: 'ndt', type: 'smoothstep' },
+  { id: 'e-pm-junction', source: 'pm', target: 'junction', type: 'smoothstep' },
+  { id: 'e-junction-safety', source: 'junction', target: 'safety', type: 'smoothstep' },
+  { id: 'e-junction-qaqc', source: 'junction', target: 'qaqc', type: 'smoothstep' },
+  { id: 'e-junction-topside', source: 'junction', target: 'topside', type: 'smoothstep' },
+  { id: 'e-junction-underwater', source: 'junction', target: 'underwater', type: 'smoothstep' },
+  { id: 'e-junction-loadrating', source: 'junction', target: 'loadrating', type: 'smoothstep' },
+  { id: 'e-junction-loadtesting', source: 'junction', target: 'loadtesting', type: 'smoothstep' },
+  { id: 'e-junction-ndt', source: 'junction', target: 'ndt', type: 'smoothstep' },
 ]
 
 const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(initialNodes, initialEdges)
@@ -294,23 +329,23 @@ function OrgChartFlow() {
     if (!serviceName || serviceName.trim() === '') return
 
     const newNodeId = `service-${Date.now()}`
-    const qaqcNode = nodes.find(n => n.id === 'qaqc')
+    const junctionNode = nodes.find(n => n.id === 'junction')
     const newNode = {
       id: newNodeId,
       type: 'custom',
-      position: { x: qaqcNode ? qaqcNode.position.x + 200 : 400, y: qaqcNode ? qaqcNode.position.y + 120 : 300 },
+      position: { x: junctionNode ? junctionNode.position.x + 200 : 400, y: junctionNode ? junctionNode.position.y + 120 : 300 },
       data: { 
         role: `${serviceName.trim()} Task Lead`, 
         assignedStaff: null, 
         isTaskLead: true,
-        parentId: 'qaqc',
+        parentId: 'junction',
         canDelete: true,
         notes: ''
       },
     }
     const newEdge = {
-      id: `e-qaqc-${newNodeId}`,
-      source: 'qaqc',
+      id: `e-junction-${newNodeId}`,
+      source: 'junction',
       target: newNodeId,
       type: 'smoothstep'
     }
