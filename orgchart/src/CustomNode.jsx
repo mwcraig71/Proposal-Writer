@@ -28,16 +28,8 @@ function CustomNode({ data, selected, id }) {
     }
   }
 
-  const handleEditNotes = (event) => {
-    event.stopPropagation()
-    if (data.onEditNotes) {
-      data.onEditNotes(id, data.notes || '')
-    }
-  }
-
   const isTaskLead = data.isTaskLead
   const isTeamMember = data.isTeamMember
-  const isTopLevel = !isTaskLead && !isTeamMember
 
   return (
     <div
@@ -81,29 +73,15 @@ function CustomNode({ data, selected, id }) {
             {data.assignedStaff}
           </div>
         )}
-        {data.notes && (
-          <div className="mt-1 text-[10px] text-gray-500 italic border-t border-gray-200 pt-1 truncate" title={data.notes}>
-            {data.notes.length > 30 ? data.notes.substring(0, 30) + '...' : data.notes}
-          </div>
-        )}
-        <div className="mt-2 flex gap-1 justify-center flex-wrap">
-          {isTaskLead && (
-            <button
-              onClick={handleAddTeamMember}
-              className="text-[9px] px-2 py-0.5 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
-              title="Add a team member under this task lead"
-            >
-              + Team
-            </button>
-          )}
+        {isTaskLead && (
           <button
-            onClick={handleEditNotes}
-            className="text-[9px] px-2 py-0.5 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
-            title="Add/edit notes"
+            onClick={handleAddTeamMember}
+            className="mt-2 text-[9px] px-2 py-0.5 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+            title="Add a team member under this task lead"
           >
-            Notes
+            + Team
           </button>
-        </div>
+        )}
       </div>
       <Handle
         type="source"

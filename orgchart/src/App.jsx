@@ -112,6 +112,7 @@ function OrgChartFlow() {
   const [reactFlowInstance, setReactFlowInstance] = useState(null)
   const [staff, setStaff] = useState([])
   const [draggedStaff, setDraggedStaff] = useState(null)
+  const [globalNotes, setGlobalNotes] = useState('')
 
   useEffect(() => {
     fetch('/api/employees')
@@ -276,20 +277,6 @@ function OrgChartFlow() {
     setEdges((eds) => eds.filter(e => !nodesToDelete.includes(e.source) && !nodesToDelete.includes(e.target)))
   }, [nodes, setNodes, setEdges])
 
-  const editNotes = useCallback((nodeId, currentNotes) => {
-    const newNotes = prompt('Enter notes for this role:', currentNotes)
-    if (newNotes !== null) {
-      setNodes((nds) =>
-        nds.map((node) => {
-          if (node.id === nodeId) {
-            return { ...node, data: { ...node.data, notes: newNotes } }
-          }
-          return node
-        })
-      )
-    }
-  }, [setNodes])
-
   const addTeamMember = useCallback((parentNodeId) => {
     const parentNode = nodes.find(n => n.id === parentNodeId)
     if (!parentNode) return
@@ -364,8 +351,7 @@ function OrgChartFlow() {
     data: {
       ...node.data,
       onAddTeamMember: addTeamMember,
-      onDeleteNode: deleteNode,
-      onEditNotes: editNotes
+      onDeleteNode: deleteNode
     }
   }))
 
@@ -431,25 +417,22 @@ function OrgChartFlow() {
         </ReactFlow>
       </div>
 
-      <div className="w-64 bg-gray-50 border-l border-gray-300 flex flex-col">
+      <div className="w-72 bg-gray-50 border-l border-gray-300 flex flex-col">
         <div className="p-4 bg-red-700 text-white">
           <h2 className="text-lg font-bold">Assigned Staff</h2>
           <p className="text-sm text-red-200">Current assignments</p>
         </div>
         <div className="flex-1 overflow-y-auto p-2">
-          {nodes.filter(n => n.data.assignedStaff).length === 0 ? (
+          {nodes.filter(n => n.data?.assignedStaff).length === 0 ? (
             <p className="text-gray-500 text-sm p-2">No staff assigned yet. Drag staff from the left panel to a role.</p>
           ) : (
-            nodes.filter(n => n.data.assignedStaff).map((node) => (
+            nodes.filter(n => n.data?.assignedStaff).map((node) => (
               <div
                 key={node.id}
                 className="p-3 mb-2 bg-white rounded shadow border border-gray-200"
               >
                 <div className="font-medium text-gray-800 text-sm">{node.data.role}</div>
                 <div className="text-xs text-red-600 font-medium">{node.data.assignedStaff}</div>
-                {node.data.notes && (
-                  <div className="text-[10px] text-gray-500 italic mt-1">{node.data.notes}</div>
-                )}
                 <button
                   onClick={() => removeStaffFromNode(node.id)}
                   className="mt-1 text-xs text-gray-500 hover:text-red-600"
@@ -459,6 +442,19 @@ function OrgChartFlow() {
               </div>
             ))
           )}
+        </div>
+        <div className="border-t border-gray-300">
+          <div className="p-3 bg-gray-800 text-white">
+            <h3 className="text-sm font-bold">Notes</h3>
+          </div>
+          <div className="p-2">
+            <textarea
+              value={globalNotes}
+              onChange={(e) => setGlobalNotes(e.target.value)}
+              placeholder="Add notes about this org chart..."
+              className="w-full h-32 p-2 text-sm border border-gray-300 rounded resize-none focus:outline-none focus:border-red-500"
+            />
+          </div>
         </div>
       </div>
     </div>
