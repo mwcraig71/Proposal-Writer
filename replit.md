@@ -68,6 +68,13 @@ The AI parsing enforces consistent formats for personnel data:
 - **Other Qualifications:** Certifications, awards, publications - one per line
 
 ## Recent Changes
+- Added multi-project import functionality (Jan 2026)
+  - Parse multiple projects from a single document (like references tables or appendices)
+  - "Import Projects" button on Projects page opens upload modal
+  - AI extracts all projects with title, location, client, contacts, cost, year, description
+  - Preview parsed projects with checkboxes to select which to import
+  - Forced parsing option if auto-detection misclassifies document type
+  - Batch save creates multiple project records at once
 - Added AI project merge and SF330 inclusion flags for resume projects (Jan 2026)
   - Select 2+ projects on employee detail page, click "AI Merge Selected" to combine into one
   - Star icon on each project toggles SF330 inclusion flag for proposal recommendations
