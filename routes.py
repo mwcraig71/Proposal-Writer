@@ -3541,6 +3541,7 @@ def copy_marketing_to_employee(photo_id, employee_id):
     from models import MarketingPhoto, EmployeePhoto
     from replit.object_storage import Client
     import uuid
+    import traceback
     
     marketing_photo = MarketingPhoto.query.get_or_404(photo_id)
     employee = Employee.query.get_or_404(employee_id)
@@ -3574,6 +3575,9 @@ def copy_marketing_to_employee(photo_id, employee_id):
             }
         })
     except Exception as e:
+        print(f"Error copying marketing photo to employee: {e}")
+        traceback.print_exc()
+        db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -3583,6 +3587,7 @@ def copy_marketing_to_project(photo_id, project_id):
     from models import MarketingPhoto, ProjectPhoto
     from replit.object_storage import Client
     import uuid
+    import traceback
     
     marketing_photo = MarketingPhoto.query.get_or_404(photo_id)
     project = Project.query.get_or_404(project_id)
@@ -3616,6 +3621,9 @@ def copy_marketing_to_project(photo_id, project_id):
             }
         })
     except Exception as e:
+        print(f"Error copying marketing photo to project: {e}")
+        traceback.print_exc()
+        db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
