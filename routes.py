@@ -920,8 +920,17 @@ def merge_employees():
     
     primary = Employee.query.get_or_404(primary_id)
     
+    integer_fields = ['years_experience_firm', 'years_experience_total']
     for key, value in merged_data.items():
         if hasattr(primary, key):
+            if key in integer_fields:
+                if value == '' or value is None:
+                    value = None
+                else:
+                    try:
+                        value = int(value)
+                    except (ValueError, TypeError):
+                        value = None
             setattr(primary, key, value)
     
     for merge_id in merge_ids:
