@@ -68,6 +68,10 @@ The AI parsing enforces consistent formats for personnel data:
 - **Other Qualifications:** Certifications, awards, publications - one per line
 
 ## Recent Changes
+- Added AI project merge and SF330 inclusion flags for resume projects (Jan 2026)
+  - Select 2+ projects on employee detail page, click "AI Merge Selected" to combine into one
+  - Star icon on each project toggles SF330 inclusion flag for proposal recommendations
+  - sf330_include field on EmployeeProjectExperience model
 - Implemented Flask-Session with filesystem storage to fix session cookie size limit (Jan 2026)
   - Resume parsing now successfully extracts: name, title, years of experience (total and with firm), bio, education, PE/SE registrations, NHI training courses, and project experience
   - Session data stored in /tmp/flask_session instead of browser cookies to handle large parsed data (>4KB)
