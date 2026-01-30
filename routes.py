@@ -469,6 +469,7 @@ def update_employee(id):
     employee.registrations = data.get('registrations', employee.registrations) or None
     employee.training = data.get('training', employee.training) or None
     employee.other_qualifications = data.get('other_qualifications', employee.other_qualifications) or None
+    employee.bio = data.get('bio', employee.bio) or None
     employee.firm_id = to_int_or_none(data.get('firm_id', employee.firm_id))
     
     db.session.commit()

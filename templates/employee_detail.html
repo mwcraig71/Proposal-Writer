@@ -86,11 +86,37 @@
                 <textarea name="other_qualifications" rows="3" class="w-full p-2 border rounded-lg">{{ employee.other_qualifications or '' }}</textarea>
             </div>
             
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Bio / Summary</label>
+                <p class="text-xs text-gray-500 mb-1">Brief professional summary or biography for SF330 Section E</p>
+                <textarea name="bio" rows="4" class="w-full p-2 border rounded-lg">{{ employee.bio or '' }}</textarea>
+            </div>
+            
             <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">
                 <i class="fas fa-save mr-2"></i> Save Changes
             </button>
         </form>
         </div>
+        
+        {% if employee.alternate_bios %}
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">Alternate Bios</h2>
+            <p class="text-sm text-gray-500 mb-4">Additional bio versions imported from different resumes</p>
+            <div class="space-y-4">
+                {% for alt_bio in employee.alternate_bios %}
+                <div class="border rounded-lg p-4">
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="font-medium text-gray-700">{{ alt_bio.label }}</span>
+                        <button onclick="useAlternateBio('{{ alt_bio.bio | e }}')" class="text-sm text-blue-600 hover:text-blue-800">
+                            <i class="fas fa-arrow-up mr-1"></i> Use This Bio
+                        </button>
+                    </div>
+                    <p class="text-sm text-gray-600">{{ alt_bio.bio[:300] }}{% if alt_bio.bio|length > 300 %}...{% endif %}</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
         
         <div class="bg-white rounded-lg shadow p-6">
             <div class="flex justify-between items-center mb-4">
@@ -539,6 +565,12 @@ document.getElementById('employee-form').addEventListener('submit', async (e) =>
         alert('Error: ' + error.message);
     }
 });
+
+function useAlternateBio(bioText) {
+    if (confirm('Replace the current bio with this alternate version?')) {
+        document.querySelector('textarea[name="bio"]').value = bioText;
+    }
+}
 
 function showAddExperienceModal() {
     document.getElementById('modal-title').textContent = 'Add Project Experience';
