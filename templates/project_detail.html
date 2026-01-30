@@ -43,8 +43,8 @@
                 <div class="relative md:col-span-2">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Owner Contact Name</label>
                     <input type="hidden" name="owner_contact_id" id="owner_contact_id" value="{{ project.owner_contact_id or '' }}">
-                    <input type="text" name="owner_contact_name" id="owner_contact_name" value="{{ project.owner_contact_name or '' }}" class="w-full p-2 border rounded-lg" autocomplete="off">
-                    <div id="contact-dropdown" class="hidden absolute z-10 w-full bg-white border rounded-lg shadow-lg mt-1 max-h-60 overflow-y-auto"></div>
+                    <input type="text" name="owner_contact_name" id="owner_contact_name" value="{{ project.owner_contact_name or '' }}" class="w-full p-2 border rounded-lg" autocomplete="off" data-1p-ignore="true" data-lpignore="true" data-form-type="other">
+                    <div id="contact-dropdown" class="hidden absolute w-full bg-white border rounded-lg shadow-lg mt-1 max-h-60 overflow-y-auto" style="z-index: 99999;"></div>
                     <p class="text-xs text-gray-500 mt-1">Start typing to search saved contacts, or enter a new name</p>
                 </div>
                 <div>
