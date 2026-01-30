@@ -3546,7 +3546,7 @@ def copy_marketing_to_employee(photo_id, employee_id):
     employee = Employee.query.get_or_404(employee_id)
     
     try:
-        client = get_object_storage_client()
+        client = get_storage_client()
         if not client:
             return jsonify({'success': False, 'error': 'Object storage not available'}), 500
         original_data = client.download_as_bytes(marketing_photo.storage_path)
@@ -3593,7 +3593,7 @@ def copy_marketing_to_project(photo_id, project_id):
     project = Project.query.get_or_404(project_id)
     
     try:
-        client = get_object_storage_client()
+        client = get_storage_client()
         if not client:
             return jsonify({'success': False, 'error': 'Object storage not available'}), 500
         original_data = client.download_as_bytes(marketing_photo.storage_path)
