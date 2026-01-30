@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Org Chart Builder - SF330 AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+        }
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        .orgchart-frame {
+            flex: 1;
+            border: none;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <nav class="bg-blue-900 text-white shadow-lg flex-shrink-0">
+            <div class="max-w-full mx-auto px-4">
+                <div class="flex justify-between items-center h-14">
+                    <a href="/" class="flex items-center space-x-2">
+                        <i class="fas fa-file-alt text-xl"></i>
+                        <span class="font-bold text-lg">SF330 AI</span>
+                    </a>
+                    <div class="flex items-center space-x-4">
+                        <span class="text-blue-200">Org Chart Builder</span>
+                        <a href="/" class="hover:text-blue-200 transition text-sm">
+                            <i class="fas fa-arrow-left mr-1"></i> Back to Dashboard
+                        </a>
+                    </div>
+                    <div class="hidden md:flex space-x-4 text-sm">
+                        <a href="/firms" class="hover:text-blue-200 transition">Firms</a>
+                        <a href="/employees" class="hover:text-blue-200 transition">Personnel</a>
+                        <a href="/projects" class="hover:text-blue-200 transition">Projects</a>
+                        <a href="/proposals" class="hover:text-blue-200 transition">Proposals</a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+        <iframe id="orgchart-frame" class="orgchart-frame" src="http://0.0.0.0:5173"></iframe>
+    </div>
+    <script>
+        // Dynamically set iframe src based on current host
+        const frame = document.getElementById('orgchart-frame');
+        const currentHost = window.location.hostname;
+        // Use same host but different port for Vite dev server
+        frame.src = window.location.protocol + '//' + currentHost + ':5173';
+    </script>
+</body>
+</html>

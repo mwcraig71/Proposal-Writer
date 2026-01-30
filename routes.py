@@ -3499,3 +3499,21 @@ def get_all_marketing_tags():
     for photo in photos:
         all_tags.update(photo.get_tags_list())
     return jsonify(sorted(all_tags))
+
+
+@app.route('/api/employees')
+def get_employees_api():
+    """Get all employees for org chart"""
+    employees = Employee.query.order_by(Employee.name).all()
+    return jsonify([{
+        'id': e.id,
+        'name': e.name,
+        'title': e.title,
+        'role': e.role
+    } for e in employees])
+
+
+@app.route('/orgchart')
+def orgchart():
+    """Serve the org chart page"""
+    return render_template('orgchart.html')

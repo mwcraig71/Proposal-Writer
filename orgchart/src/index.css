@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.react-flow__node-custom {
+  width: 180px;
+  padding: 10px;
+  border-radius: 4px;
+  background: white;
+  border: 2px solid #1e40af;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.react-flow__node-custom.selected {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px #3b82f6;
+}
+
+.react-flow__edge-path {
+  stroke: #374151;
+  stroke-width: 2;
+}
+
+.staff-item {
+  cursor: grab;
+  user-select: none;
+}
+
+.staff-item:active {
+  cursor: grabbing;
+}
+
+.drop-zone {
+  transition: background-color 0.2s ease;
+}
+
+.drop-zone.drag-over {
+  background-color: rgba(59, 130, 246, 0.1);
+  border-color: #3b82f6;
+}
