@@ -1,7 +1,19 @@
 import React from 'react'
 import { Handle, Position } from '@xyflow/react'
 
-function CustomNode({ data, selected }) {
+function CustomNode({ data, selected, id }) {
+  const handleStaffDragStart = (event) => {
+    if (!data.assignedStaff) return
+    event.stopPropagation()
+    const staffData = {
+      name: data.assignedStaff,
+      staffId: data.staffId,
+      fromNodeId: id
+    }
+    event.dataTransfer.setData('application/staff-reassign', JSON.stringify(staffData))
+    event.dataTransfer.effectAllowed = 'move'
+  }
+
   return (
     <div
       className={`
@@ -20,7 +32,12 @@ function CustomNode({ data, selected }) {
           {data.role}
         </div>
         {data.assignedStaff && (
-          <div className="mt-1 text-xs text-green-700 font-medium border-t border-green-200 pt-1">
+          <div
+            className="mt-1 text-xs text-green-700 font-medium border-t border-green-200 pt-1 cursor-grab hover:bg-green-100 rounded px-1 transition-colors"
+            draggable
+            onDragStart={handleStaffDragStart}
+            title="Drag to reassign to another role"
+          >
             {data.assignedStaff}
           </div>
         )}

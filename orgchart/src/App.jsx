@@ -97,7 +97,10 @@ function OrgChartFlow() {
 
   const onDragStart = (event, staffMember) => {
     setDraggedStaff(staffMember)
-    event.dataTransfer.setData('application/reactflow', JSON.stringify(staffMember))
+    event.dataTransfer.setData('application/reactflow', JSON.stringify({
+      ...staffMember,
+      fromSidebar: true
+    }))
     event.dataTransfer.effectAllowed = 'move'
   }
 
@@ -112,10 +115,6 @@ function OrgChartFlow() {
 
       if (!reactFlowInstance) return
 
-      const staffData = event.dataTransfer.getData('application/reactflow')
-      if (!staffData) return
-
-      const staffMember = JSON.parse(staffData)
       const position = reactFlowInstance.screenToFlowPosition({
         x: event.clientX,
         y: event.clientY,
@@ -132,6 +131,47 @@ function OrgChartFlow() {
         )
       })
 
+      const reassignData = event.dataTransfer.getData('application/staff-reassign')
+      if (reassignData) {
+        const staffInfo = JSON.parse(reassignData)
+        
+        if (dropTargetNode && dropTargetNode.id !== staffInfo.fromNodeId) {
+          setNodes((nds) =>
+            nds.map((node) => {
+              if (node.id === staffInfo.fromNodeId) {
+                return { ...node, data: { ...node.data, assignedStaff: null, staffId: null } }
+              }
+              if (node.id === dropTargetNode.id) {
+                return { ...node, data: { ...node.data, assignedStaff: staffInfo.name, staffId: staffInfo.staffId } }
+              }
+              return node
+            })
+          )
+        } else if (!dropTargetNode) {
+          setNodes((nds) => {
+            const updated = nds.map((node) => {
+              if (node.id === staffInfo.fromNodeId) {
+                return { ...node, data: { ...node.data, assignedStaff: null, staffId: null } }
+              }
+              return node
+            })
+            const newNode = {
+              id: `node-${Date.now()}`,
+              type: 'custom',
+              position,
+              data: { role: 'New Role', assignedStaff: staffInfo.name, staffId: staffInfo.staffId },
+            }
+            return [...updated, newNode]
+          })
+        }
+        return
+      }
+
+      const staffData = event.dataTransfer.getData('application/reactflow')
+      if (!staffData) return
+
+      const staffMember = JSON.parse(staffData)
+
       if (dropTargetNode) {
         setNodes((nds) =>
           nds.map((node) => {
@@ -141,6 +181,7 @@ function OrgChartFlow() {
                 data: {
                   ...node.data,
                   assignedStaff: staffMember.name,
+                  staffId: staffMember.id,
                 },
               }
             }
@@ -152,7 +193,7 @@ function OrgChartFlow() {
           id: `node-${Date.now()}`,
           type: 'custom',
           position,
-          data: { role: 'New Role', assignedStaff: staffMember.name },
+          data: { role: 'New Role', assignedStaff: staffMember.name, staffId: staffMember.id },
         }
         setNodes((nds) => nds.concat(newNode))
       }
