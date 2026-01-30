@@ -95,19 +95,32 @@
         <div class="bg-white rounded-lg shadow p-6">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-xl font-semibold text-gray-800">Project Experience</h2>
-                <button onclick="showAddExperienceModal()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition text-sm">
-                    <i class="fas fa-plus mr-1"></i> Add Project
-                </button>
+                <div class="flex space-x-2">
+                    <button id="merge-projects-btn" onclick="mergeSelectedProjects()" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition text-sm hidden">
+                        <i class="fas fa-magic mr-1"></i> AI Merge Selected
+                    </button>
+                    <button onclick="showAddExperienceModal()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition text-sm">
+                        <i class="fas fa-plus mr-1"></i> Add Project
+                    </button>
+                </div>
             </div>
-            <p class="text-sm text-gray-500 mb-4">Project experience from resume (may include projects from previous employers)</p>
+            <p class="text-sm text-gray-500 mb-4">Project experience from resume. Check boxes to select for merging. Star icon marks projects for SF330 inclusion.</p>
             
             {% if project_experiences %}
             <div class="space-y-4" id="project-experience-list">
                 {% for exp in project_experiences %}
-                <div class="border rounded-lg p-4 hover:bg-gray-50" id="exp-{{ exp.id }}">
+                <div class="border rounded-lg p-4 hover:bg-gray-50 {% if exp.sf330_include %}border-yellow-400 bg-yellow-50{% endif %}" id="exp-{{ exp.id }}">
                     <div class="flex justify-between items-start">
+                        <div class="flex items-start mr-3">
+                            <input type="checkbox" class="project-select-cb mt-1" data-exp-id="{{ exp.id }}" onchange="updateMergeButton()">
+                        </div>
                         <div class="flex-1">
-                            <h3 class="font-semibold text-gray-800">{{ exp.project_title }}</h3>
+                            <div class="flex items-center">
+                                <h3 class="font-semibold text-gray-800">{{ exp.project_title }}</h3>
+                                <button onclick="toggleSF330Include({{ exp.id }})" class="ml-2 {% if exp.sf330_include %}text-yellow-500{% else %}text-gray-300{% endif %} hover:text-yellow-500" title="Toggle SF330 inclusion">
+                                    <i class="fas fa-star"></i>
+                                </button>
+                            </div>
                             <p class="text-sm text-gray-600">{{ exp.role_performed or 'Role not specified' }}</p>
                             <div class="text-sm text-gray-500 mt-1">
                                 {% if exp.location %}<span class="mr-3"><i class="fas fa-map-marker-alt mr-1"></i>{{ exp.location }}</span>{% endif %}
@@ -902,5 +915,62 @@ document.getElementById('experience-form').addEventListener('submit', async (e) 
         alert('Error: ' + error.message);
     }
 });
+
+function updateMergeButton() {
+    const checkboxes = document.querySelectorAll('.project-select-cb:checked');
+    const mergeBtn = document.getElementById('merge-projects-btn');
+    if (checkboxes.length >= 2) {
+        mergeBtn.classList.remove('hidden');
+        mergeBtn.textContent = `AI Merge ${checkboxes.length} Projects`;
+    } else {
+        mergeBtn.classList.add('hidden');
+    }
+}
+
+async function toggleSF330Include(expId) {
+    try {
+        const response = await fetch(`/employees/${employeeId}/experience/${expId}/toggle-sf330`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const result = await response.json();
+        if (result.success) {
+            window.location.reload();
+        } else {
+            alert('Error toggling SF330 inclusion');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+async function mergeSelectedProjects() {
+    const checkboxes = document.querySelectorAll('.project-select-cb:checked');
+    const expIds = Array.from(checkboxes).map(cb => parseInt(cb.dataset.expId));
+    
+    if (expIds.length < 2) {
+        alert('Please select at least 2 projects to merge');
+        return;
+    }
+    
+    const customInstructions = prompt('Enter any custom instructions for merging (optional):', '');
+    
+    try {
+        const response = await fetch(`/employees/${employeeId}/merge-experiences`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ experience_ids: expIds, custom_instructions: customInstructions })
+        });
+        const result = await response.json();
+        if (result.success) {
+            alert('Projects merged successfully!');
+            window.location.reload();
+        } else {
+            alert('Error merging projects: ' + result.error);
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
 </script>
 {% endblock %}

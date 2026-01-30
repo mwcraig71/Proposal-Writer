@@ -480,6 +480,70 @@ Return a valid JSON object with the extracted data. Use null for any field where
     wait=wait_exponential(multiplier=1, min=2, max=10),
     retry=retry_if_exception(is_rate_limit_error)
 )
+def merge_project_experiences(experiences: list, custom_instructions: str = '') -> dict:
+    """Merge multiple project experiences into one using AI."""
+    from models import AISettings
+    
+    style = AISettings.get_value('writing_style', 'professional and technical')
+    tone = AISettings.get_value('writing_tone', 'formal but accessible')
+    
+    projects_text = ""
+    for i, exp in enumerate(experiences, 1):
+        projects_text += f"""
+PROJECT {i}:
+- Title: {exp.project_title or 'N/A'}
+- Location: {exp.location or 'N/A'}
+- Owner: {exp.owner_name or 'N/A'}
+- Cost: {exp.project_cost or 'N/A'}
+- Year: {exp.year_completed or 'N/A'}
+- Role: {exp.role_performed or 'N/A'}
+- Firm: {exp.firm_name or 'N/A'}
+- Description: {exp.brief_description or 'N/A'}
+"""
+
+    prompt = f"""You are a professional technical writer for SF330 Architect-Engineer Qualifications forms.
+
+Merge the following {len(experiences)} project experiences into ONE combined project entry. These may be related phases, similar work, or projects that should be combined for a resume.
+
+WRITING STYLE: {style}
+WRITING TONE: {tone}
+
+{f'CUSTOM INSTRUCTIONS: {custom_instructions}' if custom_instructions else ''}
+
+{projects_text}
+
+Create ONE merged project entry. Return a JSON object with these fields:
+- project_title: Combined/representative title
+- location: Combined location(s) or most representative
+- owner_name: Combined owner(s) or most representative
+- project_cost: Combined cost or range
+- year_completed: Year range or most recent
+- role_performed: Combined roles
+- firm_name: Firm name (if consistent)
+- brief_description: Merged description highlighting all work performed (250-400 words)
+
+Return ONLY valid JSON, no markdown or explanations."""
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt
+    )
+    
+    import json
+    import re
+    text = (response.text or "").strip()
+    text = re.sub(r'^```json\s*', '', text)
+    text = re.sub(r'\s*```$', '', text)
+    
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        return {
+            'project_title': experiences[0].project_title,
+            'brief_description': text
+        }
+
+
 def rewrite_description(description: str, custom_instructions: str = '') -> str:
     """Rewrite a description using AI with global settings and custom instructions."""
     from models import AISettings

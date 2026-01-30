@@ -115,6 +115,7 @@ class EmployeeProjectExperience(db.Model):
     brief_description = db.Column(db.Text)
     firm_name = db.Column(db.String(255))
     is_current_firm = db.Column(db.Boolean, default=False)
+    sf330_include = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     

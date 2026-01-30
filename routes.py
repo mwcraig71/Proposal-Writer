@@ -452,6 +452,63 @@ def delete_project_experience(id, exp_id):
     return jsonify({'success': True})
 
 
+@app.route('/employees/<int:id>/experience/<int:exp_id>/toggle-sf330', methods=['POST'])
+def toggle_sf330_include(id, exp_id):
+    """Toggle SF330 inclusion flag for a project experience"""
+    exp = EmployeeProjectExperience.query.filter_by(id=exp_id, employee_id=id).first_or_404()
+    exp.sf330_include = not exp.sf330_include
+    db.session.commit()
+    return jsonify({'success': True, 'sf330_include': exp.sf330_include})
+
+
+@app.route('/employees/<int:id>/merge-experiences', methods=['POST'])
+def merge_experiences(id):
+    """AI merge multiple project experiences into one"""
+    from gemini_service import merge_project_experiences
+    
+    data = request.json
+    experience_ids = data.get('experience_ids', [])
+    custom_instructions = data.get('custom_instructions', '')
+    
+    if len(experience_ids) < 2:
+        return jsonify({'success': False, 'error': 'Need at least 2 experiences to merge'})
+    
+    experiences = EmployeeProjectExperience.query.filter(
+        EmployeeProjectExperience.id.in_(experience_ids),
+        EmployeeProjectExperience.employee_id == id
+    ).all()
+    
+    if len(experiences) < 2:
+        return jsonify({'success': False, 'error': 'Could not find all selected experiences'})
+    
+    try:
+        merged = merge_project_experiences(experiences, custom_instructions)
+        
+        new_exp = EmployeeProjectExperience(
+            employee_id=id,
+            project_title=merged.get('project_title', experiences[0].project_title),
+            location=merged.get('location', experiences[0].location),
+            owner_name=merged.get('owner_name', experiences[0].owner_name),
+            project_cost=merged.get('project_cost', experiences[0].project_cost),
+            year_completed=merged.get('year_completed', experiences[0].year_completed),
+            role_performed=merged.get('role_performed', experiences[0].role_performed),
+            brief_description=merged.get('brief_description', ''),
+            firm_name=merged.get('firm_name', experiences[0].firm_name),
+            is_current_firm=any(e.is_current_firm for e in experiences),
+            sf330_include=any(e.sf330_include for e in experiences)
+        )
+        db.session.add(new_exp)
+        
+        for exp in experiences:
+            db.session.delete(exp)
+        
+        db.session.commit()
+        return jsonify({'success': True, 'merged_id': new_exp.id})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)})
+
+
 @app.route('/api/experience/<int:exp_id>/alternate-descriptions', methods=['GET'])
 def get_experience_alternate_descriptions(exp_id):
     """Get all alternate descriptions for an experience"""
