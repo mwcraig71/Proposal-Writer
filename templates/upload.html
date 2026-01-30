@@ -228,11 +228,8 @@ saveBtn.addEventListener('click', async () => {
         
         const result = await response.json();
         
-        if (result.success) {
-            alert(result.message);
-            location.reload();
-        } else if (result.duplicate_found) {
-            if (confirm(result.message + '\n\nClick OK to review and merge the data, or Cancel to create a new entry anyway.')) {
+        if (result.duplicate_found) {
+            if (confirm(result.message + '\n\nClick OK to review and merge, or Cancel to save as a new person.')) {
                 window.location.href = `/employees/compare/${result.existing_id}`;
             } else {
                 const forceResponse = await fetch('/save-parsed-data', {
@@ -248,6 +245,9 @@ saveBtn.addEventListener('click', async () => {
                     alert('Error: ' + forceResult.error);
                 }
             }
+        } else if (result.success) {
+            alert(result.message);
+            location.reload();
         } else {
             alert('Error: ' + result.error);
         }

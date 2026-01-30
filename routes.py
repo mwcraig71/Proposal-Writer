@@ -137,11 +137,13 @@ def save_parsed_data():
                 existing_id = find_matching_employee(name)
                 if existing_id:
                     session['pending_employee_data'] = parsed_data
+                    existing_emp = Employee.query.get(existing_id)
                     return jsonify({
-                        'success': False, 
+                        'success': True,
                         'duplicate_found': True,
                         'existing_id': existing_id,
-                        'message': f'An employee named "{name}" already exists. Review and merge the data.'
+                        'existing_name': existing_emp.name if existing_emp else name,
+                        'message': f'Found existing employee "{name}". You can merge with their data or save as a new person.'
                     })
             
             employee = Employee(
