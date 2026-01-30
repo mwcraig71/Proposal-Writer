@@ -281,15 +281,17 @@ function OrgChartFlow() {
     const parentNode = nodes.find(n => n.id === parentNodeId)
     if (!parentNode) return
 
+    const isParentTeamLeader = parentNode.data?.isTeamMember
     const newNodeId = `team-${Date.now()}`
     const newNode = {
       id: newNodeId,
       type: 'custom',
       position: { x: parentNode.position.x, y: parentNode.position.y + 120 },
       data: { 
-        role: 'Team Leader', 
+        role: isParentTeamLeader ? 'Team Member' : 'Team Leader', 
         assignedStaff: null, 
         isTeamMember: true,
+        isActualTeamMember: isParentTeamLeader,
         parentId: parentNodeId,
         canDelete: true,
         notes: ''

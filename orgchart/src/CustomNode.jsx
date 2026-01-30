@@ -30,6 +30,7 @@ function CustomNode({ data, selected, id }) {
 
   const isTaskLead = data.isTaskLead
   const isTeamMember = data.isTeamMember
+  const isActualTeamMember = data.isActualTeamMember
   const connectFromSide = data.connectFromSide
 
   return (
@@ -75,8 +76,11 @@ function CustomNode({ data, selected, id }) {
         {isTaskLead && (
           <div className="text-[10px] text-red-600 font-bold uppercase tracking-wide mb-1">Task Lead</div>
         )}
-        {isTeamMember && (
+        {isTeamMember && !isActualTeamMember && (
           <div className="text-[10px] text-gray-600 font-bold uppercase tracking-wide mb-1">Team Leader</div>
+        )}
+        {isActualTeamMember && (
+          <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wide mb-1">Team Member</div>
         )}
         <div className="font-semibold text-gray-900 text-sm leading-tight break-words">
           {data.role}
@@ -91,11 +95,11 @@ function CustomNode({ data, selected, id }) {
             {data.assignedStaff}
           </div>
         )}
-        {isTaskLead && (
+        {(isTaskLead || (isTeamMember && !isActualTeamMember)) && (
           <button
             onClick={handleAddTeamMember}
-            className="mt-2 text-[9px] px-2 py-0.5 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
-            title="Add a team member under this task lead"
+            className={`mt-2 text-[9px] px-2 py-0.5 text-white rounded transition-colors ${isTeamMember ? 'bg-gray-600 hover:bg-gray-700' : 'bg-red-600 hover:bg-red-700'}`}
+            title={isTeamMember ? "Add a team member under this team leader" : "Add a team leader under this task lead"}
           >
             + Team
           </button>
