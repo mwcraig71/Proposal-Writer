@@ -977,6 +977,9 @@ def merge_employees():
             else:
                 db.session.delete(exp)
         
+        for alt_bio in EmployeeAlternateBio.query.filter_by(employee_id=merge_id).all():
+            alt_bio.employee_id = primary_id
+        
         ProposalSelectedEmployee.query.filter_by(employee_id=merge_id).delete()
         db.session.delete(merge_emp)
     
