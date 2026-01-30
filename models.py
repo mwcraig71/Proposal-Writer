@@ -79,9 +79,9 @@ class Employee(db.Model):
     
     @property
     def display_name(self):
-        """Returns the full display name combining first, middle, last names"""
+        """Returns the display name combining first and last names (no middle name)"""
         if self.first_name or self.last_name:
-            parts = [self.first_name or '', self.middle_name or '', self.last_name or '']
+            parts = [self.first_name or '', self.last_name or '']
             return ' '.join(p for p in parts if p).strip()
         return self.name
 

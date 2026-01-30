@@ -43,7 +43,7 @@
                     <input type="checkbox" class="employee-checkbox w-4 h-4 text-blue-600 rounded" value="{{ employee.id }}" onchange="updateMergeButton()">
                 </td>
                 <td class="px-4 py-4">
-                    <div class="font-medium text-gray-900 truncate" title="{{ employee.name }}">{{ employee.name }}</div>
+                    <div class="font-medium text-gray-900 truncate" title="{{ employee.display_name }}">{{ employee.display_name }}</div>
                 </td>
                 <td class="px-4 py-4 text-gray-600">
                     <div class="truncate" title="{{ employee.title or '-' }}">{{ employee.title or '-' }}</div>
@@ -59,7 +59,7 @@
                         <a href="/employees/{{ employee.id }}" class="text-blue-600 hover:text-blue-800" title="Edit">
                             <i class="fas fa-edit"></i>
                         </a>
-                        <button onclick="deleteEmployee({{ employee.id }}, '{{ employee.name | e }}')" class="text-red-600 hover:text-red-800" title="Delete">
+                        <button onclick="deleteEmployee({{ employee.id }}, '{{ employee.display_name | e }}')" class="text-red-600 hover:text-red-800" title="Delete">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
