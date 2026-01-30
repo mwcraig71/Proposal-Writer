@@ -1,5 +1,6 @@
 import os
 import json
+from functools import wraps
 from flask import render_template, request, jsonify, redirect, url_for, flash, send_file, session
 from werkzeug.utils import secure_filename
 from main import app
@@ -23,6 +24,42 @@ import io
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'pdf', 'docx', 'doc', 'xlsx', 'xls', 'txt'}
 
+# Simple password protection
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        app_password = os.environ.get('APP_PASSWORD')
+        if app_password and not session.get('authenticated'):
+            return redirect(url_for('login', next=request.url))
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    app_password = os.environ.get('APP_PASSWORD')
+    if not app_password:
+        session['authenticated'] = True
+        return redirect(url_for('home'))
+    
+    if request.method == 'POST':
+        password = request.form.get('password', '')
+        if password == app_password:
+            session['authenticated'] = True
+            next_url = request.args.get('next', url_for('home'))
+            return redirect(next_url)
+        else:
+            flash('Incorrect password', 'error')
+    
+    return render_template('login.html')
+
+
+@app.route('/logout')
+def logout():
+    session.pop('authenticated', None)
+    flash('You have been logged out', 'success')
+    return redirect(url_for('login'))
+
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
@@ -31,6 +68,7 @@ def allowed_file(filename):
 
 
 @app.route('/')
+@login_required
 def index():
     from datetime import date, timedelta
     from collections import defaultdict
