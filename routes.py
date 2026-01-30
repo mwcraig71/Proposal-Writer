@@ -92,6 +92,10 @@ def upload():
         file_content = file.read()
         text = extract_text_from_file(file.filename, file_content)
         
+        # Debug: Log extracted text for troubleshooting resume parsing
+        print(f"DEBUG EXTRACTED TEXT (first 3000 chars):\n{text[:3000]}")
+        print(f"DEBUG EXTRACTED TEXT LENGTH: {len(text)} characters")
+        
         doc_type = detect_document_type(text)
         
         parsed_data = {}

@@ -118,10 +118,12 @@ def parse_employee_resume(text: str) -> dict:
     prompt = f"""You are a data extraction assistant for SF330 federal forms. 
 Extract employee/personnel information from the following resume or CV text.
 
-CRITICAL: Carefully scan the ENTIRE document including ALL sections and columns. Resumes often have:
-- A left column with credentials (education, registrations, training, certifications)
-- A right column with project experience
-- An introductory bio/summary at the top
+DOCUMENT STRUCTURE: The text may be marked with section headers like:
+- "=== LEFT COLUMN (CREDENTIALS/QUALIFICATIONS) ===" - Contains education, licenses, training, certifications
+- "=== RIGHT COLUMN (BIO AND EXPERIENCE) ===" - Contains bio paragraph and project experience
+- "=== DOCUMENT HEADER ===" - May contain name and title
+
+CRITICAL: Extract data from ALL sections. The credentials (education, registrations, training) are typically in the LEFT COLUMN section.
 
 Return ONLY valid JSON matching this schema:
 {json.dumps(EMPLOYEE_SCHEMA, indent=2)}
@@ -132,23 +134,32 @@ If any field is not found, use null.
 
 CRITICAL EXTRACTION REQUIREMENTS:
 
-BIO: Extract the introductory paragraph/summary about the person (usually at the top). This describes their overall experience, expertise areas, and career highlights. Do NOT leave this empty if a bio/summary exists.
+BIO: Extract the FIRST introductory paragraph about the person from the RIGHT COLUMN or HEADER section. This is usually 2-5 sentences describing their overall experience and expertise. Look for text that starts like "[Name] has X years of experience..." or similar. Do NOT use the project list at the end as the bio.
 
-EDUCATION: Look for sections labeled "EDUCATION", "ACADEMIC", "DEGREES" - extract ALL degrees listed.
+YEARS EXPERIENCE: Look in the LEFT COLUMN for:
+- "YEARS WITH [FIRM]" or "YEARS WITH STRINTEG" → years_experience_firm
+- "TOTAL YEARS OF EXPERIENCE" → years_experience_total
+Extract just the number.
+
+EDUCATION: Look in the LEFT COLUMN for "EDUCATION" section.
 Format: "Degree, Major/Field, Institution (Year)"
-Example from document: "B.S. Civil Engineering: SUNY Buffalo, 1997" → "B.S., Civil Engineering, SUNY Buffalo (1997)"
+Examples from document:
+- "B.S. Civil Engineering: SUNY Buffalo, 1997" → "B.S., Civil Engineering, SUNY Buffalo (1997)"
+- "M.ENG. Structural: SUNY Buffalo, 1999" → "M.Eng., Structural Engineering, SUNY Buffalo (1999)"
 
-REGISTRATIONS: Look for "PROFESSIONAL REGISTRATIONS", "LICENSES", "PE", "SE" sections.
-Include ALL states and license types. Format each on a new line.
+REGISTRATIONS: Look in the LEFT COLUMN for "PROFESSIONAL REGISTRATIONS" section.
+Include ALL licenses. Format each on a new line.
 Examples:
-- "Professional Engineer: AL, DC, FL, GA, KS, LA, MD, NC, NE, NV, PR, SC, TN, TX, VA" → list each state
 - "Structural Engineer: GA (000958)" → "SE #000958, Georgia"
-- Include non-PE credentials like "Level 1 Rope Access Technician", "FAA Part 107 UAS Remote Pilot"
+- "Professional Engineer: AL, DC, FL, GA, KS, LA, MD, NC, NE, NV, PR, SC, TN, TX, VA" → List as "PE, Alabama\\nPE, District of Columbia\\nPE, Florida\\n..." etc.
+- "Level 1 Rope Access Technician" → "Level 1 Rope Access Technician"
+- "FAA Part 107 UAS Remote Pilot" → "FAA Part 107 UAS Remote Pilot"
 
-TRAINING: Look for "PROFESSIONAL TRAINING", "NHI", "CERTIFICATIONS", "COURSES" sections.
+TRAINING: Look in the LEFT COLUMN for "PROFESSIONAL TRAINING" section.
 Format: "Course Name (Year, Course Code)"
-Include ALL NHI courses, FHWA training, safety certifications, etc.
-Example: "Safety Inspection of In-Service Bridges (Course No. 130055), National Highway Institute, 2021" → "Safety Inspection of In-Service Bridges (2021, NHI 130055)"
+Include ALL NHI courses and training:
+- "Safety Inspection of In-Service Bridges (Course No. 130055), National Highway Institute, 2021 & Refresher (2023)" → "Safety Inspection of In-Service Bridges (2021, NHI 130055)\\nSafety Inspection of In-Service Bridges Refresher (2023, NHI 130055)"
+- "Fracture Critical Inspection Techniques for Steel Bridges (NHI 130078)" → "Fracture Critical Inspection Techniques for Steel Bridges (NHI 130078)"
 
 PROJECT EXPERIENCE EXTRACTION:
 Extract ALL projects mentioned in the resume with as much detail as available:
