@@ -281,20 +281,18 @@ function OrgChartFlow() {
     const parentNode = nodes.find(n => n.id === parentNodeId)
     if (!parentNode) return
 
-    const isParentTeamLeader = parentNode.data?.isTeamMember
     const newNodeId = `team-${Date.now()}`
     const newNode = {
       id: newNodeId,
       type: 'custom',
       position: { x: parentNode.position.x, y: parentNode.position.y + 120 },
       data: { 
-        role: isParentTeamLeader ? 'Team Member' : 'Team Leader', 
+        role: 'Team Leader', 
         assignedStaff: null, 
         isTeamMember: true,
-        isActualTeamMember: isParentTeamLeader,
         parentId: parentNodeId,
         canDelete: true,
-        notes: ''
+        teamMembers: []
       },
     }
     const newEdge = {
@@ -348,12 +346,53 @@ function OrgChartFlow() {
     }, 50)
   }, [nodes, edges, setNodes, setEdges, addTeamMember])
 
+  const addTeamMemberToList = useCallback((nodeId) => {
+    const memberName = prompt('Enter team member name:')
+    if (!memberName || memberName.trim() === '') return
+    
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === nodeId) {
+          const currentMembers = node.data.teamMembers || []
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              teamMembers: [...currentMembers, memberName.trim()]
+            }
+          }
+        }
+        return node
+      })
+    )
+  }, [setNodes])
+
+  const removeTeamMemberFromList = useCallback((nodeId, index) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === nodeId) {
+          const currentMembers = node.data.teamMembers || []
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              teamMembers: currentMembers.filter((_, i) => i !== index)
+            }
+          }
+        }
+        return node
+      })
+    )
+  }, [setNodes])
+
   const nodesWithCallbacks = nodes.map(node => ({
     ...node,
     data: {
       ...node.data,
       onAddTeamMember: addTeamMember,
-      onDeleteNode: deleteNode
+      onDeleteNode: deleteNode,
+      onAddTeamMemberToList: addTeamMemberToList,
+      onRemoveTeamMemberFromList: removeTeamMemberFromList
     }
   }))
 
