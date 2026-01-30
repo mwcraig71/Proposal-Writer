@@ -3539,7 +3539,6 @@ def get_marketing_photos_api():
 def copy_marketing_to_employee(photo_id, employee_id):
     """Copy a marketing photo to an employee"""
     from models import MarketingPhoto, EmployeePhoto
-    from replit.object_storage import Client
     import uuid
     import traceback
     
@@ -3547,7 +3546,9 @@ def copy_marketing_to_employee(photo_id, employee_id):
     employee = Employee.query.get_or_404(employee_id)
     
     try:
-        client = Client()
+        client = get_object_storage_client()
+        if not client:
+            return jsonify({'success': False, 'error': 'Object storage not available'}), 500
         original_data = client.download_as_bytes(marketing_photo.storage_path)
         
         new_filename = f"{uuid.uuid4()}_{marketing_photo.filename}"
@@ -3585,7 +3586,6 @@ def copy_marketing_to_employee(photo_id, employee_id):
 def copy_marketing_to_project(photo_id, project_id):
     """Copy a marketing photo to a project"""
     from models import MarketingPhoto, ProjectPhoto
-    from replit.object_storage import Client
     import uuid
     import traceback
     
@@ -3593,7 +3593,9 @@ def copy_marketing_to_project(photo_id, project_id):
     project = Project.query.get_or_404(project_id)
     
     try:
-        client = Client()
+        client = get_object_storage_client()
+        if not client:
+            return jsonify({'success': False, 'error': 'Object storage not available'}), 500
         original_data = client.download_as_bytes(marketing_photo.storage_path)
         
         new_filename = f"{uuid.uuid4()}_{marketing_photo.filename}"
