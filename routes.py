@@ -510,6 +510,7 @@ def save_merged_experience(id):
     data = request.json
     experience_ids = data.get('experience_ids', [])
     merged_data = data.get('merged_data', {})
+    keep_originals = data.get('keep_originals', False)
     
     if len(experience_ids) < 2:
         return jsonify({'success': False, 'error': 'Need at least 2 experiences to merge'})
@@ -538,8 +539,9 @@ def save_merged_experience(id):
         )
         db.session.add(new_exp)
         
-        for exp in experiences:
-            db.session.delete(exp)
+        if not keep_originals:
+            for exp in experiences:
+                db.session.delete(exp)
         
         db.session.commit()
         return jsonify({'success': True, 'merged_id': new_exp.id})

@@ -376,7 +376,14 @@
             <div id="merge-fields-container" class="space-y-4">
             </div>
             
-            <div class="flex justify-end space-x-3 mt-6 pt-4 border-t">
+            <div class="flex items-center mt-6 pt-4 border-t">
+                <label class="flex items-center text-sm text-gray-700 cursor-pointer">
+                    <input type="checkbox" id="keep-originals-cb" class="mr-2 h-4 w-4 text-blue-600 rounded">
+                    Keep original projects (create a 3rd merged project)
+                </label>
+            </div>
+            
+            <div class="flex justify-end space-x-3 mt-4">
                 <button type="button" onclick="closeMergeModal()" class="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-50">Cancel</button>
                 <button type="button" onclick="saveMergedProject()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
                     <i class="fas fa-check mr-1"></i> Save Merged Project
@@ -1120,6 +1127,7 @@ async function saveMergedProject() {
     }
     
     const expIds = mergeProjectsData.map(p => p.id);
+    const keepOriginals = document.getElementById('keep-originals-cb').checked;
     
     try {
         const response = await fetch(`/employees/${employeeId}/save-merged-experience`, {
@@ -1127,12 +1135,13 @@ async function saveMergedProject() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
                 experience_ids: expIds, 
-                merged_data: mergedData 
+                merged_data: mergedData,
+                keep_originals: keepOriginals
             })
         });
         const result = await response.json();
         if (result.success) {
-            alert('Projects merged successfully!');
+            alert(keepOriginals ? 'Merged project created (originals kept)!' : 'Projects merged successfully!');
             window.location.reload();
         } else {
             alert('Error: ' + result.error);
