@@ -1161,6 +1161,73 @@ def scrape_firm_website():
         return jsonify({'error': f'Error processing website: {str(e)}'}), 500
 
 
+@app.route('/projects/scrape-website', methods=['POST'])
+def scrape_projects_website():
+    """Scrape a company portfolio website and extract project information using AI."""
+    data = request.get_json()
+    url = data.get('url', '').strip()
+    
+    if not url:
+        return jsonify({'error': 'Please provide a website URL'}), 400
+    
+    if not url.startswith(('http://', 'https://')):
+        url = 'https://' + url
+    
+    try:
+        from web_scraper import scrape_portfolio_projects
+        from gemini_service import parse_portfolio_projects
+        
+        scrape_result = scrape_portfolio_projects(url)
+        
+        if not scrape_result.get('content'):
+            return jsonify({'error': 'Could not fetch content from this website. The site may be unavailable or blocking access.'}), 400
+        
+        parsed_data = parse_portfolio_projects(scrape_result['content'])
+        projects = parsed_data.get('projects', [])
+        
+        return jsonify({
+            'success': True,
+            'projects': projects,
+            'pages_scraped': scrape_result.get('pages_scraped', 0),
+            'project_links': len(scrape_result.get('project_links', []))
+        })
+    except Exception as e:
+        return jsonify({'error': f'Error processing website: {str(e)}'}), 500
+
+
+@app.route('/projects/save-batch', methods=['POST'])
+def save_batch_projects():
+    """Save multiple projects at once (from website scrape or other sources)."""
+    data = request.get_json()
+    projects_data = data.get('projects', [])
+    
+    if not projects_data:
+        return jsonify({'error': 'No projects provided'}), 400
+    
+    try:
+        saved_count = 0
+        for proj_data in projects_data:
+            project = Project(
+                title=proj_data.get('title') or 'Untitled Project',
+                location=proj_data.get('location'),
+                owner_name=proj_data.get('owner_name'),
+                year_completed_professional=proj_data.get('year_completed_professional'),
+                project_cost=proj_data.get('project_cost'),
+                brief_description=proj_data.get('brief_description')
+            )
+            db.session.add(project)
+            saved_count += 1
+        
+        db.session.commit()
+        return jsonify({
+            'success': True,
+            'message': f'Successfully saved {saved_count} projects'
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error saving projects: {str(e)}'}), 500
+
+
 @app.route('/firms/add', methods=['GET', 'POST'])
 def add_firm():
     if request.method == 'POST':

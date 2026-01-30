@@ -95,3 +95,73 @@ def get_firm_website_content(url: str) -> str:
             break
     
     return "\n\n".join(all_content)
+
+
+def scrape_portfolio_projects(url: str, max_pages: int = 5) -> dict:
+    """
+    Scrape a portfolio/projects page to extract project information.
+    Handles pagination and follows individual project links for more details.
+    Returns dict with 'content' (text for AI parsing) and 'project_links' (found URLs).
+    """
+    all_content = []
+    project_links = []
+    pages_scraped = 0
+    current_url = url
+    
+    parsed = urlparse(url)
+    base_url = f"{parsed.scheme}://{parsed.netloc}"
+    
+    while current_url and pages_scraped < max_pages:
+        html = fetch_raw_html(current_url)
+        if not html:
+            break
+            
+        soup = BeautifulSoup(html, 'html.parser')
+        
+        for script in soup(["script", "style", "noscript"]):
+            script.decompose()
+        
+        for link in soup.find_all('a', href=True):
+            href = link['href']
+            if '/portfolio/' in href or '/project/' in href or '/projects/' in href:
+                full_url = urljoin(base_url, href)
+                if full_url not in project_links and full_url != current_url:
+                    if not any(x in full_url for x in ['/page/', 'portfolio_category']):
+                        project_links.append(full_url)
+        
+        text_content = get_website_text_content(current_url)
+        if text_content:
+            all_content.append(f"=== PAGE {pages_scraped + 1} ===\n{text_content}")
+        
+        pages_scraped += 1
+        
+        next_url = None
+        for link in soup.find_all('a', href=True):
+            href = link['href']
+            link_text = link.get_text(strip=True).lower()
+            if 'next' in link_text or f'/page/{pages_scraped + 1}' in href:
+                next_url = urljoin(base_url, href)
+                break
+        
+        if next_url and next_url != current_url:
+            current_url = next_url
+        else:
+            break
+    
+    project_details = []
+    for project_url in project_links[:15]:
+        try:
+            project_content = get_website_text_content(project_url)
+            if project_content and len(project_content) > 100:
+                project_details.append(f"=== PROJECT: {project_url} ===\n{project_content}")
+        except:
+            pass
+    
+    if project_details:
+        all_content.extend(project_details)
+    
+    return {
+        'content': "\n\n".join(all_content),
+        'project_links': project_links,
+        'pages_scraped': pages_scraped
+    }

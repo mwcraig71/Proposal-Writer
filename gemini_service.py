@@ -548,6 +548,65 @@ Return a valid JSON object with the extracted data. Use null for any field where
         return {}
 
 
+PORTFOLIO_PROJECT_SCHEMA = {
+    "projects": [
+        {
+            "title": "string (project name)",
+            "location": "string (city, state)",
+            "client": "string (owner/client organization)",
+            "year_completed": "string (year or date range like 2021-2023)",
+            "contract_value": "string (cost if mentioned)",
+            "description": "string (full description of work performed)"
+        }
+    ]
+}
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    retry=retry_if_exception(is_rate_limit_error)
+)
+def parse_portfolio_projects(website_content: str) -> dict:
+    """Parse scraped portfolio website content to extract project information."""
+    
+    prompt = f"""You are parsing a company portfolio/experience website to extract project information for SF330 forms.
+
+Extract ALL projects mentioned in the content. For each project, capture:
+- Project title/name
+- Location (city, state)
+- Client/owner organization (often a DOT or government agency)
+- Year completed or date range
+- Contract value if mentioned
+- Full description of work performed
+
+Website content:
+{website_content[:30000]}
+
+Return ONLY valid JSON matching this schema:
+{json.dumps(PORTFOLIO_PROJECT_SCHEMA, indent=2)}
+
+IMPORTANT:
+1. Extract every distinct project mentioned
+2. Use null for missing fields
+3. Capture the full description for each project
+4. Look for patterns like "Client:", "Owner:", dates in parentheses, dollar amounts"""
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json"
+        )
+    )
+    
+    try:
+        result = json.loads(response.text)
+        return result
+    except json.JSONDecodeError:
+        return {"projects": []}
+
+
 @retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=2, max=10),
