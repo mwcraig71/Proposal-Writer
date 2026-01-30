@@ -168,6 +168,30 @@ function displayResults(data) {
     for (const [key, value] of Object.entries(data.parsed_data)) {
         if (key === 'team_members' && Array.isArray(value)) continue;
         
+        // Handle project_experience array specially
+        if (key === 'project_experience' && Array.isArray(value)) {
+            let expHtml = `<div><label class="block text-sm font-medium text-gray-700 mb-1">${formatLabel(key)}</label>`;
+            expHtml += `<div class="space-y-2 bg-gray-50 p-3 rounded-lg max-h-64 overflow-y-auto">`;
+            value.forEach((exp, idx) => {
+                const title = exp.project_title || exp.title || 'Project ' + (idx + 1);
+                const loc = exp.location || '';
+                const year = exp.year_completed || '';
+                const role = exp.role_performed || exp.role || '';
+                const desc = exp.brief_description || exp.description || '';
+                expHtml += `<div class="bg-white p-2 rounded border text-sm">
+                    <div class="font-medium">${title}${loc ? ', ' + loc : ''}${year ? ' (' + year + ')' : ''}</div>
+                    ${role ? '<div class="text-gray-600">Role: ' + role + '</div>' : ''}
+                    ${desc ? '<div class="text-gray-500 text-xs mt-1">' + desc.substring(0, 150) + (desc.length > 150 ? '...' : '') + '</div>' : ''}
+                </div>`;
+            });
+            expHtml += `</div><p class="text-xs text-gray-500 mt-1">${value.length} project(s) will be saved to resume</p></div>`;
+            parsedForm.innerHTML += expHtml;
+            continue;
+        }
+        
+        // Skip other arrays/objects
+        if (Array.isArray(value) || (typeof value === 'object' && value !== null)) continue;
+        
         const isLong = typeof value === 'string' && value.length > 100;
         parsedForm.innerHTML += `
             <div>
