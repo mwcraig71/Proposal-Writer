@@ -239,7 +239,7 @@ function OrgChartFlow() {
           id: `node-${Date.now()}`,
           type: 'custom',
           position,
-          data: { role: 'New Role', assignedStaff: staffMember.name, staffId: staffMember.id },
+          data: { role: 'New Role', assignedStaff: staffMember.name, staffId: staffMember.id, canDelete: true },
         }
         setNodes((nds) => nds.concat(newNode))
       }
