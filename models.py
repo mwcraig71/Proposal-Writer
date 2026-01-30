@@ -153,6 +153,8 @@ class Project(db.Model):
     project_delivery_method = db.Column(db.String(255))
     brief_description = db.Column(db.Text)
     relevance_writeup = db.Column(db.Text)
+    is_with_other_firm = db.Column(db.Boolean, default=False)
+    other_firm_name = db.Column(db.String(255))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     

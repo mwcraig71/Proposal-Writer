@@ -1041,6 +1041,8 @@ def update_project(id):
     project.project_cost = data.get('project_cost', project.project_cost)
     project.brief_description = data.get('brief_description', project.brief_description)
     project.relevance_writeup = data.get('relevance_writeup', project.relevance_writeup)
+    project.is_with_other_firm = data.get('is_with_other_firm') in [True, 'true', 'True', '1', 1]
+    project.other_firm_name = data.get('other_firm_name', project.other_firm_name) if project.is_with_other_firm else None
     
     owner_contact_id = data.get('owner_contact_id')
     if owner_contact_id:

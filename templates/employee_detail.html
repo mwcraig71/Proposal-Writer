@@ -121,7 +121,16 @@
         <div class="bg-white rounded-lg shadow p-6">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-xl font-semibold text-gray-800">Project Experience</h2>
-                <div class="flex space-x-2">
+                <div class="flex items-center space-x-2">
+                    <select id="sort-experiences" onchange="sortExperiences()" class="text-sm border rounded-lg px-3 py-2 text-gray-600">
+                        <option value="default">Sort: Default</option>
+                        <option value="title">Sort: Title A-Z</option>
+                        <option value="title-desc">Sort: Title Z-A</option>
+                        <option value="year">Sort: Year (Newest)</option>
+                        <option value="year-asc">Sort: Year (Oldest)</option>
+                        <option value="firm">Sort: Current Firm First</option>
+                        <option value="sf330">Sort: SF330 First</option>
+                    </select>
                     <button id="merge-projects-btn" onclick="mergeSelectedProjects()" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition text-sm hidden">
                         <i class="fas fa-magic mr-1"></i> AI Merge Selected
                     </button>
@@ -135,7 +144,7 @@
             {% if project_experiences %}
             <div class="space-y-4" id="project-experience-list">
                 {% for exp in project_experiences %}
-                <div class="border rounded-lg p-4 hover:bg-gray-50 {% if exp.sf330_include %}border-yellow-400 bg-yellow-50{% endif %}" id="exp-{{ exp.id }}">
+                <div class="border rounded-lg p-4 hover:bg-gray-50 {% if exp.sf330_include %}border-yellow-400 bg-yellow-50{% endif %} {% if exp.is_current_firm %}border-l-4 border-l-green-500{% endif %}" id="exp-{{ exp.id }}" data-title="{{ exp.project_title or '' }}" data-year="{{ exp.year_completed or '' }}" data-is-current-firm="{{ exp.is_current_firm|lower }}" data-sf330="{{ exp.sf330_include|lower }}">
                     <div class="flex justify-between items-start">
                         <div class="flex items-start mr-3">
                             <input type="checkbox" class="project-select-cb mt-1" data-exp-id="{{ exp.id }}" onchange="updateMergeButton()">
@@ -154,7 +163,7 @@
                                 {% if exp.project_cost %}<span><i class="fas fa-dollar-sign mr-1"></i>{{ exp.project_cost }}</span>{% endif %}
                             </div>
                             {% if exp.owner_name %}<p class="text-sm text-gray-500 mt-1"><i class="fas fa-building mr-1"></i>Owner: {{ exp.owner_name }}</p>{% endif %}
-                            {% if exp.firm_name %}<p class="text-sm text-blue-600 mt-1"><i class="fas fa-briefcase mr-1"></i>{{ exp.firm_name }}</p>{% endif %}
+                            {% if exp.firm_name or exp.is_current_firm %}<p class="text-sm {% if exp.is_current_firm %}text-green-600 font-medium{% else %}text-blue-600{% endif %} mt-1"><i class="fas fa-briefcase mr-1"></i>{% if exp.is_current_firm %}<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs mr-1">Current Firm</span>{% endif %}{{ exp.firm_name or '' }}</p>{% endif %}
                             {% if exp.brief_description %}<p class="text-sm text-gray-600 mt-2">{{ exp.brief_description[:200] }}{% if exp.brief_description|length > 200 %}...{% endif %}</p>{% endif %}
                         </div>
                         <div class="flex space-x-2 ml-4">
@@ -176,7 +185,8 @@
                                 data-owner="{{ exp.owner_name or '' }}"
                                 data-role="{{ exp.role_performed or '' }}"
                                 data-description="{{ exp.brief_description or '' }}"
-                                data-firm="{{ exp.firm_name or '' }}">
+                                data-firm="{{ exp.firm_name or '' }}"
+                                data-is-current-firm="{{ exp.is_current_firm|lower }}">
                                 <i class="fas fa-edit"></i>
                             </button>
                             <button onclick="deleteExperience({{ exp.id }})" class="text-red-600 hover:text-red-800" title="Delete">
@@ -330,6 +340,10 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Firm/Employer</label>
                         <input type="text" id="exp-firm-name" class="w-full p-2 border rounded-lg" placeholder="Firm where work was performed">
+                        <label class="flex items-center gap-2 mt-2 cursor-pointer">
+                            <input type="checkbox" id="exp-is-current-firm" class="w-4 h-4 text-green-600 rounded">
+                            <span class="text-sm text-gray-600">Project with Current Firm</span>
+                        </label>
                     </div>
                 </div>
                 <div>
@@ -583,6 +597,7 @@ function showAddExperienceModal() {
     document.getElementById('exp-owner-name').value = '';
     document.getElementById('exp-role-performed').value = '';
     document.getElementById('exp-firm-name').value = '';
+    document.getElementById('exp-is-current-firm').checked = false;
     document.getElementById('exp-brief-description').value = '';
     document.getElementById('experience-modal').classList.remove('hidden');
 }
@@ -598,6 +613,7 @@ function editExperience(id, exp) {
     document.getElementById('exp-owner-name').value = exp.owner || '';
     document.getElementById('exp-role-performed').value = exp.role || '';
     document.getElementById('exp-firm-name').value = exp.firm || '';
+    document.getElementById('exp-is-current-firm').checked = exp.isCurrentFirm || false;
     document.getElementById('exp-brief-description').value = exp.description || '';
     document.getElementById('experience-modal').classList.remove('hidden');
 }
@@ -612,11 +628,47 @@ document.querySelectorAll('.edit-exp-btn').forEach(btn => {
             owner: this.dataset.owner,
             role: this.dataset.role,
             description: this.dataset.description,
-            firm: this.dataset.firm
+            firm: this.dataset.firm,
+            isCurrentFirm: this.dataset.isCurrentFirm === 'true'
         };
         editExperience(this.dataset.expId, exp);
     });
 });
+
+function sortExperiences() {
+    const sortBy = document.getElementById('sort-experiences').value;
+    const list = document.getElementById('project-experience-list');
+    const items = Array.from(list.children);
+    
+    items.sort((a, b) => {
+        switch(sortBy) {
+            case 'title':
+                return (a.dataset.title || '').localeCompare(b.dataset.title || '');
+            case 'title-desc':
+                return (b.dataset.title || '').localeCompare(a.dataset.title || '');
+            case 'year':
+                const yearA = parseInt(a.dataset.year) || 0;
+                const yearB = parseInt(b.dataset.year) || 0;
+                return yearB - yearA;
+            case 'year-asc':
+                const yearA2 = parseInt(a.dataset.year) || 9999;
+                const yearB2 = parseInt(b.dataset.year) || 9999;
+                return yearA2 - yearB2;
+            case 'firm':
+                const firmA = a.dataset.isCurrentFirm === 'true' ? 0 : 1;
+                const firmB = b.dataset.isCurrentFirm === 'true' ? 0 : 1;
+                return firmA - firmB;
+            case 'sf330':
+                const sf330A = a.dataset.sf330 === 'true' ? 0 : 1;
+                const sf330B = b.dataset.sf330 === 'true' ? 0 : 1;
+                return sf330A - sf330B;
+            default:
+                return 0;
+        }
+    });
+    
+    items.forEach(item => list.appendChild(item));
+}
 
 function closeModal() {
     document.getElementById('experience-modal').classList.add('hidden');
@@ -953,6 +1005,7 @@ document.getElementById('experience-form').addEventListener('submit', async (e) 
         owner_name: document.getElementById('exp-owner-name').value,
         role_performed: document.getElementById('exp-role-performed').value,
         firm_name: document.getElementById('exp-firm-name').value,
+        is_current_firm: document.getElementById('exp-is-current-firm').checked,
         brief_description: document.getElementById('exp-brief-description').value
     };
     

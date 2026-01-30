@@ -55,6 +55,16 @@
                     <label class="block text-sm font-medium text-gray-700 mb-1">Owner Contact Email</label>
                     <input type="text" name="owner_contact_email" id="owner_contact_email" value="{{ project.owner_contact_email or '' }}" class="w-full p-2 border rounded-lg" autocomplete="off" data-1p-ignore="true" data-lpignore="true" data-form-type="other">
                 </div>
+                <div class="flex items-center gap-3">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" name="is_with_other_firm" id="is_with_other_firm" value="true" {% if project.is_with_other_firm %}checked{% endif %} class="w-4 h-4 text-blue-600 rounded" onchange="toggleOtherFirmName()">
+                        <span class="text-sm font-medium text-gray-700">Project with Another Firm</span>
+                    </label>
+                </div>
+                <div id="other-firm-container" class="{% if not project.is_with_other_firm %}hidden{% endif %}">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Other Firm Name</label>
+                    <input type="text" name="other_firm_name" id="other_firm_name" value="{{ project.other_firm_name or '' }}" class="w-full p-2 border rounded-lg">
+                </div>
             </div>
             
             <div>
@@ -444,11 +454,22 @@ document.addEventListener('click', function(e) {
 });
 }
 
+function toggleOtherFirmName() {
+    const checkbox = document.getElementById('is_with_other_firm');
+    const container = document.getElementById('other-firm-container');
+    if (checkbox.checked) {
+        container.classList.remove('hidden');
+    } else {
+        container.classList.add('hidden');
+    }
+}
+
 document.getElementById('project-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     
     const formData = new FormData(e.target);
     const data = Object.fromEntries(formData.entries());
+    data.is_with_other_firm = document.getElementById('is_with_other_firm').checked;
     
     try {
         const response = await fetch('/projects/{{ project.id }}', {
