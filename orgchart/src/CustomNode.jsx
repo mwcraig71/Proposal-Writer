@@ -88,7 +88,7 @@ function CustomNode({ data, selected, id }) {
         <div className="font-semibold text-gray-900 text-sm leading-tight break-words">
           {data.role}
         </div>
-        {data.assignedStaff && (
+        {data.assignedStaff && !isTeamMember && (
           <div
             className="mt-1 text-xs text-red-700 font-medium border-t border-red-200 pt-1 cursor-grab hover:bg-red-100 rounded px-1 transition-colors"
             draggable
@@ -96,6 +96,27 @@ function CustomNode({ data, selected, id }) {
             title="Drag to reassign to another role"
           >
             {data.assignedStaff}
+          </div>
+        )}
+        {isTeamMember && data.staffList && data.staffList.length > 0 && (
+          <div className="mt-1 border-t border-gray-300 pt-1">
+            {data.staffList.map((staff, index) => (
+              <div key={index} className="flex items-center justify-between text-xs text-gray-700 py-0.5 hover:bg-gray-100 rounded px-1">
+                <span className="text-red-700 font-medium">{staff}</span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    if (data.onRemoveStaffFromList) {
+                      data.onRemoveStaffFromList(id, index)
+                    }
+                  }}
+                  className="text-red-500 hover:text-red-700 text-[10px] ml-1"
+                  title="Remove staff"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
           </div>
         )}
         {data.isPM && (

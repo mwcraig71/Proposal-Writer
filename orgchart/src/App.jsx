@@ -212,6 +212,16 @@ function OrgChartFlow() {
         setNodes((nds) =>
           nds.map((node) => {
             if (node.id === dropTargetNode.id) {
+              if (node.data.isTeamMember) {
+                const currentList = node.data.staffList || []
+                return {
+                  ...node,
+                  data: {
+                    ...node.data,
+                    staffList: [...currentList, staffMember.name],
+                  },
+                }
+              }
               return {
                 ...node,
                 data: {
@@ -321,7 +331,8 @@ function OrgChartFlow() {
         assignedStaff: null, 
         isTeamMember: true,
         parentId: parentNodeId,
-        canDelete: true
+        canDelete: true,
+        staffList: []
       },
     }
     const newEdge = {
@@ -375,13 +386,32 @@ function OrgChartFlow() {
     }, 50)
   }, [nodes, edges, setNodes, setEdges, addTeamMember])
 
+  const removeStaffFromList = useCallback((nodeId, index) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === nodeId) {
+          const currentList = node.data.staffList || []
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              staffList: currentList.filter((_, i) => i !== index)
+            }
+          }
+        }
+        return node
+      })
+    )
+  }, [setNodes])
+
   const nodesWithCallbacks = nodes.map(node => ({
     ...node,
     data: {
       ...node.data,
       onAddTeamMember: addTeamMember,
       onDeleteNode: deleteNode,
-      onAddDPM: addDPM
+      onAddDPM: addDPM,
+      onRemoveStaffFromList: removeStaffFromList
     }
   }))
 
