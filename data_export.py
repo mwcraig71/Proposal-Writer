@@ -34,7 +34,7 @@ def serialize_model(obj, exclude_fields=None):
 def export_all_data():
     data = {
         'export_date': datetime.utcnow().isoformat(),
-        'version': '1.0',
+        'version': '1.1',  # Added org_chart_data, org_chart_notes to proposals
         'client_contacts': [],
         'firms': [],
         'firm_alternate_descriptions': [],
