@@ -225,6 +225,8 @@ class Proposal(db.Model):
     win_theme = db.Column(db.Text)  # Key messages and strategy for winning
     cover_letter = db.Column(db.Text)
     written_sections = db.Column(db.Text)
+    org_chart_data = db.Column(db.Text)  # JSON string storing org chart nodes and edges
+    org_chart_notes = db.Column(db.Text)  # Global notes for the org chart
     status = db.Column(db.String(50), default='draft')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

@@ -113,13 +113,82 @@ function OrgChartFlow() {
   const [staff, setStaff] = useState([])
   const [draggedStaff, setDraggedStaff] = useState(null)
   const [globalNotes, setGlobalNotes] = useState('')
+  const [proposals, setProposals] = useState([])
+  const [selectedProposalId, setSelectedProposalId] = useState('')
+  const [saveStatus, setSaveStatus] = useState('')
 
   useEffect(() => {
     fetch('/api/employees')
       .then(res => res.json())
       .then(data => setStaff(data))
       .catch(err => console.error('Failed to fetch staff:', err))
+    
+    fetch('/api/proposals/list')
+      .then(res => res.json())
+      .then(data => setProposals(data))
+      .catch(err => console.error('Failed to fetch proposals:', err))
   }, [])
+
+  const loadOrgChart = useCallback((proposalId) => {
+    if (!proposalId) return
+    
+    fetch(`/api/proposals/${proposalId}/orgchart`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.org_chart_data) {
+          const chartData = JSON.parse(data.org_chart_data)
+          setNodes(chartData.nodes || layoutedNodes)
+          setEdges(chartData.edges || layoutedEdges)
+        }
+        if (data.org_chart_notes) {
+          setGlobalNotes(data.org_chart_notes)
+        }
+        setSaveStatus('Loaded')
+        setTimeout(() => setSaveStatus(''), 2000)
+      })
+      .catch(err => {
+        console.error('Failed to load org chart:', err)
+        setSaveStatus('Failed to load')
+        setTimeout(() => setSaveStatus(''), 2000)
+      })
+  }, [setNodes, setEdges])
+
+  const saveOrgChart = useCallback(() => {
+    if (!selectedProposalId) {
+      setSaveStatus('Select a proposal first')
+      setTimeout(() => setSaveStatus(''), 2000)
+      return
+    }
+
+    const chartData = JSON.stringify({ nodes, edges })
+    
+    fetch(`/api/proposals/${selectedProposalId}/orgchart`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        org_chart_data: chartData,
+        org_chart_notes: globalNotes
+      })
+    })
+      .then(res => res.json())
+      .then(data => {
+        setSaveStatus('Saved!')
+        setTimeout(() => setSaveStatus(''), 2000)
+      })
+      .catch(err => {
+        console.error('Failed to save org chart:', err)
+        setSaveStatus('Failed to save')
+        setTimeout(() => setSaveStatus(''), 2000)
+      })
+  }, [selectedProposalId, nodes, edges, globalNotes])
+
+  const handleProposalChange = (e) => {
+    const proposalId = e.target.value
+    setSelectedProposalId(proposalId)
+    if (proposalId) {
+      loadOrgChart(proposalId)
+    }
+  }
 
   const onConnect = useCallback(
     (params) => setEdges((eds) => addEdge({ ...params, type: 'smoothstep' }, eds)),
@@ -460,6 +529,39 @@ function OrgChartFlow() {
         >
           <Controls />
           <Background variant="dots" gap={12} size={1} />
+          <Panel position="top-left" className="flex items-center gap-2 bg-white p-2 rounded shadow">
+            <select
+              value={selectedProposalId}
+              onChange={handleProposalChange}
+              className="px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-red-500"
+            >
+              <option value="">Select Proposal...</option>
+              {proposals.map(p => (
+                <option key={p.id} value={p.id}>
+                  {p.tracking_number ? `${p.tracking_number} - ` : ''}{p.name}
+                  {p.has_org_chart ? ' ✓' : ''}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={saveOrgChart}
+              disabled={!selectedProposalId}
+              className={`px-4 py-2 rounded shadow font-medium transition-colors ${
+                selectedProposalId 
+                  ? 'bg-green-600 text-white hover:bg-green-700' 
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              }`}
+            >
+              Save to Proposal
+            </button>
+            {saveStatus && (
+              <span className={`text-sm font-medium ${
+                saveStatus.includes('Failed') ? 'text-red-600' : 'text-green-600'
+              }`}>
+                {saveStatus}
+              </span>
+            )}
+          </Panel>
           <Panel position="top-right" className="flex gap-2">
             <button
               onClick={addNewServiceType}

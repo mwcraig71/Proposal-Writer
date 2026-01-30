@@ -3505,3 +3505,44 @@ def get_all_marketing_tags():
 def orgchart():
     """Serve the org chart page"""
     return render_template('orgchart.html')
+
+
+@app.route('/api/proposals/list', methods=['GET'])
+def api_proposals_list():
+    """Get list of proposals for org chart dropdown"""
+    proposals = Proposal.query.order_by(Proposal.updated_at.desc()).all()
+    return jsonify([{
+        'id': p.id,
+        'name': p.name,
+        'tracking_number': p.tracking_number,
+        'has_org_chart': p.org_chart_data is not None
+    } for p in proposals])
+
+
+@app.route('/api/proposals/<int:proposal_id>/orgchart', methods=['GET'])
+def api_get_proposal_orgchart(proposal_id):
+    """Get org chart data for a proposal"""
+    proposal = Proposal.query.get_or_404(proposal_id)
+    return jsonify({
+        'proposal_id': proposal.id,
+        'proposal_name': proposal.name,
+        'org_chart_data': proposal.org_chart_data,
+        'org_chart_notes': proposal.org_chart_notes
+    })
+
+
+@app.route('/api/proposals/<int:proposal_id>/orgchart', methods=['POST'])
+def api_save_proposal_orgchart(proposal_id):
+    """Save org chart data to a proposal"""
+    proposal = Proposal.query.get_or_404(proposal_id)
+    data = request.get_json()
+    
+    proposal.org_chart_data = data.get('org_chart_data')
+    proposal.org_chart_notes = data.get('org_chart_notes')
+    
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'message': f'Org chart saved to proposal: {proposal.name}'
+    })
