@@ -49,11 +49,11 @@
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Owner Contact Phone</label>
-                    <input type="text" name="owner_contact_phone" id="owner_contact_phone" value="{{ project.owner_contact_phone or '' }}" class="w-full p-2 border rounded-lg">
+                    <input type="tel" name="owner_contact_phone" id="owner_contact_phone" value="{{ project.owner_contact_phone or '' }}" class="w-full p-2 border rounded-lg" autocomplete="off" data-1p-ignore="true" data-lpignore="true" data-form-type="other">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Owner Contact Email</label>
-                    <input type="email" name="owner_contact_email" id="owner_contact_email" value="{{ project.owner_contact_email or '' }}" class="w-full p-2 border rounded-lg">
+                    <input type="text" name="owner_contact_email" id="owner_contact_email" value="{{ project.owner_contact_email or '' }}" class="w-full p-2 border rounded-lg" autocomplete="off" data-1p-ignore="true" data-lpignore="true" data-form-type="other">
                 </div>
             </div>
             
