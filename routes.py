@@ -904,7 +904,8 @@ def merge_employees_page():
         'education': e.education,
         'registrations': e.registrations,
         'training': e.training,
-        'other_qualifications': e.other_qualifications
+        'other_qualifications': e.other_qualifications,
+        'bio': e.bio
     } for e in employees]
     
     return render_template('employee_merge_duplicates.html', employees=employees, employees_json=employees_data)
