@@ -10,7 +10,8 @@ from models import (
     ProjectFirmInvolvement, EmployeeProjectExperience, ProjectAlternateDescription, AISettings,
     ClientContact, ExperienceAlternateDescription, Certification, CertificationType,
     EmployeePhoto, ProjectPhoto, ProposalReference, ProposalIntelligence,
-    FirmPhoto, ProposalSelectedFirmPhoto, MarketingPhoto, ProposalSelectedMarketingPhoto
+    FirmPhoto, ProposalSelectedFirmPhoto, MarketingPhoto, ProposalSelectedMarketingPhoto,
+    EmployeeAlternateBio, FirmAlternateDescription
 )
 from replit.object_storage import Client as ObjectStorageClient
 import uuid
@@ -152,6 +153,17 @@ def save_parsed_data():
             )
             db.session.add(employee)
             db.session.commit()
+            
+            bio_text = parsed_data.get('bio')
+            if bio_text:
+                from datetime import datetime
+                alt_bio = EmployeeAlternateBio(
+                    employee_id=employee.id,
+                    label=f"Imported {datetime.now().strftime('%Y-%m-%d')}",
+                    bio=bio_text
+                )
+                db.session.add(alt_bio)
+                db.session.commit()
             
             project_experiences = parsed_data.get('project_experience', [])
             print(f"DEBUG: Found {len(project_experiences) if project_experiences else 0} project experiences for {name}")

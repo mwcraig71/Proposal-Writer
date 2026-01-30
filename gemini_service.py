@@ -34,6 +34,7 @@ EMPLOYEE_SCHEMA = {
     "role": "string (professional role/discipline)",
     "years_experience_total": "integer (total years of experience)",
     "years_experience_firm": "integer (years with current firm)",
+    "bio": "string (the introductory biographical paragraph/summary about the person - usually at the top describing their experience and expertise)",
     "education": "string (STANDARDIZED FORMAT: Each degree on new line as 'Degree, Major, Institution (Year)' - Example: 'M.S., Civil Engineering, SUNY Buffalo (1999)\\nB.S., Civil Engineering, SUNY Buffalo (1997)')",
     "registrations": "string (STANDARDIZED FORMAT: Each license on new line as 'License Type #Number, State (Expiration if known)' - Example: 'PE #12345, New York (2025)\\nPE #67890, California')",
     "training": "string (STANDARDIZED FORMAT: Each course on new line as 'Course Name (Year, Course Code)' - Example: 'Safety Inspection of In-Service Bridges (2001, NHI 130055)\\nBridge Inspection Refresher (2020, NHI 130053)')",
@@ -117,6 +118,11 @@ def parse_employee_resume(text: str) -> dict:
     prompt = f"""You are a data extraction assistant for SF330 federal forms. 
 Extract employee/personnel information from the following resume or CV text.
 
+CRITICAL: Carefully scan the ENTIRE document including ALL sections and columns. Resumes often have:
+- A left column with credentials (education, registrations, training, certifications)
+- A right column with project experience
+- An introductory bio/summary at the top
+
 Return ONLY valid JSON matching this schema:
 {json.dumps(EMPLOYEE_SCHEMA, indent=2)}
 
@@ -124,11 +130,25 @@ Return ONLY valid JSON matching this schema:
 
 If any field is not found, use null.
 
-IMPORTANT: You MUST follow the standardized formats exactly. Each entry should be on its own line (using \\n).
-- Education: "Degree, Major, Institution (Year)"
-- Registrations: "License Type #Number, State"
-- Training: "Course Name (Year, Code)" - include NHI courses, FHWA training, certifications
-- Separate training/continuing education from formal education
+CRITICAL EXTRACTION REQUIREMENTS:
+
+BIO: Extract the introductory paragraph/summary about the person (usually at the top). This describes their overall experience, expertise areas, and career highlights. Do NOT leave this empty if a bio/summary exists.
+
+EDUCATION: Look for sections labeled "EDUCATION", "ACADEMIC", "DEGREES" - extract ALL degrees listed.
+Format: "Degree, Major/Field, Institution (Year)"
+Example from document: "B.S. Civil Engineering: SUNY Buffalo, 1997" → "B.S., Civil Engineering, SUNY Buffalo (1997)"
+
+REGISTRATIONS: Look for "PROFESSIONAL REGISTRATIONS", "LICENSES", "PE", "SE" sections.
+Include ALL states and license types. Format each on a new line.
+Examples:
+- "Professional Engineer: AL, DC, FL, GA, KS, LA, MD, NC, NE, NV, PR, SC, TN, TX, VA" → list each state
+- "Structural Engineer: GA (000958)" → "SE #000958, Georgia"
+- Include non-PE credentials like "Level 1 Rope Access Technician", "FAA Part 107 UAS Remote Pilot"
+
+TRAINING: Look for "PROFESSIONAL TRAINING", "NHI", "CERTIFICATIONS", "COURSES" sections.
+Format: "Course Name (Year, Course Code)"
+Include ALL NHI courses, FHWA training, safety certifications, etc.
+Example: "Safety Inspection of In-Service Bridges (Course No. 130055), National Highway Institute, 2021" → "Safety Inspection of In-Service Bridges (2021, NHI 130055)"
 
 PROJECT EXPERIENCE EXTRACTION:
 Extract ALL projects mentioned in the resume with as much detail as available:

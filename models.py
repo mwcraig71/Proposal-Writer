@@ -67,6 +67,7 @@ class Employee(db.Model):
     role = db.Column(db.String(255))
     years_experience_total = db.Column(db.Integer)
     years_experience_firm = db.Column(db.Integer)
+    bio = db.Column(db.Text)
     education = db.Column(db.Text)
     registrations = db.Column(db.Text)
     training = db.Column(db.Text)
@@ -83,6 +84,20 @@ class Employee(db.Model):
             parts = [self.first_name or '', self.middle_name or '', self.last_name or '']
             return ' '.join(p for p in parts if p).strip()
         return self.name
+
+
+class EmployeeAlternateBio(db.Model):
+    """Stores alternate bio versions for employees - useful for merging imported bios"""
+    __tablename__ = 'employee_alternate_bios'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False)
+    label = db.Column(db.String(255), nullable=False)
+    bio = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    employee = db.relationship('Employee', backref=db.backref('alternate_bios', lazy=True, cascade='all, delete-orphan'))
 
 
 class EmployeeProjectExperience(db.Model):
