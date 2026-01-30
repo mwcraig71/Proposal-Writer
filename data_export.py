@@ -172,7 +172,6 @@ def import_all_data(data, clear_existing=False):
             FirmAlternateDescription.query.delete()
             FirmPhoto.query.delete()
             Firm.query.delete()
-            MarketingPhoto.query.delete()
             ClientContact.query.delete()
             CertificationType.query.delete()
             AISettings.query.delete()
