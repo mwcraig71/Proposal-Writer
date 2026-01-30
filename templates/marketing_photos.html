@@ -39,6 +39,33 @@
             </form>
         </div>
         
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Import from Website</h3>
+            <form action="/marketing-photos/scrape" method="post">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Website URL</label>
+                        <input type="text" name="website_url" placeholder="https://example.com"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Min Size (KB)</label>
+                        <input type="number" name="min_size_kb" value="100" min="1"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <p class="text-xs text-gray-500 mt-1">Only import images larger than this</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Default Tags</label>
+                        <input type="text" name="default_tag" placeholder="#website, #imported"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                    <button type="submit" class="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">
+                        <i class="fas fa-globe mr-2"></i> Scrape Images
+                    </button>
+                </div>
+            </form>
+        </div>
+        
         <div class="bg-white rounded-lg shadow p-6">
             <h3 class="text-lg font-semibold text-gray-800 mb-4">Filter by Tags</h3>
             <form id="tagFilterForm" method="get" action="/marketing-photos">

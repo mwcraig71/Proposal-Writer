@@ -3503,6 +3503,121 @@ def get_all_marketing_tags():
     return jsonify(sorted(all_tags))
 
 
+@app.route('/marketing-photos/scrape', methods=['POST'])
+def scrape_marketing_photos():
+    """Scrape images from a website and add them to marketing photos"""
+    from models import MarketingPhoto
+    from bs4 import BeautifulSoup
+    from urllib.parse import urljoin, urlparse
+    import requests
+    
+    url = request.form.get('website_url', '').strip()
+    min_size_kb = int(request.form.get('min_size_kb', 100))
+    default_tag = request.form.get('default_tag', '').strip()
+    
+    if not url:
+        flash('Please enter a website URL', 'error')
+        return redirect(url_for('marketing_photos'))
+    
+    if not url.startswith(('http://', 'https://')):
+        url = 'https://' + url
+    
+    client = get_storage_client()
+    if not client:
+        flash('Object storage not configured', 'error')
+        return redirect(url_for('marketing_photos'))
+    
+    try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+        response = requests.get(url, headers=headers, timeout=30)
+        response.raise_for_status()
+        
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        img_urls = set()
+        for img in soup.find_all('img'):
+            src = img.get('src') or img.get('data-src') or img.get('data-lazy-src')
+            if src:
+                full_url = urljoin(url, src)
+                if full_url.startswith(('http://', 'https://')):
+                    img_urls.add(full_url)
+        
+        for source in soup.find_all('source'):
+            srcset = source.get('srcset')
+            if srcset:
+                for part in srcset.split(','):
+                    src = part.strip().split()[0]
+                    full_url = urljoin(url, src)
+                    if full_url.startswith(('http://', 'https://')):
+                        img_urls.add(full_url)
+        
+        imported_count = 0
+        skipped_count = 0
+        min_size_bytes = min_size_kb * 1024
+        
+        for img_url in img_urls:
+            try:
+                img_response = requests.get(img_url, headers=headers, timeout=15)
+                img_response.raise_for_status()
+                
+                content_type = img_response.headers.get('content-type', '')
+                if not content_type.startswith('image/'):
+                    skipped_count += 1
+                    continue
+                
+                img_data = img_response.content
+                if len(img_data) < min_size_bytes:
+                    skipped_count += 1
+                    continue
+                
+                parsed = urlparse(img_url)
+                original_filename = parsed.path.split('/')[-1] or 'image.jpg'
+                ext = original_filename.rsplit('.', 1)[-1].lower() if '.' in original_filename else 'jpg'
+                if ext not in ['jpg', 'jpeg', 'png', 'gif', 'webp']:
+                    ext = 'jpg'
+                
+                unique_id = str(uuid.uuid4())
+                storage_path = f"marketing/{unique_id}.{ext}"
+                
+                client.upload_from_bytes(storage_path, img_data)
+                
+                tags_list = []
+                if default_tag:
+                    tags_list = ['#' + t.strip().lstrip('#') for t in default_tag.split(',') if t.strip()]
+                
+                photo = MarketingPhoto(
+                    filename=secure_filename(original_filename),
+                    storage_path=storage_path,
+                    caption=f"Imported from {urlparse(url).netloc}",
+                    tags=','.join(tags_list),
+                    file_size=len(img_data),
+                    content_type=content_type
+                )
+                db.session.add(photo)
+                imported_count += 1
+                
+            except Exception as e:
+                print(f"Error downloading image {img_url}: {e}")
+                skipped_count += 1
+                continue
+        
+        db.session.commit()
+        
+        if imported_count > 0:
+            flash(f'Successfully imported {imported_count} images (skipped {skipped_count} images under {min_size_kb}KB or invalid)', 'success')
+        else:
+            flash(f'No images found over {min_size_kb}KB. Skipped {skipped_count} smaller images.', 'warning')
+            
+    except requests.RequestException as e:
+        flash(f'Error fetching website: {str(e)}', 'error')
+    except Exception as e:
+        flash(f'Error scraping images: {str(e)}', 'error')
+    
+    return redirect(url_for('marketing_photos'))
+
+
 @app.route('/orgchart')
 def orgchart():
     """Serve the org chart page"""
