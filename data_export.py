@@ -123,6 +123,12 @@ def parse_date(date_str):
         return None
 
 
+def filter_model_fields(model_class, data):
+    """Filter data dict to only include valid columns for the model."""
+    valid_columns = {col.name for col in model_class.__table__.columns}
+    return {k: v for k, v in data.items() if k in valid_columns}
+
+
 def import_all_data(data, clear_existing=False):
     results = {
         'success': True,
@@ -172,7 +178,8 @@ def import_all_data(data, clear_existing=False):
             old_id = item.pop('id', None)
             item.pop('created_at', None)
             item.pop('updated_at', None)
-            contact = ClientContact(**item)
+            filtered_item = filter_model_fields(ClientContact, item)
+            contact = ClientContact(**filtered_item)
             db.session.add(contact)
             count += 1
         results['imported']['client_contacts'] = count
@@ -184,7 +191,8 @@ def import_all_data(data, clear_existing=False):
             item.pop('created_at', None)
             item.pop('updated_at', None)
             parent_id = item.pop('parent_firm_id', None)
-            firm = Firm(**item)
+            filtered_item = filter_model_fields(Firm, item)
+            firm = Firm(**filtered_item)
             db.session.add(firm)
             db.session.flush()
             id_maps['firms'][old_id] = firm.id
@@ -210,7 +218,8 @@ def import_all_data(data, clear_existing=False):
             new_firm_id = id_maps['firms'].get(old_firm_id)
             if new_firm_id:
                 item['firm_id'] = new_firm_id
-                desc = FirmAlternateDescription(**item)
+                filtered_item = filter_model_fields(FirmAlternateDescription, item)
+                desc = FirmAlternateDescription(**filtered_item)
                 db.session.add(desc)
                 db.session.flush()
                 id_maps['firm_alternate_descriptions'][old_id] = desc.id
@@ -225,7 +234,8 @@ def import_all_data(data, clear_existing=False):
             old_firm_id = item.pop('firm_id', None)
             if old_firm_id:
                 item['firm_id'] = id_maps['firms'].get(old_firm_id)
-            emp = Employee(**item)
+            filtered_item = filter_model_fields(Employee, item)
+            emp = Employee(**filtered_item)
             db.session.add(emp)
             db.session.flush()
             id_maps['employees'][old_id] = emp.id
@@ -241,7 +251,8 @@ def import_all_data(data, clear_existing=False):
             new_emp_id = id_maps['employees'].get(old_emp_id)
             if new_emp_id:
                 item['employee_id'] = new_emp_id
-                bio = EmployeeAlternateBio(**item)
+                filtered_item = filter_model_fields(EmployeeAlternateBio, item)
+                bio = EmployeeAlternateBio(**filtered_item)
                 db.session.add(bio)
                 count += 1
         results['imported']['employee_alternate_bios'] = count
@@ -255,7 +266,8 @@ def import_all_data(data, clear_existing=False):
             new_emp_id = id_maps['employees'].get(old_emp_id)
             if new_emp_id:
                 item['employee_id'] = new_emp_id
-                exp = EmployeeProjectExperience(**item)
+                filtered_item = filter_model_fields(EmployeeProjectExperience, item)
+                exp = EmployeeProjectExperience(**filtered_item)
                 db.session.add(exp)
                 db.session.flush()
                 id_maps['employee_project_experiences'][old_id] = exp.id
@@ -271,7 +283,8 @@ def import_all_data(data, clear_existing=False):
             new_exp_id = id_maps['employee_project_experiences'].get(old_exp_id)
             if new_exp_id:
                 item['experience_id'] = new_exp_id
-                desc = ExperienceAlternateDescription(**item)
+                filtered_item = filter_model_fields(ExperienceAlternateDescription, item)
+                desc = ExperienceAlternateDescription(**filtered_item)
                 db.session.add(desc)
                 count += 1
         results['imported']['experience_alternate_descriptions'] = count
@@ -281,7 +294,8 @@ def import_all_data(data, clear_existing=False):
             old_id = item.pop('id', None)
             item.pop('created_at', None)
             item.pop('updated_at', None)
-            proj = Project(**item)
+            filtered_item = filter_model_fields(Project, item)
+            proj = Project(**filtered_item)
             db.session.add(proj)
             db.session.flush()
             id_maps['projects'][old_id] = proj.id
@@ -297,7 +311,8 @@ def import_all_data(data, clear_existing=False):
             new_proj_id = id_maps['projects'].get(old_proj_id)
             if new_proj_id:
                 item['project_id'] = new_proj_id
-                desc = ProjectAlternateDescription(**item)
+                filtered_item = filter_model_fields(ProjectAlternateDescription, item)
+                desc = ProjectAlternateDescription(**filtered_item)
                 db.session.add(desc)
                 db.session.flush()
                 id_maps['project_alternate_descriptions'][old_id] = desc.id
@@ -315,7 +330,8 @@ def import_all_data(data, clear_existing=False):
             if new_emp_id and new_proj_id:
                 item['employee_id'] = new_emp_id
                 item['project_id'] = new_proj_id
-                link = EmployeeProjectLink(**item)
+                filtered_item = filter_model_fields(EmployeeProjectLink, item)
+                link = EmployeeProjectLink(**filtered_item)
                 db.session.add(link)
                 count += 1
         results['imported']['employee_project_links'] = count
@@ -330,7 +346,8 @@ def import_all_data(data, clear_existing=False):
             if new_proj_id and new_firm_id:
                 item['project_id'] = new_proj_id
                 item['firm_id'] = new_firm_id
-                inv = ProjectFirmInvolvement(**item)
+                filtered_item = filter_model_fields(ProjectFirmInvolvement, item)
+                inv = ProjectFirmInvolvement(**filtered_item)
                 db.session.add(inv)
                 count += 1
         results['imported']['project_firm_involvements'] = count
@@ -346,7 +363,8 @@ def import_all_data(data, clear_existing=False):
                 item['firm_id'] = id_maps['firms'].get(old_firm_id)
             if old_bio_id:
                 item['firm_bio_alternate_id'] = id_maps['firm_alternate_descriptions'].get(old_bio_id)
-            prop = Proposal(**item)
+            filtered_item = filter_model_fields(Proposal, item)
+            prop = Proposal(**filtered_item)
             db.session.add(prop)
             db.session.flush()
             id_maps['proposals'][old_id] = prop.id
@@ -363,7 +381,8 @@ def import_all_data(data, clear_existing=False):
             if new_prop_id and new_emp_id:
                 item['proposal_id'] = new_prop_id
                 item['employee_id'] = new_emp_id
-                sel = ProposalSelectedEmployee(**item)
+                filtered_item = filter_model_fields(ProposalSelectedEmployee, item)
+                sel = ProposalSelectedEmployee(**filtered_item)
                 db.session.add(sel)
                 db.session.flush()
                 id_maps['proposal_selected_employees'][old_id] = sel.id
@@ -380,7 +399,8 @@ def import_all_data(data, clear_existing=False):
             if new_sel_id and new_proj_id:
                 item['proposal_selected_employee_id'] = new_sel_id
                 item['project_id'] = new_proj_id
-                rel = ProposalEmployeeRelevantProject(**item)
+                filtered_item = filter_model_fields(ProposalEmployeeRelevantProject, item)
+                rel = ProposalEmployeeRelevantProject(**filtered_item)
                 db.session.add(rel)
                 count += 1
         results['imported']['proposal_employee_relevant_projects'] = count
@@ -398,7 +418,8 @@ def import_all_data(data, clear_existing=False):
                 item['project_id'] = new_proj_id
                 if old_alt_id:
                     item['alternate_description_id'] = id_maps['project_alternate_descriptions'].get(old_alt_id)
-                sel = ProposalSelectedProject(**item)
+                filtered_item = filter_model_fields(ProposalSelectedProject, item)
+                sel = ProposalSelectedProject(**filtered_item)
                 db.session.add(sel)
                 count += 1
         results['imported']['proposal_selected_projects'] = count
@@ -416,7 +437,8 @@ def import_all_data(data, clear_existing=False):
                     item['expiration_date'] = parse_date(item['expiration_date'])
                 if item.get('issue_date'):
                     item['issue_date'] = parse_date(item['issue_date'])
-                cert = Certification(**item)
+                filtered_item = filter_model_fields(Certification, item)
+                cert = Certification(**filtered_item)
                 db.session.add(cert)
                 count += 1
         results['imported']['certifications'] = count
@@ -430,7 +452,8 @@ def import_all_data(data, clear_existing=False):
                 category=item.get('category')
             ).first()
             if not existing:
-                ct = CertificationType(**item)
+                filtered_item = filter_model_fields(CertificationType, item)
+                ct = CertificationType(**filtered_item)
                 db.session.add(ct)
                 count += 1
         results['imported']['certification_types'] = count
@@ -443,7 +466,8 @@ def import_all_data(data, clear_existing=False):
             if existing:
                 existing.setting_value = item.get('setting_value')
             else:
-                setting = AISettings(**item)
+                filtered_item = filter_model_fields(AISettings, item)
+                setting = AISettings(**filtered_item)
                 db.session.add(setting)
             count += 1
         results['imported']['ai_settings'] = count
