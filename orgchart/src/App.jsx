@@ -287,7 +287,7 @@ function OrgChartFlow() {
       type: 'custom',
       position: { x: parentNode.position.x, y: parentNode.position.y + 120 },
       data: { 
-        role: 'Team Member', 
+        role: 'Team Leader', 
         assignedStaff: null, 
         isTeamMember: true,
         parentId: parentNodeId,

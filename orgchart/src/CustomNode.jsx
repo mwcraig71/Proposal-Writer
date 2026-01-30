@@ -76,7 +76,7 @@ function CustomNode({ data, selected, id }) {
           <div className="text-[10px] text-red-600 font-bold uppercase tracking-wide mb-1">Task Lead</div>
         )}
         {isTeamMember && (
-          <div className="text-[10px] text-gray-600 font-bold uppercase tracking-wide mb-1">Team Member</div>
+          <div className="text-[10px] text-gray-600 font-bold uppercase tracking-wide mb-1">Team Leader</div>
         )}
         <div className="font-semibold text-gray-900 text-sm leading-tight break-words">
           {data.role}
