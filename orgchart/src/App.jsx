@@ -125,7 +125,14 @@ function OrgChartFlow() {
     
     fetch('/api/proposals/list')
       .then(res => res.json())
-      .then(data => setProposals(data))
+      .then(data => {
+        setProposals(data)
+        const urlParams = new URLSearchParams(window.location.search)
+        const proposalId = urlParams.get('proposal')
+        if (proposalId) {
+          setSelectedProposalId(proposalId)
+        }
+      })
       .catch(err => console.error('Failed to fetch proposals:', err))
   }, [])
 
@@ -189,6 +196,12 @@ function OrgChartFlow() {
       loadOrgChart(proposalId)
     }
   }
+
+  useEffect(() => {
+    if (selectedProposalId && proposals.length > 0) {
+      loadOrgChart(selectedProposalId)
+    }
+  }, [selectedProposalId, proposals.length, loadOrgChart])
 
   const onConnect = useCallback(
     (params) => setEdges((eds) => addEdge({ ...params, type: 'smoothstep' }, eds)),

@@ -1906,7 +1906,9 @@ def generate_cover_letter(id):
         style=style,
         tone=tone,
         custom_instructions=custom_instructions,
-        reference_proposals=reference_proposals_text
+        reference_proposals=reference_proposals_text,
+        org_chart_data=proposal.org_chart_data or '',
+        org_chart_notes=proposal.org_chart_notes or ''
     )
     
     proposal.cover_letter = result.get('cover_letter', '')

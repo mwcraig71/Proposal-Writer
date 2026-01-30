@@ -865,7 +865,9 @@ def generate_cover_letter_ai(
     style: str = '',
     tone: str = '',
     custom_instructions: str = '',
-    reference_proposals: str = ''
+    reference_proposals: str = '',
+    org_chart_data: str = '',
+    org_chart_notes: str = ''
 ) -> dict:
     """Generate a cover letter and written sections using RFP + firm + staff + project data."""
     
@@ -890,6 +892,39 @@ The following text is from previously successful proposals. Use these as example
 ---END REFERENCE MATERIALS---
 """
     
+    org_chart_section = ""
+    if org_chart_data:
+        try:
+            chart_json = json.loads(org_chart_data)
+            nodes = chart_json.get('nodes', [])
+            org_structure = []
+            for node in nodes:
+                data = node.get('data', {})
+                role = data.get('role', '')
+                assigned_staff = data.get('assignedStaff', '')
+                staff_list = data.get('staffList', [])
+                if role:
+                    if assigned_staff:
+                        org_structure.append(f"- {role}: {assigned_staff}")
+                    elif staff_list:
+                        org_structure.append(f"- {role}: {', '.join(staff_list)}")
+                    else:
+                        org_structure.append(f"- {role}: (Unassigned)")
+            
+            if org_structure:
+                org_chart_section = f"""
+PROJECT ORGANIZATIONAL STRUCTURE:
+The following is the project's organizational chart showing team structure and role assignments:
+
+{chr(10).join(org_structure)}
+{f'{chr(10)}Notes: {org_chart_notes}' if org_chart_notes else ''}
+
+Use this organizational structure to describe the management approach and team composition in the proposal.
+---END ORG CHART---
+"""
+        except (json.JSONDecodeError, KeyError):
+            pass
+    
     prompt = f"""You are an expert proposal writer for Architect-Engineer (A/E) federal contracts. Generate a professional cover letter and relevant written sections for an SF330 submission.
 
 CONTRACT INFORMATION:
@@ -909,6 +944,7 @@ RELEVANT PROJECTS:
 RFP/RFQ REQUIREMENTS (if available):
 {rfp_text[:15000] if rfp_text else 'RFP text not available'}
 {reference_section}
+{org_chart_section}
 
 WRITING SPECIFICATIONS:
 - Style: {style or 'Professional and technical'}
