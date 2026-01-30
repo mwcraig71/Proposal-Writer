@@ -14,12 +14,22 @@ function CustomNode({ data, selected, id }) {
     event.dataTransfer.effectAllowed = 'move'
   }
 
+  const handleAddTeamMember = (event) => {
+    event.stopPropagation()
+    if (data.onAddTeamMember) {
+      data.onAddTeamMember(id)
+    }
+  }
+
+  const isTaskLead = data.isTaskLead
+  const isTeamMember = data.isTeamMember
+
   return (
     <div
       className={`
-        w-44 min-h-[60px] p-3 rounded bg-white border-2 shadow-md
-        ${selected ? 'border-blue-500 shadow-lg' : 'border-blue-800'}
-        ${data.assignedStaff ? 'bg-green-50' : 'bg-white'}
+        w-44 min-h-[60px] p-3 rounded border-2 shadow-md
+        ${selected ? 'border-blue-500 shadow-lg' : isTaskLead ? 'border-orange-600' : isTeamMember ? 'border-green-600' : 'border-blue-800'}
+        ${data.assignedStaff ? (isTeamMember ? 'bg-green-100' : 'bg-green-50') : (isTaskLead ? 'bg-orange-50' : 'bg-white')}
       `}
     >
       <Handle
@@ -28,6 +38,12 @@ function CustomNode({ data, selected, id }) {
         className="w-3 h-3 bg-blue-600 border-2 border-white"
       />
       <div className="text-center">
+        {isTaskLead && (
+          <div className="text-[10px] text-orange-600 font-bold uppercase tracking-wide mb-1">Task Lead</div>
+        )}
+        {isTeamMember && (
+          <div className="text-[10px] text-green-600 font-bold uppercase tracking-wide mb-1">Team Member</div>
+        )}
         <div className="font-semibold text-gray-800 text-sm leading-tight break-words">
           {data.role}
         </div>
@@ -40,6 +56,15 @@ function CustomNode({ data, selected, id }) {
           >
             {data.assignedStaff}
           </div>
+        )}
+        {isTaskLead && (
+          <button
+            onClick={handleAddTeamMember}
+            className="mt-2 text-[10px] px-2 py-1 bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors"
+            title="Add a team member under this task lead"
+          >
+            + Add Team Member
+          </button>
         )}
       </div>
       <Handle

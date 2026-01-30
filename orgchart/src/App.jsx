@@ -48,14 +48,14 @@ const getLayoutedElements = (nodes, edges, direction = 'TB') => {
 }
 
 const initialNodes = [
-  { id: 'pm', type: 'custom', data: { role: 'Project Manager (PM)', assignedStaff: null }, position: { x: 0, y: 0 } },
-  { id: 'safety', type: 'custom', data: { role: 'Safety Officer', assignedStaff: null }, position: { x: 0, y: 0 } },
-  { id: 'qaqc', type: 'custom', data: { role: 'QA/QC Manager', assignedStaff: null }, position: { x: 0, y: 0 } },
-  { id: 'topside', type: 'custom', data: { role: 'Top Side Inspection', assignedStaff: null }, position: { x: 0, y: 0 } },
-  { id: 'underwater', type: 'custom', data: { role: 'Underwater Inspection', assignedStaff: null }, position: { x: 0, y: 0 } },
-  { id: 'loadrating', type: 'custom', data: { role: 'Load Rating', assignedStaff: null }, position: { x: 0, y: 0 } },
-  { id: 'loadtesting', type: 'custom', data: { role: 'Load Testing', assignedStaff: null }, position: { x: 0, y: 0 } },
-  { id: 'ndt', type: 'custom', data: { role: 'NDT', assignedStaff: null }, position: { x: 0, y: 0 } },
+  { id: 'pm', type: 'custom', data: { role: 'Project Manager (PM)', assignedStaff: null, isTaskLead: false }, position: { x: 0, y: 0 } },
+  { id: 'safety', type: 'custom', data: { role: 'Safety Officer', assignedStaff: null, isTaskLead: false }, position: { x: 0, y: 0 } },
+  { id: 'qaqc', type: 'custom', data: { role: 'QA/QC Manager', assignedStaff: null, isTaskLead: false }, position: { x: 0, y: 0 } },
+  { id: 'topside', type: 'custom', data: { role: 'Top Side Inspection Task Lead', assignedStaff: null, isTaskLead: true, parentId: 'qaqc' }, position: { x: 0, y: 0 } },
+  { id: 'underwater', type: 'custom', data: { role: 'Underwater Inspection Task Lead', assignedStaff: null, isTaskLead: true, parentId: 'qaqc' }, position: { x: 0, y: 0 } },
+  { id: 'loadrating', type: 'custom', data: { role: 'Load Rating Task Lead', assignedStaff: null, isTaskLead: true, parentId: 'qaqc' }, position: { x: 0, y: 0 } },
+  { id: 'loadtesting', type: 'custom', data: { role: 'Load Testing Task Lead', assignedStaff: null, isTaskLead: true, parentId: 'qaqc' }, position: { x: 0, y: 0 } },
+  { id: 'ndt', type: 'custom', data: { role: 'NDT Task Lead', assignedStaff: null, isTaskLead: true, parentId: 'qaqc' }, position: { x: 0, y: 0 } },
 ]
 
 const initialEdges = [
@@ -228,6 +228,81 @@ function OrgChartFlow() {
     )
   }, [setNodes])
 
+  const addTeamMember = useCallback((parentNodeId) => {
+    const parentNode = nodes.find(n => n.id === parentNodeId)
+    if (!parentNode) return
+
+    const newNodeId = `team-${Date.now()}`
+    const newNode = {
+      id: newNodeId,
+      type: 'custom',
+      position: { x: parentNode.position.x, y: parentNode.position.y + 120 },
+      data: { 
+        role: 'Team Member', 
+        assignedStaff: null, 
+        isTeamMember: true,
+        parentId: parentNodeId,
+        onAddTeamMember: addTeamMember
+      },
+    }
+    const newEdge = {
+      id: `e-${parentNodeId}-${newNodeId}`,
+      source: parentNodeId,
+      target: newNodeId,
+      type: 'smoothstep'
+    }
+    
+    setNodes((nds) => [...nds, newNode])
+    setEdges((eds) => [...eds, newEdge])
+    
+    setTimeout(() => {
+      const { nodes: layouted } = getLayoutedElements([...nodes, newNode], [...edges, newEdge])
+      setNodes(layouted)
+    }, 50)
+  }, [nodes, edges, setNodes, setEdges])
+
+  const addNewServiceType = useCallback(() => {
+    const serviceName = prompt('Enter new service type name:', 'New Service')
+    if (!serviceName || serviceName.trim() === '') return
+
+    const newNodeId = `service-${Date.now()}`
+    const qaqcNode = nodes.find(n => n.id === 'qaqc')
+    const newNode = {
+      id: newNodeId,
+      type: 'custom',
+      position: { x: qaqcNode ? qaqcNode.position.x + 200 : 400, y: qaqcNode ? qaqcNode.position.y + 120 : 300 },
+      data: { 
+        role: `${serviceName.trim()} Task Lead`, 
+        assignedStaff: null, 
+        isTaskLead: true,
+        parentId: 'qaqc',
+        onAddTeamMember: addTeamMember
+      },
+    }
+    const newEdge = {
+      id: `e-qaqc-${newNodeId}`,
+      source: 'qaqc',
+      target: newNodeId,
+      type: 'smoothstep'
+    }
+    
+    setNodes((nds) => [...nds, newNode])
+    setEdges((eds) => [...eds, newEdge])
+    
+    setTimeout(() => {
+      const { nodes: layouted } = getLayoutedElements([...nodes, newNode], [...edges, newEdge])
+      setNodes(layouted)
+    }, 50)
+  }, [nodes, edges, setNodes, setEdges, addTeamMember])
+
+  const nodesWithCallbacks = nodes.map(node => ({
+    ...node,
+    data: {
+      ...node.data,
+      onAddTeamMember: addTeamMember
+    }
+  }))
+
   return (
     <div className="flex h-screen w-full">
       <div className="w-64 bg-gray-100 border-r border-gray-300 flex flex-col">
@@ -258,7 +333,7 @@ function OrgChartFlow() {
 
       <div className="flex-1" ref={reactFlowWrapper}>
         <ReactFlow
-          nodes={nodes}
+          nodes={nodesWithCallbacks}
           edges={edges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
@@ -274,6 +349,12 @@ function OrgChartFlow() {
           <Controls />
           <Background variant="dots" gap={12} size={1} />
           <Panel position="top-right" className="flex gap-2">
+            <button
+              onClick={addNewServiceType}
+              className="px-4 py-2 bg-orange-500 text-white rounded shadow hover:bg-orange-600 transition-colors font-medium"
+            >
+              + Add Service Type
+            </button>
             <button
               onClick={onResetLayout}
               className="px-4 py-2 bg-blue-600 text-white rounded shadow hover:bg-blue-700 transition-colors font-medium"
