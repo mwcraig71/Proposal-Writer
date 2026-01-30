@@ -25,6 +25,10 @@ author = "agent"
 task = "workflow.run"
 args = "SF330 Web Server"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Org Chart Dev Server"
+
 [[workflows.workflow]]
 name = "SF330 Web Server"
 author = "agent"
@@ -37,9 +41,25 @@ waitForPort = 5000
 [workflows.workflow.metadata]
 outputType = "webview"
 
+[[workflows.workflow]]
+name = "Org Chart Dev Server"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd orgchart && npm run dev"
+waitForPort = 5173
+
+[workflows.workflow.metadata]
+outputType = "console"
+
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[[ports]]
+localPort = 5173
+externalPort = 5173
 
 [deployment]
 deploymentTarget = "autoscale"

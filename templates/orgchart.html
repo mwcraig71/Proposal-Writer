@@ -1,62 +1,61 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Org Chart Builder - SF330 AI</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        body, html {
-            margin: 0;
-            padding: 0;
-            height: 100%;
-            overflow: hidden;
-        }
-        .app-container {
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-        }
-        .orgchart-frame {
-            flex: 1;
-            border: none;
-            width: 100%;
-        }
-    </style>
-</head>
-<body>
-    <div class="app-container">
-        <nav class="bg-blue-900 text-white shadow-lg flex-shrink-0">
-            <div class="max-w-full mx-auto px-4">
-                <div class="flex justify-between items-center h-14">
-                    <a href="/" class="flex items-center space-x-2">
-                        <i class="fas fa-file-alt text-xl"></i>
-                        <span class="font-bold text-lg">SF330 AI</span>
-                    </a>
-                    <div class="flex items-center space-x-4">
-                        <span class="text-blue-200">Org Chart Builder</span>
-                        <a href="/" class="hover:text-blue-200 transition text-sm">
-                            <i class="fas fa-arrow-left mr-1"></i> Back to Dashboard
-                        </a>
-                    </div>
-                    <div class="hidden md:flex space-x-4 text-sm">
-                        <a href="/firms" class="hover:text-blue-200 transition">Firms</a>
-                        <a href="/employees" class="hover:text-blue-200 transition">Personnel</a>
-                        <a href="/projects" class="hover:text-blue-200 transition">Projects</a>
-                        <a href="/proposals" class="hover:text-blue-200 transition">Proposals</a>
-                    </div>
-                </div>
-            </div>
-        </nav>
-        <iframe id="orgchart-frame" class="orgchart-frame" src="http://0.0.0.0:5173"></iframe>
+{% extends "base.html" %}
+
+{% block title %}Org Chart Builder - SF330 AI{% endblock %}
+
+{% block content %}
+<div class="text-center py-20">
+    <div class="mb-8">
+        <i class="fas fa-sitemap text-6xl text-blue-600 mb-4"></i>
+        <h1 class="text-3xl font-bold text-gray-800">Organizational Chart Builder</h1>
+        <p class="text-gray-600 mt-2 max-w-2xl mx-auto">
+            Create and manage your project organizational chart. Drag staff from the sidebar to assign them to roles. 
+            The chart uses orthogonal lines for a clean, structural engineering look.
+        </p>
     </div>
-    <script>
-        // Dynamically set iframe src based on current host
-        const frame = document.getElementById('orgchart-frame');
-        const currentHost = window.location.hostname;
-        // Use same host but different port for Vite dev server
-        frame.src = window.location.protocol + '//' + currentHost + ':5173';
-    </script>
-</body>
-</html>
+    
+    <div class="bg-white rounded-lg shadow-lg p-8 max-w-2xl mx-auto mb-8">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">Features</h2>
+        <div class="grid grid-cols-2 gap-4 text-left">
+            <div class="flex items-start gap-3">
+                <i class="fas fa-check-circle text-green-500 mt-1"></i>
+                <span>Pre-configured hierarchy template</span>
+            </div>
+            <div class="flex items-start gap-3">
+                <i class="fas fa-check-circle text-green-500 mt-1"></i>
+                <span>Drag & drop staff assignment</span>
+            </div>
+            <div class="flex items-start gap-3">
+                <i class="fas fa-check-circle text-green-500 mt-1"></i>
+                <span>Top-down layout with auto-align</span>
+            </div>
+            <div class="flex items-start gap-3">
+                <i class="fas fa-check-circle text-green-500 mt-1"></i>
+                <span>Orthogonal connecting lines</span>
+            </div>
+            <div class="flex items-start gap-3">
+                <i class="fas fa-check-circle text-green-500 mt-1"></i>
+                <span>Create new roles by dropping into empty space</span>
+            </div>
+            <div class="flex items-start gap-3">
+                <i class="fas fa-check-circle text-green-500 mt-1"></i>
+                <span>Reset layout button to clean up</span>
+            </div>
+        </div>
+    </div>
+    
+    <a id="launch-orgchart" href="#" target="_blank" 
+       class="inline-flex items-center gap-2 bg-blue-600 text-white px-8 py-4 rounded-lg text-xl font-semibold hover:bg-blue-700 transition shadow-lg">
+        <i class="fas fa-external-link-alt"></i>
+        Launch Org Chart Builder
+    </a>
+    
+    <p class="text-gray-500 text-sm mt-4">Opens in a new tab for the best experience</p>
+</div>
+
+<script>
+    const currentHost = window.location.hostname;
+    const currentProtocol = window.location.protocol;
+    const orgchartUrl = currentProtocol + '//' + currentHost + ':5173';
+    document.getElementById('launch-orgchart').href = orgchartUrl;
+</script>
+{% endblock %}

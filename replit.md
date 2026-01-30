@@ -34,7 +34,13 @@ MVP implementation complete with:
 │   ├── projects.html
 │   ├── firms.html
 │   ├── proposals.html
+│   ├── orgchart.html
 │   └── proposal_wizard_*.html
+├── orgchart/            # React/Vite Org Chart app (port 5173)
+│   ├── src/App.jsx      # Main org chart component
+│   ├── src/CustomNode.jsx # Custom node component
+│   ├── vite.config.js   # Vite configuration with API proxy
+│   └── package.json     # Node dependencies
 └── attached_assets/     # SF330 PDF template
 ```
 
@@ -68,6 +74,15 @@ The AI parsing enforces consistent formats for personnel data:
 - **Other Qualifications:** Certifications, awards, publications - one per line
 
 ## Recent Changes
+- Added Interactive Organizational Chart Builder (Jan 2026)
+  - React/Vite app in orgchart/ directory using @xyflow/react and dagre
+  - Pre-configured hierarchy: Project Manager -> Safety Officer -> QA/QC Manager -> 5 inspection roles
+  - Drag-and-drop staff assignment from sidebar to chart nodes
+  - Create new roles by dropping staff into empty canvas space
+  - Orthogonal (smoothstep) connecting lines for structural engineering look
+  - Top-down auto-layout using dagre with "Reset Layout" button
+  - Available at /orgchart route, links to Vite dev server on port 5173
+  - API integration via Vite proxy to Flask backend (/api/employees)
 - Added personnel import from company websites (Jan 2026)
   - "Import from Website" button on Personnel page
   - Enter a team/about page URL to scrape personnel information
