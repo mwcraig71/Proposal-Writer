@@ -114,6 +114,55 @@
                     <textarea name="bio" rows="6" class="w-full p-2 border rounded-lg" placeholder="Describe your firm's capabilities, history, and expertise...">{{ firm.bio or '' }}</textarea>
                 </div>
                 
+                <div class="border-t pt-4 mt-4">
+                    <h3 class="font-medium text-gray-700 mb-3"><i class="fas fa-chart-bar text-blue-600 mr-2"></i>Firm Statistics</h3>
+                    <p class="text-sm text-gray-500 mb-4">Track key metrics for proposals. Timestamps update automatically when values change.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Bridges Inspected</label>
+                            <input type="number" name="stat_bridges_inspected" value="{{ firm.stat_bridges_inspected or '' }}" class="w-full p-2 border rounded-lg" placeholder="Total count">
+                            {% if firm.stat_bridges_inspected_updated %}
+                            <p class="text-xs text-gray-400 mt-1"><i class="fas fa-clock mr-1"></i>Updated: {{ firm.stat_bridges_inspected_updated.strftime('%b %d, %Y %I:%M %p') }}</p>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Length of Bridge Inspected</label>
+                            <input type="text" name="stat_length_bridge_inspected" value="{{ firm.stat_length_bridge_inspected or '' }}" class="w-full p-2 border rounded-lg" placeholder="e.g., 500,000 LF">
+                            {% if firm.stat_length_bridge_inspected_updated %}
+                            <p class="text-xs text-gray-400 mt-1"><i class="fas fa-clock mr-1"></i>Updated: {{ firm.stat_length_bridge_inspected_updated.strftime('%b %d, %Y %I:%M %p') }}</p>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">FCM Bridge Inspections</label>
+                            <input type="number" name="stat_fcm_bridge_inspections" value="{{ firm.stat_fcm_bridge_inspections or '' }}" class="w-full p-2 border rounded-lg" placeholder="Total count">
+                            {% if firm.stat_fcm_bridge_inspections_updated %}
+                            <p class="text-xs text-gray-400 mt-1"><i class="fas fa-clock mr-1"></i>Updated: {{ firm.stat_fcm_bridge_inspections_updated.strftime('%b %d, %Y %I:%M %p') }}</p>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Load Ratings Performed</label>
+                            <input type="number" name="stat_load_ratings_performed" value="{{ firm.stat_load_ratings_performed or '' }}" class="w-full p-2 border rounded-lg" placeholder="Total count">
+                            {% if firm.stat_load_ratings_performed_updated %}
+                            <p class="text-xs text-gray-400 mt-1"><i class="fas fa-clock mr-1"></i>Updated: {{ firm.stat_load_ratings_performed_updated.strftime('%b %d, %Y %I:%M %p') }}</p>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Critical Findings</label>
+                            <input type="number" name="stat_critical_findings" value="{{ firm.stat_critical_findings or '' }}" class="w-full p-2 border rounded-lg" placeholder="Total count">
+                            {% if firm.stat_critical_findings_updated %}
+                            <p class="text-xs text-gray-400 mt-1"><i class="fas fa-clock mr-1"></i>Updated: {{ firm.stat_critical_findings_updated.strftime('%b %d, %Y %I:%M %p') }}</p>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Timber Inspections</label>
+                            <input type="number" name="stat_timber_inspections" value="{{ firm.stat_timber_inspections or '' }}" class="w-full p-2 border rounded-lg" placeholder="Total count">
+                            {% if firm.stat_timber_inspections_updated %}
+                            <p class="text-xs text-gray-400 mt-1"><i class="fas fa-clock mr-1"></i>Updated: {{ firm.stat_timber_inspections_updated.strftime('%b %d, %Y %I:%M %p') }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
                 <button type="submit" class="w-full bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition">
                     <i class="fas fa-save mr-2"></i> Save Changes
                 </button>

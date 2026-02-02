@@ -46,6 +46,20 @@ class Firm(db.Model):
     bio = db.Column(db.Text)
     is_branch = db.Column(db.Boolean, default=False)
     parent_firm_id = db.Column(db.Integer, db.ForeignKey('firms.id'), nullable=True)
+    
+    stat_bridges_inspected = db.Column(db.Integer)
+    stat_bridges_inspected_updated = db.Column(db.DateTime)
+    stat_length_bridge_inspected = db.Column(db.String(100))
+    stat_length_bridge_inspected_updated = db.Column(db.DateTime)
+    stat_fcm_bridge_inspections = db.Column(db.Integer)
+    stat_fcm_bridge_inspections_updated = db.Column(db.DateTime)
+    stat_load_ratings_performed = db.Column(db.Integer)
+    stat_load_ratings_performed_updated = db.Column(db.DateTime)
+    stat_critical_findings = db.Column(db.Integer)
+    stat_critical_findings_updated = db.Column(db.DateTime)
+    stat_timber_inspections = db.Column(db.Integer)
+    stat_timber_inspections_updated = db.Column(db.DateTime)
+    
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     

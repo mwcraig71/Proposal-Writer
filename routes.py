@@ -1482,6 +1482,27 @@ def edit_firm(id):
         firm.point_of_contact_name = data.get('point_of_contact_name')
         firm.point_of_contact_title = data.get('point_of_contact_title')
         firm.bio = data.get('bio')
+        
+        from datetime import datetime
+        stat_fields = [
+            ('stat_bridges_inspected', 'int'),
+            ('stat_length_bridge_inspected', 'str'),
+            ('stat_fcm_bridge_inspections', 'int'),
+            ('stat_load_ratings_performed', 'int'),
+            ('stat_critical_findings', 'int'),
+            ('stat_timber_inspections', 'int')
+        ]
+        for field, field_type in stat_fields:
+            new_val = data.get(field)
+            old_val = getattr(firm, field)
+            if field_type == 'int':
+                new_val = int(new_val) if new_val else None
+            else:
+                new_val = new_val if new_val else None
+            if new_val != old_val:
+                setattr(firm, field, new_val)
+                setattr(firm, f'{field}_updated', datetime.utcnow())
+        
         db.session.commit()
         return redirect(f'/firms/{firm.id}')
     
