@@ -2093,27 +2093,51 @@ def employee_relevant_projects(id, emp_id):
     pse = ProposalSelectedEmployee.query.filter_by(proposal_id=id, employee_id=emp_id).first_or_404()
     
     if request.method == 'GET':
-        all_projects = Project.query.order_by(Project.title).all()
-        selected_ids = [rp.project_id for rp in pse.relevant_projects]
         employee = Employee.query.get(emp_id)
+        selected_project_ids = [rp.project_id for rp in pse.relevant_projects if rp.project_id]
+        selected_experience_ids = [rp.experience_id for rp in pse.relevant_projects if rp.experience_id]
+        
+        linked_project_ids = [link.project_id for link in EmployeeProjectLink.query.filter_by(employee_id=emp_id).all()]
+        firm_projects = Project.query.filter(Project.id.in_(linked_project_ids)).order_by(Project.title).all() if linked_project_ids else []
+        
+        personnel_experiences = EmployeeProjectExperience.query.filter_by(employee_id=emp_id).order_by(EmployeeProjectExperience.title).all()
+        
         return render_template('employee_relevant_projects.html',
                              proposal=proposal,
                              employee=employee,
-                             projects=all_projects,
-                             selected_ids=selected_ids)
+                             firm_projects=firm_projects,
+                             personnel_experiences=personnel_experiences,
+                             selected_project_ids=selected_project_ids,
+                             selected_experience_ids=selected_experience_ids)
     
     data = request.json
-    project_ids = data.get('project_ids', [])[:5]
+    project_ids = data.get('project_ids', [])
+    experience_ids = data.get('experience_ids', [])
+    
+    total_items = project_ids[:5] if len(project_ids) >= 5 else project_ids
+    remaining_slots = 5 - len(total_items)
+    exp_to_add = experience_ids[:remaining_slots] if remaining_slots > 0 else []
     
     ProposalEmployeeRelevantProject.query.filter_by(proposal_selected_employee_id=pse.id).delete()
     
-    for idx, proj_id in enumerate(project_ids):
+    display_order = 0
+    for proj_id in total_items:
         perp = ProposalEmployeeRelevantProject(
             proposal_selected_employee_id=pse.id,
             project_id=proj_id,
-            display_order=idx
+            display_order=display_order
         )
         db.session.add(perp)
+        display_order += 1
+    
+    for exp_id in exp_to_add:
+        perp = ProposalEmployeeRelevantProject(
+            proposal_selected_employee_id=pse.id,
+            experience_id=exp_id,
+            display_order=display_order
+        )
+        db.session.add(perp)
+        display_order += 1
     
     db.session.commit()
     return jsonify({'success': True})

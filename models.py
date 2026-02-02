@@ -261,10 +261,12 @@ class ProposalEmployeeRelevantProject(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     proposal_selected_employee_id = db.Column(db.Integer, db.ForeignKey('proposal_selected_employees.id'), nullable=False)
-    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=False)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=True)
+    experience_id = db.Column(db.Integer, db.ForeignKey('employee_project_experiences.id'), nullable=True)
     display_order = db.Column(db.Integer, default=0)
     
     project = db.relationship('Project')
+    experience = db.relationship('EmployeeProjectExperience')
 
 
 class ProposalSelectedProject(db.Model):
