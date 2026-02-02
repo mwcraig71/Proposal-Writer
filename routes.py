@@ -4759,7 +4759,7 @@ UEI: {firm.uei or 'N/A'}
                     if experiences:
                         personnel_info += "Additional Project Experience:\n"
                         for exp in experiences:
-                            personnel_info += f"  * {exp.project_title} ({exp.year_completed or 'N/A'}) - {exp.role or 'N/A'}\n"
+                            personnel_info += f"  * {exp.project_title} ({exp.year_completed or 'N/A'}) - {exp.role_performed or 'N/A'}\n"
                     
                     personnel_info += "\n"
             sections['personnel'] = personnel_info
