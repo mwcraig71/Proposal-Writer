@@ -4724,7 +4724,38 @@ UEI: {firm.uei or 'N/A'}
             for pse in selected_employees:
                 emp = pse.employee
                 if emp:
-                    personnel_info += f"- {emp.display_name} | Role: {pse.role_in_contract or 'N/A'} | Title: {emp.title or 'N/A'} | Years Exp: {emp.years_experience_total or 'N/A'}\n"
+                    personnel_info += f"\n--- {emp.display_name} ---\n"
+                    personnel_info += f"Role in Contract: {pse.role_in_contract or 'N/A'}\n"
+                    personnel_info += f"Title: {emp.title or 'N/A'}\n"
+                    personnel_info += f"Years Experience: {emp.years_experience_total or 'N/A'} (with firm: {emp.years_experience_with_firm or 'N/A'})\n"
+                    if emp.education:
+                        personnel_info += f"Education: {emp.education}\n"
+                    if emp.registrations:
+                        personnel_info += f"Registrations: {emp.registrations}\n"
+                    if emp.bio:
+                        personnel_info += f"Bio: {emp.bio[:500]}\n"
+                    
+                    # Include project experience from firm (EmployeeProjectExperience)
+                    experiences = EmployeeProjectExperience.query.filter_by(employee_id=emp.id).order_by(EmployeeProjectExperience.year_completed.desc()).limit(10).all()
+                    if experiences:
+                        personnel_info += "Project Experience:\n"
+                        for exp in experiences:
+                            personnel_info += f"  * {exp.project_title} ({exp.year_completed or 'N/A'}) - {exp.role or 'N/A'}"
+                            if exp.firm_name:
+                                personnel_info += f" at {exp.firm_name}"
+                            personnel_info += "\n"
+                            if exp.brief_description:
+                                personnel_info += f"    {exp.brief_description[:200]}\n"
+                    
+                    # Include linked database projects (EmployeeProjectLink)
+                    linked_projects = EmployeeProjectLink.query.filter_by(employee_id=emp.id).all()
+                    if linked_projects:
+                        personnel_info += "Linked Database Projects:\n"
+                        for link in linked_projects:
+                            if link.project:
+                                personnel_info += f"  * {link.project.title} - Role: {link.role or 'N/A'}\n"
+                    
+                    personnel_info += "\n"
             sections['personnel'] = personnel_info
         
         selected_projects = ProposalSelectedProject.query.filter_by(proposal_id=proposal_id).all()
