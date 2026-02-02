@@ -55,10 +55,10 @@
                        {% if exp.id in selected_experience_ids %}checked{% endif %}
                        class="experience-checkbox w-5 h-5 text-green-600 rounded mr-4">
                 <label for="exp-{{ exp.id }}" class="flex-1 cursor-pointer">
-                    <span class="font-medium text-gray-800">{{ exp.title }}</span>
+                    <span class="font-medium text-gray-800">{{ exp.project_title }}</span>
                     <p class="text-sm text-gray-500">{{ exp.location or '-' }} | {{ exp.year_completed or '-' }}</p>
-                    {% if exp.role %}
-                    <p class="text-xs text-gray-400">Role: {{ exp.role }}</p>
+                    {% if exp.role_performed %}
+                    <p class="text-xs text-gray-400">Role: {{ exp.role_performed }}</p>
                     {% endif %}
                 </label>
             </div>

@@ -2100,7 +2100,7 @@ def employee_relevant_projects(id, emp_id):
         linked_project_ids = [link.project_id for link in EmployeeProjectLink.query.filter_by(employee_id=emp_id).all()]
         firm_projects = Project.query.filter(Project.id.in_(linked_project_ids)).order_by(Project.title).all() if linked_project_ids else []
         
-        personnel_experiences = EmployeeProjectExperience.query.filter_by(employee_id=emp_id).order_by(EmployeeProjectExperience.title).all()
+        personnel_experiences = EmployeeProjectExperience.query.filter_by(employee_id=emp_id).order_by(EmployeeProjectExperience.project_title).all()
         
         return render_template('employee_relevant_projects.html',
                              proposal=proposal,
