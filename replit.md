@@ -34,6 +34,7 @@ The core application is built with Python Flask, employing SQLAlchemy ORM for da
 - **AI-powered Content Rewriting:** Customizable AI assistance for text generation and refinement.
 - **Certification Management:** Tracking of employee certifications with expiration dates and PDF storage.
 - **Proposal Intelligence:** Storage and utilization of RFP/RFQ documents, previous proposals, win themes, and competitor information for AI-assisted writing.
+- **AI Proposal Assistant:** An integrated AI assistant on the proposal detail page that collects all proposal data (personnel, projects, firm info, org chart, RFP content, reference documents, intelligence files) and generates contextual responses. Uses intelligent chunked processing for large proposals—directly processing smaller proposals and summarizing sections for larger ones before generating final responses.
 
 ### System Design Choices
 - **Modular Architecture:** The application is structured into logical modules (e.g., `routes.py`, `models.py`, `gemini_service.py`) for maintainability.
