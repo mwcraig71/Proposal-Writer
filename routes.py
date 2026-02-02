@@ -4818,6 +4818,33 @@ UEI: {firm.uei or 'N/A'}
                         responses_info += f"{r.response[:800]}\n"
             sections['linked_responses'] = responses_info
         
+        linked_refs = ProposalLinkedReference.query.filter_by(proposal_id=proposal_id).all()
+        if linked_refs:
+            refs_context = "PERFORMANCE REFERENCES (Client Evaluations & Testimonials):\n"
+            for link in linked_refs[:10]:
+                ref = link.reference
+                if ref:
+                    refs_context += f"\n--- {ref.project_name or ref.client or 'Performance Reference'} ---\n"
+                    refs_context += f"Client: {ref.client or 'N/A'} | Firm: {ref.firm or 'N/A'}\n"
+                    if ref.final_score:
+                        refs_context += f"Score: {ref.final_score}/10"
+                        if ref.quality_score:
+                            refs_context += f" | Quality: {ref.quality_score}"
+                        if ref.schedule_score:
+                            refs_context += f" | Schedule: {ref.schedule_score}"
+                        if ref.responsiveness_score:
+                            refs_context += f" | Responsiveness: {ref.responsiveness_score}"
+                        refs_context += "\n"
+                    if ref.evaluation_date:
+                        refs_context += f"Date: {ref.evaluation_date.strftime('%B %Y')}\n"
+                    if ref.consultant_pm:
+                        refs_context += f"Consultant PM: {ref.consultant_pm}\n"
+                    if ref.score_summary:
+                        refs_context += f"Summary: {ref.score_summary[:500]}\n"
+                    if ref.quotes:
+                        refs_context += f"Notable Quotes: \"{ref.quotes[:500]}\"\n"
+            sections['performance_references'] = refs_context
+        
         return sections
     
     sections = collect_proposal_data()
