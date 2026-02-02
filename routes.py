@@ -4225,11 +4225,23 @@ def api_employees_ai_response():
             except:
                 pass
     
+    ai_style = AISettings.get_value('ai_writing_style', '')
+    ai_tone = AISettings.get_value('ai_writing_tone', '')
+    
+    style_instructions = ""
+    if ai_style or ai_tone:
+        style_instructions = "\n\nWriting Style Guidelines:"
+        if ai_style:
+            style_instructions += f"\n- Style: {ai_style}"
+        if ai_tone:
+            style_instructions += f"\n- Tone: {ai_tone}"
+    
     full_prompt = f"""You are a professional proposal writer. Based on the following staff information, {prompt}
 
 Staff Information:
 {'---'.join(staff_info)}
 {org_chart_context}
+{style_instructions}
 
 Please write a response of approximately {word_limit} words. Be professional, highlight the team's combined qualifications, and write in a way suitable for government proposals or professional documents."""
 
@@ -4382,10 +4394,22 @@ def api_projects_ai_response():
             info += f"Relevance: {p.relevance_writeup[:300]}...\n" if len(p.relevance_writeup or '') > 300 else f"Relevance: {p.relevance_writeup}\n"
         project_info.append(info)
     
+    ai_style = AISettings.get_value('ai_writing_style', '')
+    ai_tone = AISettings.get_value('ai_writing_tone', '')
+    
+    style_instructions = ""
+    if ai_style or ai_tone:
+        style_instructions = "\n\nWriting Style Guidelines:"
+        if ai_style:
+            style_instructions += f"\n- Style: {ai_style}"
+        if ai_tone:
+            style_instructions += f"\n- Tone: {ai_tone}"
+    
     system_prompt = f"""You are a professional proposal writer specializing in SF330 government proposals for architecture and engineering firms.
 You are helping to write content about the following projects:
 
 {chr(10).join([f'--- PROJECT {i+1} ---{chr(10)}{info}' for i, info in enumerate(project_info)])}
+{style_instructions}
 
 Write a response of approximately {word_limit} words based on the user's request.
 Focus on presenting the projects professionally and highlighting their relevance to government/infrastructure work.
