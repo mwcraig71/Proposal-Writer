@@ -71,6 +71,22 @@
         </div>
     </div>
     
+    <datalist id="role-options">
+        <option value="PM">
+        <option value="DPM">
+        <option value="QA/QC Manager">
+        <option value="Principal">
+        <option value="Task Leader-Inspections">
+        <option value="Task Leader-Load Rating">
+        <option value="Task Leader-UW Inspections">
+        <option value="Task Leader-Repair">
+        <option value="Task Leader-Load Testing">
+        <option value="Team Leader">
+        <option value="Team Member">
+        <option value="Load Rater">
+        <option value="CAD">
+    </datalist>
+    
     {% if employees %}
     <div class="space-y-4 mb-6" id="personnel-list">
         {% for employee in employees %}
@@ -86,6 +102,7 @@
                 <input type="text" placeholder="Role in this contract" 
                        data-emp-id="{{ employee.id }}" 
                        class="role-input w-full p-2 border rounded text-sm"
+                       list="role-options"
                        value="{{ selected_roles.get(employee.id, '') or '' }}">
             </div>
         </div>
