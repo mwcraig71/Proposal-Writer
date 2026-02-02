@@ -4727,7 +4727,7 @@ UEI: {firm.uei or 'N/A'}
                     personnel_info += f"\n--- {emp.display_name} ---\n"
                     personnel_info += f"Role in Contract: {pse.role_in_contract or 'N/A'}\n"
                     personnel_info += f"Title: {emp.title or 'N/A'}\n"
-                    personnel_info += f"Years Experience: {emp.years_experience_total or 'N/A'} (with firm: {emp.years_experience_with_firm or 'N/A'})\n"
+                    personnel_info += f"Years Experience: {emp.years_experience_total or 'N/A'} (with firm: {emp.years_experience_firm or 'N/A'})\n"
                     if emp.education:
                         personnel_info += f"Education: {emp.education}\n"
                     if emp.registrations:
