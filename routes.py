@@ -4393,7 +4393,7 @@ Be specific and use actual data from the project information provided."""
 
     try:
         response = client.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-2.5-flash",
             contents=prompt,
             config={
                 "system_instruction": system_prompt,
