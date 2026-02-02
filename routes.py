@@ -12,7 +12,7 @@ from models import (
     ClientContact, ExperienceAlternateDescription, Certification, CertificationType,
     EmployeePhoto, ProjectPhoto, ProposalReference, ProposalIntelligence,
     FirmPhoto, ProposalSelectedFirmPhoto, MarketingPhoto, ProposalSelectedMarketingPhoto,
-    EmployeeAlternateBio, FirmAlternateDescription
+    EmployeeAlternateBio, FirmAlternateDescription, ProposalSavedResponse
 )
 from replit.object_storage import Client as ObjectStorageClient
 import uuid
@@ -4847,3 +4847,72 @@ Be helpful, specific, and professional. Use actual data from the proposal. Provi
             'success': False,
             'error': str(e)
         }), 500
+
+
+@app.route('/api/proposals/<int:proposal_id>/saved-responses', methods=['GET'])
+def get_proposal_saved_responses(proposal_id):
+    """Get all saved AI responses for a proposal"""
+    proposal = Proposal.query.get(proposal_id)
+    if not proposal:
+        return jsonify({'success': False, 'error': 'Proposal not found'}), 404
+    
+    responses = ProposalSavedResponse.query.filter_by(proposal_id=proposal_id).order_by(ProposalSavedResponse.created_at.desc()).all()
+    
+    return jsonify({
+        'success': True,
+        'responses': [{
+            'id': r.id,
+            'prompt': r.prompt,
+            'response': r.response,
+            'label': r.label,
+            'created_at': r.created_at.strftime('%Y-%m-%d %H:%M')
+        } for r in responses]
+    })
+
+
+@app.route('/api/proposals/<int:proposal_id>/saved-responses', methods=['POST'])
+def save_proposal_response(proposal_id):
+    """Save an AI response to the proposal"""
+    proposal = Proposal.query.get(proposal_id)
+    if not proposal:
+        return jsonify({'success': False, 'error': 'Proposal not found'}), 404
+    
+    try:
+        data = request.get_json()
+    except:
+        return jsonify({'success': False, 'error': 'Invalid JSON'}), 400
+    
+    response_text = data.get('response', '').strip()
+    prompt = data.get('prompt', '').strip()
+    label = data.get('label', '').strip()
+    
+    if not response_text:
+        return jsonify({'success': False, 'error': 'Response text is required'}), 400
+    
+    saved = ProposalSavedResponse(
+        proposal_id=proposal_id,
+        prompt=prompt,
+        response=response_text,
+        label=label or None
+    )
+    db.session.add(saved)
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'id': saved.id,
+        'message': 'Response saved successfully'
+    })
+
+
+@app.route('/api/proposals/<int:proposal_id>/saved-responses/<int:response_id>', methods=['DELETE'])
+def delete_proposal_saved_response(proposal_id, response_id):
+    """Delete a saved AI response"""
+    saved = ProposalSavedResponse.query.filter_by(id=response_id, proposal_id=proposal_id).first()
+    if not saved:
+        return jsonify({'success': False, 'error': 'Saved response not found'}), 404
+    
+    db.session.delete(saved)
+    db.session.commit()
+    
+    return jsonify({'success': True, 'message': 'Response deleted'})

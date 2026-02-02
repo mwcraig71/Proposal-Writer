@@ -246,6 +246,13 @@
             </button>
             <span class="text-xs text-gray-400">Press Enter to send, Shift+Enter for new line</span>
         </div>
+        
+        <div class="mt-6 pt-4 border-t">
+            <h4 class="font-medium text-gray-700 mb-3"><i class="fas fa-bookmark mr-2"></i>Saved Responses</h4>
+            <div id="saved-responses-list" class="max-h-64 overflow-y-auto">
+                <p class="text-gray-500 text-sm">No saved responses yet.</p>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -396,7 +403,7 @@ function addMessageToChat(role, content) {
     if (role === 'assistant') {
         const header = document.createElement('div');
         header.className = 'flex justify-between items-center mb-2 pb-2 border-b';
-        header.innerHTML = '<span class="text-xs text-gray-500"><i class="fas fa-robot mr-1"></i> AI Assistant</span><button onclick="copyMessage(this)" class="text-xs text-blue-600 hover:text-blue-800"><i class="fas fa-copy"></i> Copy</button>';
+        header.innerHTML = '<span class="text-xs text-gray-500"><i class="fas fa-robot mr-1"></i> AI Assistant</span><div class="flex gap-2"><button onclick="saveMessage(this)" class="text-xs text-green-600 hover:text-green-800"><i class="fas fa-save"></i> Save</button><button onclick="copyMessage(this)" class="text-xs text-blue-600 hover:text-blue-800"><i class="fas fa-copy"></i> Copy</button></div>';
         bubble.appendChild(header);
     }
     
@@ -475,5 +482,96 @@ function copyMessage(btn) {
     btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
     setTimeout(() => btn.innerHTML = original, 2000);
 }
+
+async function saveMessage(btn) {
+    const bubble = btn.closest('.bg-white');
+    const response = bubble.querySelector('.whitespace-pre-wrap').textContent;
+    
+    const label = prompt('Enter a label for this saved response (optional):');
+    if (label === null) return; // User cancelled
+    
+    const lastUserMsg = chatHistory.filter(m => m.role === 'user').pop();
+    const promptText = lastUserMsg ? lastUserMsg.content : '';
+    
+    btn.disabled = true;
+    const original = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    
+    try {
+        const res = await fetch('/api/proposals/{{ proposal.id }}/saved-responses', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ response, prompt: promptText, label })
+        });
+        const data = await res.json();
+        if (data.success) {
+            btn.innerHTML = '<i class="fas fa-check"></i> Saved!';
+            loadSavedResponses();
+            setTimeout(() => btn.innerHTML = original, 2000);
+        } else {
+            alert(data.error || 'Failed to save');
+            btn.innerHTML = original;
+        }
+    } catch (e) {
+        alert('Error: ' + e.message);
+        btn.innerHTML = original;
+    }
+    btn.disabled = false;
+}
+
+async function loadSavedResponses() {
+    try {
+        const res = await fetch('/api/proposals/{{ proposal.id }}/saved-responses');
+        const data = await res.json();
+        const container = document.getElementById('saved-responses-list');
+        if (!data.success || !data.responses.length) {
+            container.innerHTML = '<p class="text-gray-500 text-sm">No saved responses yet.</p>';
+            return;
+        }
+        container.innerHTML = data.responses.map(r => `
+            <div class="border rounded-lg p-3 bg-white mb-2" data-id="${r.id}">
+                <div class="flex justify-between items-start mb-2">
+                    <div>
+                        <span class="font-medium text-sm">${r.label || 'Saved Response'}</span>
+                        <span class="text-xs text-gray-400 ml-2">${r.created_at}</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="copySavedResponse(this)" class="text-xs text-blue-600 hover:text-blue-800"><i class="fas fa-copy"></i></button>
+                        <button onclick="deleteSavedResponse(${r.id})" class="text-xs text-red-600 hover:text-red-800"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>
+                ${r.prompt ? `<p class="text-xs text-gray-500 mb-1"><strong>Prompt:</strong> ${r.prompt.substring(0, 100)}${r.prompt.length > 100 ? '...' : ''}</p>` : ''}
+                <div class="text-sm text-gray-700 whitespace-pre-wrap max-h-32 overflow-y-auto">${r.response}</div>
+            </div>
+        `).join('');
+    } catch (e) {
+        console.error('Failed to load saved responses:', e);
+    }
+}
+
+function copySavedResponse(btn) {
+    const text = btn.closest('.border').querySelector('.whitespace-pre-wrap').textContent;
+    navigator.clipboard.writeText(text);
+    const original = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-check"></i>';
+    setTimeout(() => btn.innerHTML = original, 2000);
+}
+
+async function deleteSavedResponse(id) {
+    if (!confirm('Delete this saved response?')) return;
+    try {
+        const res = await fetch(`/api/proposals/{{ proposal.id }}/saved-responses/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+            loadSavedResponses();
+        } else {
+            alert(data.error || 'Failed to delete');
+        }
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', loadSavedResponses);
 </script>
 {% endblock %}

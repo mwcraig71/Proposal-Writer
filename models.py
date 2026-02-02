@@ -483,3 +483,17 @@ class ProposalIntelligence(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     proposal = db.relationship('Proposal', backref=db.backref('intelligence_documents', lazy=True, cascade='all, delete-orphan'))
+
+
+class ProposalSavedResponse(db.Model):
+    """Stores AI-generated responses saved by the user for a proposal"""
+    __tablename__ = 'proposal_saved_responses'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    proposal_id = db.Column(db.Integer, db.ForeignKey('proposals.id'), nullable=False)
+    prompt = db.Column(db.Text)
+    response = db.Column(db.Text, nullable=False)
+    label = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    proposal = db.relationship('Proposal', backref=db.backref('saved_responses', lazy=True, cascade='all, delete-orphan'))
