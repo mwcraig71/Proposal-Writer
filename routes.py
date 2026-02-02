@@ -5633,7 +5633,7 @@ def upload_and_parse_reference_pdf():
     
     try:
         from document_parser import extract_text_from_file
-        text = extract_text_from_file(file_data, filename)
+        text = extract_text_from_file(filename, file_data)
     except Exception as e:
         return jsonify({'success': False, 'error': f'Failed to extract text: {str(e)}'}), 500
     
