@@ -212,6 +212,67 @@
     {% endif %}
 </div>
 
+<!-- AI Proposal Assistant -->
+<div class="bg-white rounded-lg shadow p-6 mb-8">
+    <div class="flex items-center justify-between mb-4">
+        <h2 class="text-xl font-semibold text-gray-800">
+            <i class="fas fa-robot text-blue-600 mr-2"></i> AI Proposal Assistant
+        </h2>
+        <button onclick="toggleAIAssistant()" id="ai-toggle-btn" class="text-blue-600 hover:text-blue-800 text-sm">
+            <i class="fas fa-chevron-down" id="ai-toggle-icon"></i> <span id="ai-toggle-text">Expand</span>
+        </button>
+    </div>
+    <p class="text-gray-600 mb-4">Ask questions or request content about this proposal. The AI has access to all proposal data including personnel, projects, firm info, org chart, RFP, win themes, and reference documents.</p>
+    
+    <div id="ai-assistant-content" class="hidden">
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Response Length:</label>
+            <div class="flex gap-2">
+                <button id="prop-len-short" onclick="setProposalResponseLength('short')" class="flex-1 py-2 px-3 border-2 rounded-lg text-sm font-medium transition border-blue-600 bg-blue-600 text-white">
+                    Short<br><span class="text-xs opacity-75">~250 words</span>
+                </button>
+                <button id="prop-len-medium" onclick="setProposalResponseLength('medium')" class="flex-1 py-2 px-3 border-2 rounded-lg text-sm font-medium transition border-gray-300 text-gray-700">
+                    Medium<br><span class="text-xs opacity-75">~500 words</span>
+                </button>
+                <button id="prop-len-long" onclick="setProposalResponseLength('long')" class="flex-1 py-2 px-3 border-2 rounded-lg text-sm font-medium transition border-gray-300 text-gray-700">
+                    Long<br><span class="text-xs opacity-75">~1000 words</span>
+                </button>
+            </div>
+        </div>
+        
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Your Question or Request:</label>
+            <textarea id="proposal-ai-prompt" rows="3" class="w-full p-3 border rounded-lg" placeholder="e.g., Write an executive summary highlighting our team's qualifications for this bridge inspection project..."></textarea>
+        </div>
+        
+        <div class="mb-4">
+            <button onclick="generateProposalAIResponse()" id="proposal-ai-generate-btn" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                <i class="fas fa-magic mr-2"></i> Generate Response
+            </button>
+        </div>
+        
+        <div id="proposal-ai-loading" class="hidden text-center py-6">
+            <i class="fas fa-spinner fa-spin text-blue-600 text-3xl"></i>
+            <p class="text-gray-600 mt-2" id="proposal-ai-loading-text">Analyzing proposal data...</p>
+        </div>
+        
+        <div id="proposal-ai-response-container" class="hidden">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Generated Response:</label>
+            <div class="bg-gray-50 rounded-lg p-4 border max-h-96 overflow-y-auto">
+                <pre id="proposal-ai-response-text" class="whitespace-pre-wrap text-sm text-gray-800 font-sans"></pre>
+            </div>
+            <div class="flex justify-end gap-3 mt-3">
+                <button onclick="copyProposalAIResponse(this)" class="text-sm text-blue-600 hover:text-blue-800">
+                    <i class="fas fa-copy mr-1"></i> Copy
+                </button>
+                <button onclick="generateProposalAIResponse()" class="text-sm text-blue-600 hover:text-blue-800">
+                    <i class="fas fa-redo mr-1"></i> Regenerate
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="flex justify-between">
     <a href="/proposals/{{ proposal.id }}/step3" class="px-6 py-3 border rounded-lg text-gray-700 hover:bg-gray-50 transition">
         <i class="fas fa-arrow-left mr-2"></i> Back to Projects
@@ -320,6 +381,92 @@ async function deleteRefDoc(refId) {
     } catch (error) {
         alert('Error: ' + error.message);
     }
+}
+
+// AI Proposal Assistant Functions
+let proposalResponseLength = 'short';
+
+function toggleAIAssistant() {
+    const content = document.getElementById('ai-assistant-content');
+    const icon = document.getElementById('ai-toggle-icon');
+    const text = document.getElementById('ai-toggle-text');
+    
+    if (content.classList.contains('hidden')) {
+        content.classList.remove('hidden');
+        icon.classList.remove('fa-chevron-down');
+        icon.classList.add('fa-chevron-up');
+        text.textContent = 'Collapse';
+    } else {
+        content.classList.add('hidden');
+        icon.classList.remove('fa-chevron-up');
+        icon.classList.add('fa-chevron-down');
+        text.textContent = 'Expand';
+    }
+}
+
+function setProposalResponseLength(length) {
+    proposalResponseLength = length;
+    ['short', 'medium', 'long'].forEach(l => {
+        const btn = document.getElementById('prop-len-' + l);
+        if (l === length) {
+            btn.classList.add('border-blue-600', 'bg-blue-600', 'text-white');
+            btn.classList.remove('border-gray-300', 'text-gray-700');
+        } else {
+            btn.classList.remove('border-blue-600', 'bg-blue-600', 'text-white');
+            btn.classList.add('border-gray-300', 'text-gray-700');
+        }
+    });
+}
+
+async function generateProposalAIResponse() {
+    const prompt = document.getElementById('proposal-ai-prompt').value.trim();
+    if (!prompt) {
+        alert('Please enter a question or request');
+        return;
+    }
+    
+    const btn = document.getElementById('proposal-ai-generate-btn');
+    btn.disabled = true;
+    document.getElementById('proposal-ai-loading').classList.remove('hidden');
+    document.getElementById('proposal-ai-response-container').classList.add('hidden');
+    document.getElementById('proposal-ai-loading-text').textContent = 'Analyzing proposal data...';
+    
+    try {
+        const response = await fetch('/api/proposals/{{ proposal.id }}/ai-response', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                prompt: prompt,
+                length: proposalResponseLength
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            document.getElementById('proposal-ai-response-text').textContent = data.response;
+            document.getElementById('proposal-ai-response-container').classList.remove('hidden');
+            if (data.chunked) {
+                console.log('Response was generated using chunked processing due to large data size');
+            }
+        } else {
+            alert(data.error || 'Failed to generate response');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    } finally {
+        btn.disabled = false;
+        document.getElementById('proposal-ai-loading').classList.add('hidden');
+    }
+}
+
+function copyProposalAIResponse(btn) {
+    const text = document.getElementById('proposal-ai-response-text').textContent;
+    navigator.clipboard.writeText(text);
+    
+    const originalHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-check mr-1"></i> Copied!';
+    setTimeout(() => btn.innerHTML = originalHtml, 2000);
 }
 </script>
 {% endblock %}
