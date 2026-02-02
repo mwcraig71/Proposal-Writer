@@ -13,7 +13,7 @@ from models import (
     EmployeePhoto, ProjectPhoto, ProposalReference, ProposalIntelligence,
     FirmPhoto, ProposalSelectedFirmPhoto, MarketingPhoto, ProposalSelectedMarketingPhoto,
     EmployeeAlternateBio, FirmAlternateDescription, ProposalSavedResponse,
-    Response, ProposalLinkedResponse
+    Response, ProposalLinkedResponse, Reference, ProposalLinkedReference
 )
 from replit.object_storage import Client as ObjectStorageClient
 import uuid
@@ -5313,3 +5313,471 @@ def save_rewritten_response(id):
     db.session.commit()
     
     return jsonify({'success': True, 'id': new_response.id})
+
+
+# ============== REFERENCES SECTION ==============
+
+@app.route('/references')
+@login_required
+def references_page():
+    """Display the References management page"""
+    clients = db.session.query(Reference.client).distinct().filter(Reference.client.isnot(None), Reference.client != '').order_by(Reference.client).all()
+    firms = db.session.query(Reference.firm).distinct().filter(Reference.firm.isnot(None), Reference.firm != '').order_by(Reference.firm).all()
+    employees = Employee.query.order_by(Employee.name).all()
+    proposals = Proposal.query.order_by(Proposal.name).all()
+    
+    client_filter = request.args.get('client', '')
+    firm_filter = request.args.get('firm', '')
+    personnel_filter = request.args.get('personnel', '')
+    sort_by = request.args.get('sort', 'date_desc')
+    
+    query = Reference.query
+    
+    if client_filter:
+        query = query.filter(Reference.client == client_filter)
+    if firm_filter:
+        query = query.filter(Reference.firm == firm_filter)
+    if personnel_filter:
+        query = query.filter(Reference.personnel_tags.ilike(f'%{personnel_filter}%'))
+    
+    if sort_by == 'date_desc':
+        query = query.order_by(Reference.evaluation_date.desc().nullslast())
+    elif sort_by == 'date_asc':
+        query = query.order_by(Reference.evaluation_date.asc().nullsfirst())
+    elif sort_by == 'score_desc':
+        query = query.order_by(Reference.final_score.desc().nullslast())
+    elif sort_by == 'score_asc':
+        query = query.order_by(Reference.final_score.asc().nullsfirst())
+    elif sort_by == 'client':
+        query = query.order_by(Reference.client.asc())
+    else:
+        query = query.order_by(Reference.created_at.desc())
+    
+    references = query.all()
+    
+    return render_template('references.html',
+                          references=references,
+                          clients=[c[0] for c in clients],
+                          firms=[f[0] for f in firms],
+                          employees=employees,
+                          proposals=proposals,
+                          client_filter=client_filter,
+                          firm_filter=firm_filter,
+                          personnel_filter=personnel_filter,
+                          sort_by=sort_by)
+
+
+@app.route('/references', methods=['POST'])
+@login_required
+def create_reference():
+    """Create a new reference manually"""
+    from datetime import datetime as dt
+    
+    ref = Reference(
+        client=request.form.get('client', '').strip(),
+        agency=request.form.get('agency', '').strip(),
+        project_name=request.form.get('project_name', '').strip(),
+        contract_number=request.form.get('contract_number', '').strip(),
+        project_id_number=request.form.get('project_id_number', '').strip(),
+        final_score=float(request.form.get('final_score')) if request.form.get('final_score') else None,
+        schedule_score=float(request.form.get('schedule_score')) if request.form.get('schedule_score') else None,
+        quality_score=float(request.form.get('quality_score')) if request.form.get('quality_score') else None,
+        responsiveness_score=float(request.form.get('responsiveness_score')) if request.form.get('responsiveness_score') else None,
+        key_staff_score=float(request.form.get('key_staff_score')) if request.form.get('key_staff_score') else None,
+        dbe_score=float(request.form.get('dbe_score')) if request.form.get('dbe_score') else None,
+        pm_performance_score=float(request.form.get('pm_performance_score')) if request.form.get('pm_performance_score') else None,
+        score_summary=request.form.get('score_summary', '').strip(),
+        quotes=request.form.get('quotes', '').strip(),
+        evaluator_name=request.form.get('evaluator_name', '').strip(),
+        evaluator_title=request.form.get('evaluator_title', '').strip(),
+        consultant_pm=request.form.get('consultant_pm', '').strip(),
+        firm=request.form.get('firm', '').strip(),
+        services_description=request.form.get('services_description', '').strip(),
+        activities_evaluated=request.form.get('activities_evaluated', '').strip(),
+        personnel_tags=request.form.get('personnel_tags', '').strip(),
+        reference_type=request.form.get('reference_type', 'evaluation'),
+        is_final_evaluation=request.form.get('is_final_evaluation') == 'on'
+    )
+    
+    eval_date_str = request.form.get('evaluation_date', '').strip()
+    if eval_date_str:
+        try:
+            ref.evaluation_date = dt.strptime(eval_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            pass
+    
+    ref.evaluation_period = request.form.get('evaluation_period', '').strip()
+    
+    db.session.add(ref)
+    db.session.commit()
+    
+    flash('Reference created successfully', 'success')
+    return redirect(url_for('references_page'))
+
+
+@app.route('/references/<int:id>', methods=['POST'])
+@login_required
+def update_reference(id):
+    """Update an existing reference"""
+    from datetime import datetime as dt
+    
+    ref = Reference.query.get_or_404(id)
+    
+    ref.client = request.form.get('client', '').strip()
+    ref.agency = request.form.get('agency', '').strip()
+    ref.project_name = request.form.get('project_name', '').strip()
+    ref.contract_number = request.form.get('contract_number', '').strip()
+    ref.project_id_number = request.form.get('project_id_number', '').strip()
+    ref.final_score = float(request.form.get('final_score')) if request.form.get('final_score') else None
+    ref.schedule_score = float(request.form.get('schedule_score')) if request.form.get('schedule_score') else None
+    ref.quality_score = float(request.form.get('quality_score')) if request.form.get('quality_score') else None
+    ref.responsiveness_score = float(request.form.get('responsiveness_score')) if request.form.get('responsiveness_score') else None
+    ref.key_staff_score = float(request.form.get('key_staff_score')) if request.form.get('key_staff_score') else None
+    ref.dbe_score = float(request.form.get('dbe_score')) if request.form.get('dbe_score') else None
+    ref.pm_performance_score = float(request.form.get('pm_performance_score')) if request.form.get('pm_performance_score') else None
+    ref.score_summary = request.form.get('score_summary', '').strip()
+    ref.quotes = request.form.get('quotes', '').strip()
+    ref.evaluator_name = request.form.get('evaluator_name', '').strip()
+    ref.evaluator_title = request.form.get('evaluator_title', '').strip()
+    ref.consultant_pm = request.form.get('consultant_pm', '').strip()
+    ref.firm = request.form.get('firm', '').strip()
+    ref.services_description = request.form.get('services_description', '').strip()
+    ref.activities_evaluated = request.form.get('activities_evaluated', '').strip()
+    ref.personnel_tags = request.form.get('personnel_tags', '').strip()
+    ref.reference_type = request.form.get('reference_type', 'evaluation')
+    ref.is_final_evaluation = request.form.get('is_final_evaluation') == 'on'
+    
+    eval_date_str = request.form.get('evaluation_date', '').strip()
+    if eval_date_str:
+        try:
+            ref.evaluation_date = dt.strptime(eval_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            pass
+    else:
+        ref.evaluation_date = None
+    
+    ref.evaluation_period = request.form.get('evaluation_period', '').strip()
+    
+    db.session.commit()
+    flash('Reference updated successfully', 'success')
+    return redirect(url_for('references_page'))
+
+
+@app.route('/references/<int:id>', methods=['DELETE'])
+@login_required
+def delete_performance_reference(id):
+    """Delete a performance reference"""
+    ref = Reference.query.get_or_404(id)
+    
+    if ref.pdf_object_key:
+        try:
+            storage = ObjectStorageClient()
+            storage.delete(ref.pdf_object_key)
+        except Exception:
+            pass
+    
+    db.session.delete(ref)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/api/references/<int:id>')
+@login_required
+def get_reference_api(id):
+    """Get reference data as JSON"""
+    ref = Reference.query.get_or_404(id)
+    return jsonify({
+        'success': True,
+        'reference': {
+            'id': ref.id,
+            'client': ref.client,
+            'agency': ref.agency,
+            'project_name': ref.project_name,
+            'contract_number': ref.contract_number,
+            'project_id_number': ref.project_id_number,
+            'evaluation_date': ref.evaluation_date.isoformat() if ref.evaluation_date else None,
+            'evaluation_period': ref.evaluation_period,
+            'final_score': ref.final_score,
+            'schedule_score': ref.schedule_score,
+            'quality_score': ref.quality_score,
+            'responsiveness_score': ref.responsiveness_score,
+            'key_staff_score': ref.key_staff_score,
+            'dbe_score': ref.dbe_score,
+            'pm_performance_score': ref.pm_performance_score,
+            'score_summary': ref.score_summary,
+            'quotes': ref.quotes,
+            'evaluator_name': ref.evaluator_name,
+            'evaluator_title': ref.evaluator_title,
+            'consultant_pm': ref.consultant_pm,
+            'firm': ref.firm,
+            'services_description': ref.services_description,
+            'activities_evaluated': ref.activities_evaluated,
+            'personnel_tags': ref.personnel_tags,
+            'reference_type': ref.reference_type,
+            'is_final_evaluation': ref.is_final_evaluation,
+            'pdf_filename': ref.pdf_filename
+        }
+    })
+
+
+@app.route('/references/<int:id>/upload-pdf', methods=['POST'])
+@login_required
+def upload_reference_pdf(id):
+    """Upload a PDF for a reference"""
+    ref = Reference.query.get_or_404(id)
+    
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': 'No file provided'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'success': False, 'error': 'No file selected'}), 400
+    
+    if not file.filename.lower().endswith('.pdf'):
+        return jsonify({'success': False, 'error': 'Only PDF files are allowed'}), 400
+    
+    if ref.pdf_object_key:
+        try:
+            storage = ObjectStorageClient()
+            storage.delete(ref.pdf_object_key)
+        except Exception:
+            pass
+    
+    filename = secure_filename(file.filename)
+    object_key = f"references/{ref.id}/{uuid.uuid4().hex}_{filename}"
+    
+    try:
+        storage = ObjectStorageClient()
+        file_data = file.read()
+        storage.upload_from_bytes(object_key, file_data)
+        
+        ref.pdf_filename = filename
+        ref.pdf_object_key = object_key
+        db.session.commit()
+        
+        return jsonify({'success': True, 'filename': filename})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/references/<int:id>/download-pdf')
+@login_required
+def download_reference_pdf(id):
+    """Download the PDF for a reference"""
+    ref = Reference.query.get_or_404(id)
+    
+    if not ref.pdf_object_key:
+        flash('No PDF file attached to this reference', 'error')
+        return redirect(url_for('references_page'))
+    
+    try:
+        storage = ObjectStorageClient()
+        file_data = storage.download_as_bytes(ref.pdf_object_key)
+        return send_file(
+            io.BytesIO(file_data),
+            download_name=ref.pdf_filename or 'reference.pdf',
+            as_attachment=True,
+            mimetype='application/pdf'
+        )
+    except Exception as e:
+        flash(f'Error downloading file: {str(e)}', 'error')
+        return redirect(url_for('references_page'))
+
+
+@app.route('/references/upload-and-parse', methods=['POST'])
+@login_required
+def upload_and_parse_reference_pdf():
+    """Upload a PDF and use AI to extract reference data"""
+    from gemini_service import client
+    from datetime import datetime as dt
+    
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': 'No file provided'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'success': False, 'error': 'No file selected'}), 400
+    
+    if not file.filename.lower().endswith('.pdf'):
+        return jsonify({'success': False, 'error': 'Only PDF files are allowed'}), 400
+    
+    filename = secure_filename(file.filename)
+    file_data = file.read()
+    
+    try:
+        from document_parser import extract_text_from_file
+        text = extract_text_from_file(file_data, filename)
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Failed to extract text: {str(e)}'}), 500
+    
+    prompt = """Analyze this consultant performance evaluation document and extract the following information in JSON format:
+
+{
+    "client": "The client/agency name (e.g., SCDOT)",
+    "agency": "Full agency name if different from client",
+    "project_name": "Name of the project",
+    "contract_number": "Contract number(s)",
+    "project_id_number": "Project ID number",
+    "evaluation_date": "Date in YYYY-MM-DD format",
+    "evaluation_period": "April or October or other period",
+    "final_score": number (0-10 scale),
+    "schedule_score": number or null,
+    "quality_score": number or null,
+    "responsiveness_score": number or null,
+    "key_staff_score": number or null,
+    "dbe_score": number or null,
+    "pm_performance_score": number or null,
+    "score_summary": "Brief summary of the performance explanation section",
+    "quotes": "Extract 2-3 notable quotes from the evaluation that praise the work",
+    "evaluator_name": "Name of the person who completed the evaluation",
+    "evaluator_title": "Title of the evaluator if available",
+    "consultant_pm": "Consultant Project Manager name",
+    "firm": "Consultant firm name",
+    "services_description": "Description of project services",
+    "activities_evaluated": "Activities being evaluated",
+    "is_final_evaluation": true or false
+}
+
+Return ONLY valid JSON, no other text.
+
+Document text:
+""" + text[:15000]
+    
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+        )
+        
+        response_text = response.text.strip()
+        if response_text.startswith('```'):
+            response_text = response_text.split('\n', 1)[1]
+            response_text = response_text.rsplit('```', 1)[0]
+        
+        data = json.loads(response_text)
+        
+        ref = Reference(
+            client=data.get('client', ''),
+            agency=data.get('agency', ''),
+            project_name=data.get('project_name', ''),
+            contract_number=data.get('contract_number', ''),
+            project_id_number=data.get('project_id_number', ''),
+            final_score=data.get('final_score'),
+            schedule_score=data.get('schedule_score'),
+            quality_score=data.get('quality_score'),
+            responsiveness_score=data.get('responsiveness_score'),
+            key_staff_score=data.get('key_staff_score'),
+            dbe_score=data.get('dbe_score'),
+            pm_performance_score=data.get('pm_performance_score'),
+            score_summary=data.get('score_summary', ''),
+            quotes=data.get('quotes', ''),
+            evaluator_name=data.get('evaluator_name', ''),
+            evaluator_title=data.get('evaluator_title', ''),
+            consultant_pm=data.get('consultant_pm', ''),
+            firm=data.get('firm', ''),
+            services_description=data.get('services_description', ''),
+            activities_evaluated=data.get('activities_evaluated', ''),
+            evaluation_period=data.get('evaluation_period', ''),
+            is_final_evaluation=data.get('is_final_evaluation', False),
+            reference_type='evaluation'
+        )
+        
+        eval_date_str = data.get('evaluation_date', '')
+        if eval_date_str:
+            try:
+                ref.evaluation_date = dt.strptime(eval_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                pass
+        
+        db.session.add(ref)
+        db.session.flush()
+        
+        object_key = f"references/{ref.id}/{uuid.uuid4().hex}_{filename}"
+        storage = ObjectStorageClient()
+        storage.upload_from_bytes(object_key, file_data)
+        
+        ref.pdf_filename = filename
+        ref.pdf_object_key = object_key
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'id': ref.id,
+            'data': data
+        })
+    except json.JSONDecodeError as e:
+        return jsonify({'success': False, 'error': f'Failed to parse AI response: {str(e)}'}), 500
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/proposals/<int:proposal_id>/link-reference', methods=['POST'])
+@login_required
+def link_reference_to_proposal(proposal_id):
+    """Link a reference to a proposal"""
+    proposal = Proposal.query.get(proposal_id)
+    if not proposal:
+        return jsonify({'success': False, 'error': 'Proposal not found'}), 404
+    
+    data = request.get_json()
+    reference_id = data.get('reference_id')
+    
+    ref = Reference.query.get(reference_id)
+    if not ref:
+        return jsonify({'success': False, 'error': 'Reference not found'}), 404
+    
+    existing = ProposalLinkedReference.query.filter_by(proposal_id=proposal_id, reference_id=reference_id).first()
+    if existing:
+        return jsonify({'success': False, 'error': 'Reference already linked to this proposal'}), 400
+    
+    max_order = db.session.query(db.func.max(ProposalLinkedReference.display_order)).filter_by(proposal_id=proposal_id).scalar() or 0
+    
+    link = ProposalLinkedReference(
+        proposal_id=proposal_id,
+        reference_id=reference_id,
+        display_order=max_order + 1
+    )
+    db.session.add(link)
+    db.session.commit()
+    
+    return jsonify({'success': True, 'message': 'Reference linked to proposal'})
+
+
+@app.route('/api/proposals/<int:proposal_id>/unlink-reference/<int:reference_id>', methods=['DELETE'])
+@login_required
+def unlink_reference_from_proposal(proposal_id, reference_id):
+    """Unlink a reference from a proposal"""
+    link = ProposalLinkedReference.query.filter_by(proposal_id=proposal_id, reference_id=reference_id).first()
+    if not link:
+        return jsonify({'success': False, 'error': 'Link not found'}), 404
+    
+    db.session.delete(link)
+    db.session.commit()
+    
+    return jsonify({'success': True})
+
+
+@app.route('/api/proposals/<int:proposal_id>/linked-references')
+@login_required
+def get_proposal_linked_references(proposal_id):
+    """Get all references linked to a proposal"""
+    links = ProposalLinkedReference.query.filter_by(proposal_id=proposal_id).order_by(ProposalLinkedReference.display_order).all()
+    
+    refs = []
+    for link in links:
+        ref = link.reference
+        refs.append({
+            'id': ref.id,
+            'client': ref.client,
+            'project_name': ref.project_name,
+            'final_score': ref.final_score,
+            'evaluation_date': ref.evaluation_date.isoformat() if ref.evaluation_date else None,
+            'score_summary': ref.score_summary,
+            'quotes': ref.quotes,
+            'consultant_pm': ref.consultant_pm,
+            'firm': ref.firm,
+            'personnel_tags': ref.personnel_tags,
+            'pdf_filename': ref.pdf_filename
+        })
+    
+    return jsonify({'success': True, 'references': refs})

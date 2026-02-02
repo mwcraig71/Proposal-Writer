@@ -228,6 +228,22 @@
     </div>
 </div>
 
+<!-- Linked References Section (Always Visible) -->
+<div class="bg-white rounded-lg shadow p-6 mb-8">
+    <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-semibold text-gray-800">
+            <i class="fas fa-star text-yellow-500 mr-2"></i> Linked Performance References
+        </h2>
+        <a href="/references" class="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition text-sm">
+            <i class="fas fa-plus mr-1"></i> Add from Library
+        </a>
+    </div>
+    <p class="text-gray-600 mb-4">Performance evaluations and client testimonials linked to this proposal. These are included in AI context for content generation.</p>
+    <div id="linked-references-list" class="space-y-3">
+        <p class="text-gray-500 text-sm italic">Loading linked references...</p>
+    </div>
+</div>
+
 <!-- AI Proposal Assistant -->
 <div class="bg-white rounded-lg shadow p-6 mb-8">
     <div class="flex items-center justify-between mb-4">
@@ -238,7 +254,7 @@
             <i class="fas fa-chevron-down" id="ai-toggle-icon"></i> <span id="ai-toggle-text">Expand</span>
         </button>
     </div>
-    <p class="text-gray-600 mb-4">Ask questions or request content about this proposal. The AI has access to all proposal data including personnel, projects, firm info, org chart, RFP, win themes, and reference documents.</p>
+    <p class="text-gray-600 mb-4">Ask questions or request content about this proposal. The AI has access to all proposal data including personnel, projects, firm info, org chart, RFP, win themes, performance references, and library responses.</p>
     
     <div id="ai-assistant-content" class="hidden">
         <div id="ai-chat-messages" class="bg-gray-50 rounded-lg border mb-4 h-96 overflow-y-auto p-4 space-y-4">
@@ -664,6 +680,64 @@ async function unlinkResponse(responseId) {
 document.addEventListener('DOMContentLoaded', () => {
     loadSavedResponses();
     loadLinkedResponses();
+    loadLinkedReferences();
 });
+
+async function loadLinkedReferences() {
+    try {
+        const container = document.getElementById('linked-references-list');
+        if (!container) return;
+        
+        const res = await fetch('/api/proposals/{{ proposal.id }}/linked-references');
+        const data = await res.json();
+        
+        if (!data.success || !data.references || data.references.length === 0) {
+            container.innerHTML = '<p class="text-gray-500 text-sm italic">No linked references yet. <a href="/references" class="text-blue-600 hover:underline">Browse references to add</a></p>';
+            return;
+        }
+        
+        container.innerHTML = data.references.map(r => `
+            <div class="border rounded-lg p-3 bg-white mb-3 shadow-sm border-yellow-200" data-id="${r.id}">
+                <div class="flex justify-between items-start mb-2">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="font-bold text-gray-800 text-sm">${r.project_name || r.client || 'Performance Reference'}</span>
+                            ${r.final_score ? `<span class="inline-flex items-center justify-center w-8 h-8 rounded-full text-white font-bold text-xs ${r.final_score >= 9 ? 'bg-green-500' : r.final_score >= 7 ? 'bg-blue-500' : 'bg-yellow-500'}">${r.final_score.toFixed(1)}</span>` : ''}
+                        </div>
+                        <div class="flex flex-wrap gap-2 text-xs">
+                            ${r.client ? `<span class="bg-yellow-50 text-yellow-800 px-2 py-0.5 rounded border border-yellow-100 font-medium">Client: ${r.client}</span>` : ''}
+                            ${r.evaluation_date ? `<span class="bg-gray-50 text-gray-700 px-2 py-0.5 rounded border border-gray-100">${new Date(r.evaluation_date).toLocaleDateString('en-US', {month: 'short', year: 'numeric'})}</span>` : ''}
+                        </div>
+                    </div>
+                    <div class="flex gap-2 ml-2">
+                        ${r.pdf_filename ? `<a href="/references/${r.id}/download-pdf" class="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition border border-transparent hover:border-blue-200" title="Download PDF"><i class="fas fa-download"></i></a>` : ''}
+                        <button onclick="unlinkReference(${r.id})" class="p-1.5 text-red-600 hover:bg-red-50 rounded transition border border-transparent hover:border-red-200" title="Unlink">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                ${r.score_summary ? `<p class="text-gray-600 text-xs mb-2 border-l-2 border-yellow-400 pl-2">${r.score_summary.substring(0, 200)}${r.score_summary.length > 200 ? '...' : ''}</p>` : ''}
+                ${r.quotes ? `<blockquote class="text-gray-700 text-xs italic bg-yellow-50 p-2 rounded">"${r.quotes.substring(0, 150)}${r.quotes.length > 150 ? '...' : ''}"</blockquote>` : ''}
+            </div>
+        `).join('');
+    } catch (e) {
+        console.error('Error loading references:', e);
+    }
+}
+
+async function unlinkReference(referenceId) {
+    if (!confirm('Remove this reference from this proposal?')) return;
+    try {
+        const res = await fetch(`/api/proposals/{{ proposal.id }}/unlink-reference/${referenceId}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+            loadLinkedReferences();
+        } else {
+            alert(data.error || 'Failed to unlink');
+        }
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
 </script>
 {% endblock %}

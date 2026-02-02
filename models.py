@@ -541,3 +541,65 @@ class ProposalLinkedResponse(db.Model):
     response = db.relationship('Response', backref=db.backref('proposal_links', lazy=True, cascade='all, delete-orphan'))
     
     __table_args__ = (db.UniqueConstraint('proposal_id', 'response_id', name='unique_proposal_response'),)
+
+
+class Reference(db.Model):
+    """Stores client/project references including performance evaluations and quotes"""
+    __tablename__ = 'references'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    client = db.Column(db.String(255))
+    agency = db.Column(db.String(255))
+    project_name = db.Column(db.String(500))
+    contract_number = db.Column(db.String(100))
+    project_id_number = db.Column(db.String(100))
+    evaluation_date = db.Column(db.Date)
+    evaluation_period = db.Column(db.String(50))
+    final_score = db.Column(db.Float)
+    schedule_score = db.Column(db.Float)
+    quality_score = db.Column(db.Float)
+    responsiveness_score = db.Column(db.Float)
+    key_staff_score = db.Column(db.Float)
+    dbe_score = db.Column(db.Float)
+    pm_performance_score = db.Column(db.Float)
+    score_summary = db.Column(db.Text)
+    quotes = db.Column(db.Text)
+    evaluator_name = db.Column(db.String(255))
+    evaluator_title = db.Column(db.String(255))
+    consultant_pm = db.Column(db.String(255))
+    firm = db.Column(db.String(255))
+    services_description = db.Column(db.Text)
+    activities_evaluated = db.Column(db.Text)
+    personnel_tags = db.Column(db.Text)
+    pdf_filename = db.Column(db.String(500))
+    pdf_object_key = db.Column(db.String(500))
+    reference_type = db.Column(db.String(50), default='evaluation')
+    is_final_evaluation = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def get_personnel_tags_list(self):
+        """Return personnel tags as a list"""
+        if not self.personnel_tags:
+            return []
+        return [t.strip() for t in self.personnel_tags.split(',') if t.strip()]
+    
+    def set_personnel_tags_from_list(self, tags_list):
+        """Set personnel tags from a list"""
+        self.personnel_tags = ','.join(tags_list) if tags_list else ''
+
+
+class ProposalLinkedReference(db.Model):
+    """Junction table for references linked to a proposal"""
+    __tablename__ = 'proposal_linked_references'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    proposal_id = db.Column(db.Integer, db.ForeignKey('proposals.id'), nullable=False)
+    reference_id = db.Column(db.Integer, db.ForeignKey('references.id'), nullable=False)
+    display_order = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    proposal = db.relationship('Proposal', backref=db.backref('linked_references', lazy=True, cascade='all, delete-orphan'))
+    reference = db.relationship('Reference', backref=db.backref('proposal_links', lazy=True, cascade='all, delete-orphan'))
+    
+    __table_args__ = (db.UniqueConstraint('proposal_id', 'reference_id', name='unique_proposal_reference'),)

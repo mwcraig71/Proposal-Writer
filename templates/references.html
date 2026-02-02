@@ -1,0 +1,601 @@
+{% extends "base.html" %}
+
+{% block title %}References - SF330 AI{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-8">
+    <div>
+        <h1 class="text-3xl font-bold text-gray-800">References</h1>
+        <p class="text-gray-600">Performance evaluations, client testimonials, and project references</p>
+    </div>
+    <div class="flex gap-3">
+        <button onclick="showUploadModal()" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
+            <i class="fas fa-magic mr-2"></i> Upload & Parse PDF
+        </button>
+        <button onclick="showAddModal()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+            <i class="fas fa-plus mr-2"></i> Add Manual
+        </button>
+    </div>
+</div>
+
+<div class="bg-white rounded-lg shadow p-4 mb-6">
+    <form method="get" class="flex flex-wrap gap-4 items-end">
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Client</label>
+            <select name="client" class="px-3 py-2 border rounded-lg min-w-[150px]">
+                <option value="">All Clients</option>
+                {% for c in clients %}
+                <option value="{{ c }}" {% if client_filter == c %}selected{% endif %}>{{ c }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Firm</label>
+            <select name="firm" class="px-3 py-2 border rounded-lg min-w-[150px]">
+                <option value="">All Firms</option>
+                {% for f in firms %}
+                <option value="{{ f }}" {% if firm_filter == f %}selected{% endif %}>{{ f }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Personnel Tag</label>
+            <input type="text" name="personnel" value="{{ personnel_filter }}" placeholder="Search personnel..." class="px-3 py-2 border rounded-lg">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Sort By</label>
+            <select name="sort" class="px-3 py-2 border rounded-lg">
+                <option value="date_desc" {% if sort_by == 'date_desc' %}selected{% endif %}>Date (Newest)</option>
+                <option value="date_asc" {% if sort_by == 'date_asc' %}selected{% endif %}>Date (Oldest)</option>
+                <option value="score_desc" {% if sort_by == 'score_desc' %}selected{% endif %}>Score (Highest)</option>
+                <option value="score_asc" {% if sort_by == 'score_asc' %}selected{% endif %}>Score (Lowest)</option>
+                <option value="client" {% if sort_by == 'client' %}selected{% endif %}>Client (A-Z)</option>
+            </select>
+        </div>
+        <button type="submit" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700">
+            <i class="fas fa-filter mr-1"></i> Filter
+        </button>
+        <a href="/references" class="px-4 py-2 border rounded-lg hover:bg-gray-50">Clear</a>
+    </form>
+</div>
+
+<div class="bg-white rounded-lg shadow overflow-hidden">
+    <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+            <tr>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client / Project</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Score</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">PM</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Personnel</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">PDF</th>
+                <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+            {% for ref in references %}
+            <tr class="hover:bg-gray-50 cursor-pointer" onclick="showViewModal({{ ref.id }})">
+                <td class="px-4 py-3">
+                    <div class="font-medium text-gray-900">{{ ref.client or '-' }}</div>
+                    <div class="text-sm text-gray-500">{{ ref.project_name[:50] if ref.project_name else '-' }}{% if ref.project_name and ref.project_name|length > 50 %}...{% endif %}</div>
+                </td>
+                <td class="px-4 py-3 text-sm text-gray-600">
+                    {{ ref.evaluation_date.strftime('%b %Y') if ref.evaluation_date else '-' }}
+                    {% if ref.is_final_evaluation %}<span class="text-xs bg-green-100 text-green-800 px-1 rounded ml-1">Final</span>{% endif %}
+                </td>
+                <td class="px-4 py-3 text-center">
+                    {% if ref.final_score %}
+                    <span class="inline-flex items-center justify-center w-10 h-10 rounded-full text-white font-bold text-sm
+                        {% if ref.final_score >= 9 %}bg-green-500{% elif ref.final_score >= 7 %}bg-blue-500{% elif ref.final_score >= 5 %}bg-yellow-500{% else %}bg-red-500{% endif %}">
+                        {{ "%.1f"|format(ref.final_score) }}
+                    </span>
+                    {% else %}-{% endif %}
+                </td>
+                <td class="px-4 py-3 text-sm text-gray-600">{{ ref.consultant_pm or '-' }}</td>
+                <td class="px-4 py-3 text-sm">
+                    {% if ref.personnel_tags %}
+                    {% for tag in ref.get_personnel_tags_list()[:3] %}
+                    <span class="inline-block bg-purple-100 text-purple-800 text-xs px-2 py-0.5 rounded mr-1">{{ tag }}</span>
+                    {% endfor %}
+                    {% if ref.get_personnel_tags_list()|length > 3 %}<span class="text-gray-400">+{{ ref.get_personnel_tags_list()|length - 3 }}</span>{% endif %}
+                    {% else %}-{% endif %}
+                </td>
+                <td class="px-4 py-3" onclick="event.stopPropagation()">
+                    {% if ref.pdf_filename %}
+                    <a href="/references/{{ ref.id }}/download-pdf" class="text-blue-600 hover:text-blue-800">
+                        <i class="fas fa-file-pdf mr-1"></i>{{ ref.pdf_filename[:15] }}{% if ref.pdf_filename|length > 15 %}...{% endif %}
+                    </a>
+                    {% else %}-{% endif %}
+                </td>
+                <td class="px-4 py-3 text-right whitespace-nowrap" onclick="event.stopPropagation()">
+                    <button onclick="showAddToProposalModal({{ ref.id }})" class="text-blue-600 hover:text-blue-800 mr-2" title="Link to Proposal">
+                        <i class="fas fa-link"></i>
+                    </button>
+                    <button onclick="showEditModal({{ ref.id }})" class="text-yellow-600 hover:text-yellow-800 mr-2" title="Edit">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button onclick="deleteReference({{ ref.id }})" class="text-red-600 hover:text-red-800" title="Delete">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="7" class="px-4 py-8 text-center text-gray-500">
+                    No references found. Upload a PDF or add one manually.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div id="upload-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+        <div class="flex justify-between items-center p-4 border-b">
+            <h3 class="text-xl font-bold text-gray-800">Upload & Parse PDF</h3>
+            <button onclick="closeUploadModal()" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <div class="p-6">
+            <p class="text-gray-600 mb-4">Upload a performance evaluation PDF. AI will automatically extract scores, quotes, and project details.</p>
+            <div id="upload-drop-zone" class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-500 transition cursor-pointer" ondragover="event.preventDefault();this.classList.add('border-blue-500')" ondragleave="this.classList.remove('border-blue-500')" ondrop="handleFileDrop(event)">
+                <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-3"></i>
+                <p class="text-gray-600">Drag & drop PDF here or click to browse</p>
+                <input type="file" id="upload-file-input" class="hidden" accept=".pdf" onchange="uploadAndParsePDF(this.files[0])">
+            </div>
+            <div id="upload-progress" class="hidden mt-4">
+                <div class="flex items-center">
+                    <i class="fas fa-spinner fa-spin text-blue-600 mr-2"></i>
+                    <span class="text-gray-600">Analyzing document with AI...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="add-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center p-4 border-b sticky top-0 bg-white">
+            <h3 class="text-xl font-bold text-gray-800">Add Reference</h3>
+            <button onclick="closeAddModal()" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <form id="add-form" method="post" action="/references" class="p-6 space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Client/Agency</label>
+                    <input type="text" name="client" class="w-full px-3 py-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Firm</label>
+                    <input type="text" name="firm" class="w-full px-3 py-2 border rounded-lg">
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Project Name</label>
+                <input type="text" name="project_name" class="w-full px-3 py-2 border rounded-lg">
+            </div>
+            <div class="grid grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Contract #</label>
+                    <input type="text" name="contract_number" class="w-full px-3 py-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Evaluation Date</label>
+                    <input type="date" name="evaluation_date" class="w-full px-3 py-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Final Score (0-10)</label>
+                    <input type="number" name="final_score" step="0.1" min="0" max="10" class="w-full px-3 py-2 border rounded-lg">
+                </div>
+            </div>
+            <div class="grid grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Quality Score</label>
+                    <input type="number" name="quality_score" step="0.1" min="0" max="10" class="w-full px-3 py-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Schedule Score</label>
+                    <input type="number" name="schedule_score" step="0.1" min="0" max="10" class="w-full px-3 py-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Responsiveness Score</label>
+                    <input type="number" name="responsiveness_score" step="0.1" min="0" max="10" class="w-full px-3 py-2 border rounded-lg">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Consultant PM</label>
+                    <input type="text" name="consultant_pm" class="w-full px-3 py-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Evaluator Name</label>
+                    <input type="text" name="evaluator_name" class="w-full px-3 py-2 border rounded-lg">
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Score Summary / Comments</label>
+                <textarea name="score_summary" rows="3" class="w-full px-3 py-2 border rounded-lg"></textarea>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Notable Quotes</label>
+                <textarea name="quotes" rows="3" class="w-full px-3 py-2 border rounded-lg" placeholder="Paste notable quotes or testimonials from the client..."></textarea>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Personnel Tags (comma-separated)</label>
+                <input type="text" name="personnel_tags" class="w-full px-3 py-2 border rounded-lg" placeholder="e.g., Casey Howard, John Smith">
+            </div>
+            <div class="flex items-center">
+                <input type="checkbox" name="is_final_evaluation" id="is_final_evaluation" class="mr-2">
+                <label for="is_final_evaluation" class="text-sm text-gray-700">This is a final evaluation</label>
+            </div>
+            <div class="flex justify-end gap-3 pt-4 border-t">
+                <button type="button" onclick="closeAddModal()" class="px-4 py-2 border rounded-lg hover:bg-gray-50">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Add Reference</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="edit-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center p-4 border-b sticky top-0 bg-white">
+            <h3 class="text-xl font-bold text-gray-800">Edit Reference</h3>
+            <button onclick="closeEditModal()" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <form id="edit-form" method="post" class="p-6 space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Client/Agency</label>
+                    <input type="text" name="client" id="edit-client" class="w-full px-3 py-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Firm</label>
+                    <input type="text" name="firm" id="edit-firm" class="w-full px-3 py-2 border rounded-lg">
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Project Name</label>
+                <input type="text" name="project_name" id="edit-project_name" class="w-full px-3 py-2 border rounded-lg">
+            </div>
+            <div class="grid grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Contract #</label>
+                    <input type="text" name="contract_number" id="edit-contract_number" class="w-full px-3 py-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Evaluation Date</label>
+                    <input type="date" name="evaluation_date" id="edit-evaluation_date" class="w-full px-3 py-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Final Score (0-10)</label>
+                    <input type="number" name="final_score" id="edit-final_score" step="0.1" min="0" max="10" class="w-full px-3 py-2 border rounded-lg">
+                </div>
+            </div>
+            <div class="grid grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Quality Score</label>
+                    <input type="number" name="quality_score" id="edit-quality_score" step="0.1" min="0" max="10" class="w-full px-3 py-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Schedule Score</label>
+                    <input type="number" name="schedule_score" id="edit-schedule_score" step="0.1" min="0" max="10" class="w-full px-3 py-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Responsiveness Score</label>
+                    <input type="number" name="responsiveness_score" id="edit-responsiveness_score" step="0.1" min="0" max="10" class="w-full px-3 py-2 border rounded-lg">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Consultant PM</label>
+                    <input type="text" name="consultant_pm" id="edit-consultant_pm" class="w-full px-3 py-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Evaluator Name</label>
+                    <input type="text" name="evaluator_name" id="edit-evaluator_name" class="w-full px-3 py-2 border rounded-lg">
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Score Summary / Comments</label>
+                <textarea name="score_summary" id="edit-score_summary" rows="3" class="w-full px-3 py-2 border rounded-lg"></textarea>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Notable Quotes</label>
+                <textarea name="quotes" id="edit-quotes" rows="3" class="w-full px-3 py-2 border rounded-lg"></textarea>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Personnel Tags (comma-separated)</label>
+                <input type="text" name="personnel_tags" id="edit-personnel_tags" class="w-full px-3 py-2 border rounded-lg">
+            </div>
+            <div class="flex items-center">
+                <input type="checkbox" name="is_final_evaluation" id="edit-is_final_evaluation" class="mr-2">
+                <label for="edit-is_final_evaluation" class="text-sm text-gray-700">This is a final evaluation</label>
+            </div>
+            <div class="flex justify-end gap-3 pt-4 border-t">
+                <button type="button" onclick="closeEditModal()" class="px-4 py-2 border rounded-lg hover:bg-gray-50">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Update Reference</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="view-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center p-4 border-b sticky top-0 bg-white">
+            <h3 class="text-xl font-bold text-gray-800" id="view-title">Reference Details</h3>
+            <button onclick="closeViewModal()" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <div id="view-content" class="p-6"></div>
+    </div>
+</div>
+
+<div id="proposal-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+        <div class="flex justify-between items-center p-4 border-b">
+            <h3 class="text-xl font-bold text-gray-800">Link to Proposal</h3>
+            <button onclick="closeProposalModal()" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <div class="p-6">
+            <p class="text-gray-600 mb-4">Select a proposal to link this reference to:</p>
+            <select id="proposal-select" class="w-full px-3 py-2 border rounded-lg mb-4">
+                <option value="">Select a proposal...</option>
+                {% for p in proposals %}
+                <option value="{{ p.id }}">{{ p.name }}</option>
+                {% endfor %}
+            </select>
+            <div class="flex justify-end gap-3">
+                <button onclick="closeProposalModal()" class="px-4 py-2 border rounded-lg hover:bg-gray-50">Cancel</button>
+                <button onclick="linkToProposal()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Link</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentReferenceId = null;
+
+function showUploadModal() {
+    document.getElementById('upload-modal').classList.remove('hidden');
+}
+function closeUploadModal() {
+    document.getElementById('upload-modal').classList.add('hidden');
+    document.getElementById('upload-progress').classList.add('hidden');
+}
+function showAddModal() {
+    document.getElementById('add-modal').classList.remove('hidden');
+}
+function closeAddModal() {
+    document.getElementById('add-modal').classList.add('hidden');
+}
+function closeEditModal() {
+    document.getElementById('edit-modal').classList.add('hidden');
+}
+function closeViewModal() {
+    document.getElementById('view-modal').classList.add('hidden');
+}
+function closeProposalModal() {
+    document.getElementById('proposal-modal').classList.add('hidden');
+}
+
+document.getElementById('upload-drop-zone').addEventListener('click', () => {
+    document.getElementById('upload-file-input').click();
+});
+
+function handleFileDrop(e) {
+    e.preventDefault();
+    e.target.classList.remove('border-blue-500');
+    if (e.dataTransfer.files.length > 0) {
+        uploadAndParsePDF(e.dataTransfer.files[0]);
+    }
+}
+
+async function uploadAndParsePDF(file) {
+    if (!file || !file.name.toLowerCase().endsWith('.pdf')) {
+        alert('Please select a PDF file');
+        return;
+    }
+    
+    document.getElementById('upload-progress').classList.remove('hidden');
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    try {
+        const res = await fetch('/references/upload-and-parse', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            window.location.reload();
+        } else {
+            alert(data.error || 'Failed to parse PDF');
+            document.getElementById('upload-progress').classList.add('hidden');
+        }
+    } catch (e) {
+        alert('Error: ' + e.message);
+        document.getElementById('upload-progress').classList.add('hidden');
+    }
+}
+
+async function showEditModal(id) {
+    try {
+        const res = await fetch(`/api/references/${id}`);
+        const data = await res.json();
+        if (!data.success) {
+            alert('Failed to load reference');
+            return;
+        }
+        const r = data.reference;
+        document.getElementById('edit-form').action = `/references/${id}`;
+        document.getElementById('edit-client').value = r.client || '';
+        document.getElementById('edit-firm').value = r.firm || '';
+        document.getElementById('edit-project_name').value = r.project_name || '';
+        document.getElementById('edit-contract_number').value = r.contract_number || '';
+        document.getElementById('edit-evaluation_date').value = r.evaluation_date || '';
+        document.getElementById('edit-final_score').value = r.final_score || '';
+        document.getElementById('edit-quality_score').value = r.quality_score || '';
+        document.getElementById('edit-schedule_score').value = r.schedule_score || '';
+        document.getElementById('edit-responsiveness_score').value = r.responsiveness_score || '';
+        document.getElementById('edit-consultant_pm').value = r.consultant_pm || '';
+        document.getElementById('edit-evaluator_name').value = r.evaluator_name || '';
+        document.getElementById('edit-score_summary').value = r.score_summary || '';
+        document.getElementById('edit-quotes').value = r.quotes || '';
+        document.getElementById('edit-personnel_tags').value = r.personnel_tags || '';
+        document.getElementById('edit-is_final_evaluation').checked = r.is_final_evaluation;
+        
+        document.getElementById('edit-modal').classList.remove('hidden');
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+async function showViewModal(id) {
+    try {
+        const res = await fetch(`/api/references/${id}`);
+        const data = await res.json();
+        if (!data.success) {
+            alert('Failed to load reference');
+            return;
+        }
+        const r = data.reference;
+        
+        let html = `
+            <div class="grid grid-cols-2 gap-6 mb-6">
+                <div>
+                    <h4 class="font-semibold text-gray-800 mb-2">Client Information</h4>
+                    <dl class="space-y-1 text-sm">
+                        <div><dt class="text-gray-500 inline">Client:</dt> <dd class="inline font-medium">${r.client || '-'}</dd></div>
+                        <div><dt class="text-gray-500 inline">Project:</dt> <dd class="inline font-medium">${r.project_name || '-'}</dd></div>
+                        <div><dt class="text-gray-500 inline">Contract #:</dt> <dd class="inline font-medium">${r.contract_number || '-'}</dd></div>
+                        <div><dt class="text-gray-500 inline">Date:</dt> <dd class="inline font-medium">${r.evaluation_date || '-'}</dd></div>
+                    </dl>
+                </div>
+                <div>
+                    <h4 class="font-semibold text-gray-800 mb-2">Consultant Information</h4>
+                    <dl class="space-y-1 text-sm">
+                        <div><dt class="text-gray-500 inline">Firm:</dt> <dd class="inline font-medium">${r.firm || '-'}</dd></div>
+                        <div><dt class="text-gray-500 inline">Project Manager:</dt> <dd class="inline font-medium">${r.consultant_pm || '-'}</dd></div>
+                        <div><dt class="text-gray-500 inline">Evaluator:</dt> <dd class="inline font-medium">${r.evaluator_name || '-'}</dd></div>
+                    </dl>
+                </div>
+            </div>
+            
+            <div class="mb-6">
+                <h4 class="font-semibold text-gray-800 mb-3">Scores</h4>
+                <div class="flex items-center gap-4 mb-3">
+                    <div class="text-center">
+                        <div class="w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-xl
+                            ${r.final_score >= 9 ? 'bg-green-500' : r.final_score >= 7 ? 'bg-blue-500' : r.final_score >= 5 ? 'bg-yellow-500' : 'bg-red-500'}">
+                            ${r.final_score ? r.final_score.toFixed(1) : '-'}
+                        </div>
+                        <div class="text-xs text-gray-500 mt-1">Final</div>
+                    </div>
+                    <div class="flex-1 grid grid-cols-3 gap-2 text-sm">
+                        <div class="bg-gray-50 p-2 rounded"><span class="text-gray-500">Quality:</span> <span class="font-medium">${r.quality_score || '-'}</span></div>
+                        <div class="bg-gray-50 p-2 rounded"><span class="text-gray-500">Schedule:</span> <span class="font-medium">${r.schedule_score || '-'}</span></div>
+                        <div class="bg-gray-50 p-2 rounded"><span class="text-gray-500">Response:</span> <span class="font-medium">${r.responsiveness_score || '-'}</span></div>
+                    </div>
+                </div>
+            </div>
+            
+            ${r.score_summary ? `
+            <div class="mb-6">
+                <h4 class="font-semibold text-gray-800 mb-2">Summary</h4>
+                <p class="text-gray-700 text-sm bg-gray-50 p-3 rounded-lg">${r.score_summary}</p>
+            </div>
+            ` : ''}
+            
+            ${r.quotes ? `
+            <div class="mb-6">
+                <h4 class="font-semibold text-gray-800 mb-2">Notable Quotes</h4>
+                <blockquote class="text-gray-700 text-sm bg-blue-50 p-3 rounded-lg border-l-4 border-blue-500 italic">${r.quotes}</blockquote>
+            </div>
+            ` : ''}
+            
+            ${r.personnel_tags ? `
+            <div class="mb-6">
+                <h4 class="font-semibold text-gray-800 mb-2">Personnel</h4>
+                <div class="flex flex-wrap gap-2">
+                    ${r.personnel_tags.split(',').map(t => `<span class="bg-purple-100 text-purple-800 px-2 py-1 rounded text-sm">${t.trim()}</span>`).join('')}
+                </div>
+            </div>
+            ` : ''}
+            
+            ${r.pdf_filename ? `
+            <div class="pt-4 border-t">
+                <a href="/references/${r.id}/download-pdf" class="inline-flex items-center text-blue-600 hover:text-blue-800">
+                    <i class="fas fa-download mr-2"></i> Download PDF: ${r.pdf_filename}
+                </a>
+            </div>
+            ` : ''}
+        `;
+        
+        document.getElementById('view-title').textContent = r.project_name || 'Reference Details';
+        document.getElementById('view-content').innerHTML = html;
+        document.getElementById('view-modal').classList.remove('hidden');
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+function showAddToProposalModal(id) {
+    currentReferenceId = id;
+    document.getElementById('proposal-select').value = '';
+    document.getElementById('proposal-modal').classList.remove('hidden');
+}
+
+async function linkToProposal() {
+    const proposalId = document.getElementById('proposal-select').value;
+    if (!proposalId) {
+        alert('Please select a proposal');
+        return;
+    }
+    
+    try {
+        const res = await fetch(`/api/proposals/${proposalId}/link-reference`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reference_id: currentReferenceId })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            alert('Reference linked to proposal successfully!');
+            closeProposalModal();
+        } else {
+            alert(data.error || 'Failed to link reference');
+        }
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+async function deleteReference(id) {
+    if (!confirm('Are you sure you want to delete this reference?')) return;
+    
+    try {
+        const res = await fetch(`/references/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+            window.location.reload();
+        } else {
+            alert(data.error || 'Failed to delete');
+        }
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+</script>
+{% endblock %}
