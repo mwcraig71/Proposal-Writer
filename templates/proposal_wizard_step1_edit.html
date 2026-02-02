@@ -1,0 +1,489 @@
+{% extends "base.html" %}
+
+{% block title %}{{ proposal.name }} - Edit Step 1 - SF330 AI{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <h1 class="text-3xl font-bold text-gray-800 mb-2">{{ proposal.name }}</h1>
+    <p class="text-gray-600">Step 1: Edit Contract Information & Firm Selection</p>
+</div>
+
+<div class="flex items-center justify-center mb-8">
+    <div class="flex items-center">
+        <div class="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">1</div>
+        <span class="ml-2 text-blue-600 font-medium">Contract Info</span>
+    </div>
+    <div class="w-16 h-1 bg-green-600 mx-2"></div>
+    <a href="/proposals/{{ proposal.id }}/step2" class="flex items-center group cursor-pointer hover:opacity-80 transition">
+        <div class="w-10 h-10 bg-green-600 text-white rounded-full flex items-center justify-center font-bold group-hover:bg-green-700"><i class="fas fa-check"></i></div>
+        <span class="ml-2 text-green-600 font-medium group-hover:underline">Personnel</span>
+    </a>
+    <div class="w-16 h-1 bg-green-600 mx-2"></div>
+    <a href="/proposals/{{ proposal.id }}/step3" class="flex items-center group cursor-pointer hover:opacity-80 transition">
+        <div class="w-10 h-10 bg-green-600 text-white rounded-full flex items-center justify-center font-bold group-hover:bg-green-700"><i class="fas fa-check"></i></div>
+        <span class="ml-2 text-green-600 font-medium group-hover:underline">Projects</span>
+    </a>
+    <div class="w-16 h-1 bg-green-600 mx-2"></div>
+    <a href="/proposals/{{ proposal.id }}/step4" class="flex items-center group cursor-pointer hover:opacity-80 transition">
+        <div class="w-10 h-10 bg-green-600 text-white rounded-full flex items-center justify-center font-bold group-hover:bg-green-700"><i class="fas fa-check"></i></div>
+        <span class="ml-2 text-green-600 font-medium group-hover:underline">Review</span>
+    </a>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+    <div class="lg:col-span-2 bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">
+            <i class="fas fa-keyboard text-blue-600 mr-2"></i> Contract Information
+        </h2>
+        <form action="/proposals/{{ proposal.id }}/step1" method="POST" id="proposal-form" class="space-y-6" enctype="multipart/form-data">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Tracking Number *</label>
+                    <input type="text" name="tracking_number" id="tracking_number" required class="w-full p-3 border rounded-lg" placeholder="e.g., 2026-001" value="{{ proposal.tracking_number or '' }}">
+                    <p class="text-xs text-gray-500 mt-1">Your internal proposal tracking number</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Proposal Name *</label>
+                    <input type="text" name="name" id="name" required class="w-full p-3 border rounded-lg" placeholder="e.g., City Hall Renovation RFQ" value="{{ proposal.name or '' }}">
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Contract Title (Section A, Block 1)</label>
+                    <input type="text" name="contract_title" id="contract_title" class="w-full p-3 border rounded-lg" placeholder="Title as shown in solicitation" value="{{ proposal.contract_title or '' }}">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Contract Location</label>
+                    <input type="text" name="contract_location" id="contract_location" class="w-full p-3 border rounded-lg" placeholder="City, State" value="{{ proposal.contract_location or '' }}">
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Public Notice Date (Block 2)</label>
+                    <input type="date" name="public_notice_date" id="public_notice_date" class="w-full p-3 border rounded-lg" value="{{ proposal.public_notice_date or '' }}">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Solicitation/Project Number (Block 3)</label>
+                    <input type="text" name="solicitation_number" id="solicitation_number" class="w-full p-3 border rounded-lg" placeholder="e.g., W912EQ-24-R-0001" value="{{ proposal.solicitation_number or '' }}">
+                </div>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Select Firm (Part II)</label>
+                <select name="firm_id" id="firm_id" class="w-full p-3 border rounded-lg" onchange="updateFirmBioOptions()">
+                    <option value="">-- Select a Firm --</option>
+                    {% for firm in firms %}
+                    <option value="{{ firm.id }}" {% if proposal.firm_id == firm.id %}selected{% endif %}>{{ firm.name }} {% if firm.city %}({{ firm.city }}, {{ firm.state }}){% endif %}</option>
+                    {% endfor %}
+                </select>
+                <p class="text-sm text-gray-500 mt-1">The firm's Part II data will be included in the SF330.</p>
+            </div>
+            
+            <div id="firm-bio-section" class="{% if not proposal.firm_id %}hidden{% endif %}">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Select Firm Bio Version</label>
+                <select name="firm_bio_alternate_id" id="firm_bio_alternate_id" class="w-full p-3 border rounded-lg">
+                    <option value="">-- Use Main Bio --</option>
+                </select>
+                <p class="text-sm text-gray-500 mt-1">Choose which firm bio/writeup to use for this proposal.</p>
+            </div>
+            
+            <div id="firm-photos-section" class="{% if not proposal.firm_id %}hidden{% endif %}">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Select Firm Photos for Proposal</label>
+                <p class="text-sm text-gray-500 mb-2">Click photos to include them in the proposal</p>
+                <div id="firm-photos-grid" class="grid grid-cols-4 gap-2 mb-2">
+                </div>
+                <input type="hidden" name="selected_firm_photos" id="selected_firm_photos" value="">
+            </div>
+            
+            <div class="border-t pt-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Marketing Photos</label>
+                <p class="text-sm text-gray-500 mb-2">Filter by tags and select photos for this proposal</p>
+                
+                <div class="mb-3">
+                    <div class="flex flex-wrap gap-2" id="marketing-tag-filters">
+                        <span class="text-sm text-gray-500">Loading tags...</span>
+                    </div>
+                </div>
+                
+                <div id="marketing-photos-grid" class="grid grid-cols-4 gap-2 mb-2 max-h-64 overflow-y-auto">
+                </div>
+                <input type="hidden" name="selected_marketing_photos" id="selected_marketing_photos" value="">
+            </div>
+            
+            <div class="border-t pt-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Win Theme / Strategy</label>
+                <p class="text-sm text-gray-500 mb-2">Key messages and strategy for winning this proposal (used by AI when writing)</p>
+                <textarea name="win_theme" id="win_theme" rows="4" 
+                    class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter your win themes, key differentiators, and strategic messaging...">{{ proposal.win_theme or '' }}</textarea>
+            </div>
+            
+            <input type="hidden" name="rfp_filename" id="rfp_filename" value="{{ proposal.rfp_filename or '' }}">
+            <input type="hidden" name="rfp_text" id="rfp_text" value="{{ proposal.rfp_text or '' }}">
+            <input type="file" name="rfp_file" id="rfp_file_submit" class="hidden">
+            
+            <div class="flex justify-between space-x-4 pt-4 border-t">
+                <a href="/proposals/{{ proposal.id }}/step4" class="px-6 py-3 border rounded-lg text-gray-700 hover:bg-gray-50 transition">
+                    <i class="fas fa-arrow-left mr-2"></i> Back to Review
+                </a>
+                <button type="submit" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                    Save & Continue <i class="fas fa-arrow-right ml-2"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">
+            <i class="fas fa-upload text-green-600 mr-2"></i> RFP/RFQ Document
+        </h2>
+        
+        {% if proposal.rfp_filename %}
+        <div class="mb-4 p-4 bg-green-50 rounded-lg">
+            <div class="flex items-center text-green-700 mb-2">
+                <i class="fas fa-check-circle mr-2"></i>
+                <span class="font-medium">Current RFP:</span>
+            </div>
+            <p class="text-sm text-gray-600">{{ proposal.rfp_filename }}</p>
+            <a href="/proposals/{{ proposal.id }}/rfp-download" class="text-blue-600 hover:underline text-sm mt-1 inline-block">
+                <i class="fas fa-download mr-1"></i> Download
+            </a>
+        </div>
+        {% endif %}
+        
+        <p class="text-gray-600 mb-4">Upload a new RFP/RFQ document to replace the current one.</p>
+        
+        <div id="rfp-drop-zone" class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-green-500 transition cursor-pointer">
+            <i class="fas fa-cloud-upload-alt text-gray-400 text-3xl mb-2"></i>
+            <p class="text-gray-600">Drag and drop RFP/RFQ here</p>
+            <p class="text-gray-400 text-sm">or click to browse</p>
+            <input type="file" id="rfp-file-input" class="hidden" accept=".pdf,.docx,.xlsx,.txt">
+        </div>
+        
+        <div id="rfp-parsing-status" class="hidden mt-4">
+            <div class="flex items-center justify-center p-6 bg-blue-50 rounded-lg border border-blue-200">
+                <div class="text-center">
+                    <i class="fas fa-spinner fa-spin text-4xl text-blue-600 mb-3"></i>
+                    <p class="text-blue-700 font-medium">Parsing RFP document...</p>
+                    <p class="text-blue-500 text-sm mt-1">This may take up to a minute for large files</p>
+                </div>
+            </div>
+        </div>
+        
+        <div id="rfp-parsed-info" class="hidden mt-4 p-4 bg-green-50 rounded-lg">
+            <div class="flex items-center text-green-700 mb-2">
+                <i class="fas fa-check-circle mr-2"></i>
+                <span class="font-medium">RFP/RFQ Parsed Successfully!</span>
+            </div>
+            <p class="text-sm text-gray-600">Contract information has been filled in the form. Review and edit as needed.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const dropZone = document.getElementById('rfp-drop-zone');
+const fileInput = document.getElementById('rfp-file-input');
+const parsingStatus = document.getElementById('rfp-parsing-status');
+const parsedInfo = document.getElementById('rfp-parsed-info');
+
+dropZone.addEventListener('click', () => fileInput.click());
+
+dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('border-green-500', 'bg-green-50');
+});
+
+dropZone.addEventListener('dragleave', () => {
+    dropZone.classList.remove('border-green-500', 'bg-green-50');
+});
+
+dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('border-green-500', 'bg-green-50');
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+        handleRfpUpload(files[0]);
+    }
+});
+
+fileInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+        handleRfpUpload(e.target.files[0]);
+    }
+});
+
+async function handleRfpUpload(file) {
+    parsingStatus.classList.remove('hidden');
+    parsedInfo.classList.add('hidden');
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    try {
+        const response = await fetch('/proposals/parse-rfp', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        parsingStatus.classList.add('hidden');
+        
+        if (result.success && result.data) {
+            const data = result.data;
+            
+            if (data.contract_title) {
+                document.getElementById('name').value = data.contract_title;
+                document.getElementById('contract_title').value = data.contract_title;
+            }
+            if (data.contract_location) {
+                document.getElementById('contract_location').value = data.contract_location;
+            }
+            if (data.solicitation_number) {
+                document.getElementById('solicitation_number').value = data.solicitation_number;
+            }
+            if (data.public_notice_date) {
+                const dateInput = document.getElementById('public_notice_date');
+                const dateMatch = data.public_notice_date.match(/\d{4}-\d{2}-\d{2}/);
+                if (dateMatch) {
+                    dateInput.value = dateMatch[0];
+                }
+            }
+            
+            if (data.rfp_filename) {
+                document.getElementById('rfp_filename').value = data.rfp_filename;
+            }
+            if (data.rfp_text) {
+                document.getElementById('rfp_text').value = data.rfp_text;
+            }
+            const fileSubmit = document.getElementById('rfp_file_submit');
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            fileSubmit.files = dataTransfer.files;
+            
+            parsedInfo.classList.remove('hidden');
+        } else {
+            alert('Error parsing RFP: ' + (result.error || 'Unknown error'));
+        }
+    } catch (error) {
+        parsingStatus.classList.add('hidden');
+        alert('Error: ' + error.message);
+    }
+}
+
+const firmAlts = {{ firm_alts | tojson | safe }};
+const currentFirmBioAltId = {{ proposal.firm_bio_alternate_id | tojson | safe }};
+
+let selectedFirmPhotos = [];
+
+function updateFirmBioOptions() {
+    const firmId = document.getElementById('firm_id').value;
+    const bioSection = document.getElementById('firm-bio-section');
+    const bioSelect = document.getElementById('firm_bio_alternate_id');
+    const photosSection = document.getElementById('firm-photos-section');
+    
+    bioSelect.innerHTML = '<option value="">-- Use Main Bio --</option>';
+    selectedFirmPhotos = [];
+    updateSelectedPhotosInput();
+    
+    if (firmId && firmAlts[firmId] && firmAlts[firmId].length > 0) {
+        firmAlts[firmId].forEach(alt => {
+            const option = document.createElement('option');
+            option.value = alt.id;
+            option.textContent = alt.label;
+            if (alt.id == currentFirmBioAltId) {
+                option.selected = true;
+            }
+            bioSelect.appendChild(option);
+        });
+        bioSection.classList.remove('hidden');
+    } else {
+        bioSection.classList.add('hidden');
+    }
+    
+    if (firmId) {
+        loadFirmPhotos(firmId);
+        photosSection.classList.remove('hidden');
+    } else {
+        photosSection.classList.add('hidden');
+        document.getElementById('firm-photos-grid').innerHTML = '';
+    }
+}
+
+async function loadFirmPhotos(firmId) {
+    try {
+        const response = await fetch(`/api/firms/${firmId}/photos`);
+        const photos = await response.json();
+        const container = document.getElementById('firm-photos-grid');
+        
+        if (photos.length === 0) {
+            container.innerHTML = '<p class="col-span-4 text-gray-500 text-sm text-center py-2">No firm photos available</p>';
+            return;
+        }
+        
+        container.innerHTML = photos.map(photo => `
+            <div class="photo-item cursor-pointer relative ${selectedFirmPhotos.includes(photo.id) ? 'ring-2 ring-blue-500' : ''}" 
+                 onclick="togglePhotoSelection(${photo.id})" data-photo-id="${photo.id}">
+                <img src="${photo.url}" alt="${photo.caption || photo.filename}" 
+                     class="w-full h-16 object-cover rounded">
+                <div class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-0 hover:bg-opacity-20 transition">
+                    ${selectedFirmPhotos.includes(photo.id) ? '<i class="fas fa-check-circle text-blue-500 text-lg"></i>' : ''}
+                </div>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Error loading firm photos:', error);
+    }
+}
+
+function togglePhotoSelection(photoId) {
+    const index = selectedFirmPhotos.indexOf(photoId);
+    if (index > -1) {
+        selectedFirmPhotos.splice(index, 1);
+    } else {
+        selectedFirmPhotos.push(photoId);
+    }
+    updateSelectedPhotosInput();
+    
+    const photoItem = document.querySelector(`[data-photo-id="${photoId}"]`);
+    if (photoItem) {
+        if (selectedFirmPhotos.includes(photoId)) {
+            photoItem.classList.add('ring-2', 'ring-blue-500');
+            photoItem.querySelector('.absolute').innerHTML = '<i class="fas fa-check-circle text-blue-500 text-lg"></i>';
+        } else {
+            photoItem.classList.remove('ring-2', 'ring-blue-500');
+            photoItem.querySelector('.absolute').innerHTML = '';
+        }
+    }
+}
+
+function updateSelectedPhotosInput() {
+    document.getElementById('selected_firm_photos').value = selectedFirmPhotos.join(',');
+}
+
+let selectedMarketingPhotos = [];
+let allMarketingPhotos = [];
+let selectedMarketingTags = [];
+
+async function loadMarketingTags() {
+    try {
+        const response = await fetch('/api/marketing-photos/tags');
+        const tags = await response.json();
+        const container = document.getElementById('marketing-tag-filters');
+        
+        if (tags.length === 0) {
+            container.innerHTML = '<span class="text-sm text-gray-500">No tags available. <a href="/marketing-photos" class="text-blue-600 underline">Add photos first</a></span>';
+            return;
+        }
+        
+        container.innerHTML = tags.map(tag => `
+            <button type="button" onclick="toggleMarketingTagFilter('${tag}')" 
+                    class="tag-filter px-2 py-1 text-xs rounded-full border ${selectedMarketingTags.includes(tag) ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:border-blue-500'}"
+                    data-tag="${tag}">
+                ${tag}
+            </button>
+        `).join('');
+    } catch (error) {
+        console.error('Error loading marketing tags:', error);
+    }
+}
+
+function toggleMarketingTagFilter(tag) {
+    const index = selectedMarketingTags.indexOf(tag);
+    if (index > -1) {
+        selectedMarketingTags.splice(index, 1);
+    } else {
+        selectedMarketingTags.push(tag);
+    }
+    
+    document.querySelectorAll('.tag-filter').forEach(btn => {
+        const btnTag = btn.getAttribute('data-tag');
+        if (selectedMarketingTags.includes(btnTag)) {
+            btn.classList.remove('bg-white', 'text-gray-700', 'border-gray-300');
+            btn.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
+        } else {
+            btn.classList.remove('bg-blue-600', 'text-white', 'border-blue-600');
+            btn.classList.add('bg-white', 'text-gray-700', 'border-gray-300');
+        }
+    });
+    
+    filterAndDisplayMarketingPhotos();
+}
+
+async function loadMarketingPhotos() {
+    try {
+        const response = await fetch('/api/marketing-photos');
+        allMarketingPhotos = await response.json();
+        filterAndDisplayMarketingPhotos();
+    } catch (error) {
+        console.error('Error loading marketing photos:', error);
+    }
+}
+
+function filterAndDisplayMarketingPhotos() {
+    let filtered = allMarketingPhotos;
+    
+    if (selectedMarketingTags.length > 0) {
+        filtered = allMarketingPhotos.filter(photo => {
+            return photo.tags.some(tag => selectedMarketingTags.includes(tag));
+        });
+    }
+    
+    const container = document.getElementById('marketing-photos-grid');
+    
+    if (filtered.length === 0) {
+        container.innerHTML = '<p class="col-span-4 text-gray-500 text-sm text-center py-2">No photos match the selected filters</p>';
+        return;
+    }
+    
+    container.innerHTML = filtered.map(photo => `
+        <div class="marketing-photo-item cursor-pointer relative ${selectedMarketingPhotos.includes(photo.id) ? 'ring-2 ring-green-500' : ''}" 
+             onclick="toggleMarketingPhotoSelection(${photo.id})" data-marketing-photo-id="${photo.id}">
+            <img src="${photo.url}" alt="${photo.caption || photo.filename}" 
+                 class="w-full h-16 object-cover rounded" title="${photo.caption || ''}\n${photo.tags.join(', ')}">
+            <div class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-0 hover:bg-opacity-20 transition">
+                ${selectedMarketingPhotos.includes(photo.id) ? '<i class="fas fa-check-circle text-green-500 text-lg"></i>' : ''}
+            </div>
+        </div>
+    `).join('');
+}
+
+function toggleMarketingPhotoSelection(photoId) {
+    const index = selectedMarketingPhotos.indexOf(photoId);
+    if (index > -1) {
+        selectedMarketingPhotos.splice(index, 1);
+    } else {
+        selectedMarketingPhotos.push(photoId);
+    }
+    updateSelectedMarketingPhotosInput();
+    
+    const photoItem = document.querySelector(`[data-marketing-photo-id="${photoId}"]`);
+    if (photoItem) {
+        if (selectedMarketingPhotos.includes(photoId)) {
+            photoItem.classList.add('ring-2', 'ring-green-500');
+            photoItem.querySelector('.absolute').innerHTML = '<i class="fas fa-check-circle text-green-500 text-lg"></i>';
+        } else {
+            photoItem.classList.remove('ring-2', 'ring-green-500');
+            photoItem.querySelector('.absolute').innerHTML = '';
+        }
+    }
+}
+
+function updateSelectedMarketingPhotosInput() {
+    document.getElementById('selected_marketing_photos').value = selectedMarketingPhotos.join(',');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadMarketingTags();
+    loadMarketingPhotos();
+    
+    const firmId = document.getElementById('firm_id').value;
+    if (firmId) {
+        updateFirmBioOptions();
+    }
+});
+</script>
+{% endblock %}

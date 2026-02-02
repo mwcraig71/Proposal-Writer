@@ -9,15 +9,15 @@
 </div>
 
 <div class="flex items-center justify-center mb-8">
-    <div class="flex items-center">
-        <div class="w-10 h-10 bg-green-600 text-white rounded-full flex items-center justify-center font-bold"><i class="fas fa-check"></i></div>
-        <span class="ml-2 text-green-600 font-medium">Contract Info</span>
-    </div>
+    <a href="/proposals/{{ proposal.id }}/step1" class="flex items-center group cursor-pointer hover:opacity-80 transition">
+        <div class="w-10 h-10 bg-green-600 text-white rounded-full flex items-center justify-center font-bold group-hover:bg-green-700"><i class="fas fa-check"></i></div>
+        <span class="ml-2 text-green-600 font-medium group-hover:underline">Contract Info</span>
+    </a>
     <div class="w-16 h-1 bg-green-600 mx-2"></div>
-    <div class="flex items-center">
-        <div class="w-10 h-10 bg-green-600 text-white rounded-full flex items-center justify-center font-bold"><i class="fas fa-check"></i></div>
-        <span class="ml-2 text-green-600 font-medium">Personnel</span>
-    </div>
+    <a href="/proposals/{{ proposal.id }}/step2" class="flex items-center group cursor-pointer hover:opacity-80 transition">
+        <div class="w-10 h-10 bg-green-600 text-white rounded-full flex items-center justify-center font-bold group-hover:bg-green-700"><i class="fas fa-check"></i></div>
+        <span class="ml-2 text-green-600 font-medium group-hover:underline">Personnel</span>
+    </a>
     <div class="w-16 h-1 bg-blue-600 mx-2"></div>
     <div class="flex items-center">
         <div class="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">3</div>

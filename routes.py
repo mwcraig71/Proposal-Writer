@@ -1743,6 +1743,77 @@ def new_proposal():
     return redirect(url_for('proposal_step2', id=proposal.id))
 
 
+@app.route('/proposals/<int:id>/step1', methods=['GET', 'POST'])
+def proposal_step1_edit(id):
+    proposal = Proposal.query.get_or_404(id)
+    
+    if request.method == 'GET':
+        firms = Firm.query.all()
+        from models import FirmAlternateDescription
+        firm_alts = {}
+        for firm in firms:
+            alts = FirmAlternateDescription.query.filter_by(firm_id=firm.id).all()
+            firm_alts[firm.id] = [{'id': a.id, 'label': a.label} for a in alts]
+        return render_template('proposal_wizard_step1_edit.html', proposal=proposal, firms=firms, firm_alts=firm_alts)
+    
+    data = request.form
+    
+    proposal.tracking_number = data.get('tracking_number')
+    proposal.name = data.get('name')
+    proposal.contract_title = data.get('contract_title')
+    proposal.contract_location = data.get('contract_location')
+    proposal.public_notice_date = data.get('public_notice_date') or None
+    proposal.solicitation_number = data.get('solicitation_number')
+    proposal.firm_id = data.get('firm_id') if data.get('firm_id') else None
+    proposal.firm_bio_alternate_id = data.get('firm_bio_alternate_id') if data.get('firm_bio_alternate_id') else None
+    proposal.win_theme = data.get('win_theme')
+    
+    if 'rfp_file' in request.files:
+        rfp_file = request.files['rfp_file']
+        if rfp_file and rfp_file.filename:
+            proposal.rfp_content = rfp_file.read()
+            proposal.rfp_filename = rfp_file.filename
+    
+    if data.get('rfp_text'):
+        proposal.rfp_text = data.get('rfp_text')
+    
+    from models import ProposalSelectedFirmPhoto, ProposalSelectedMarketingPhoto
+    ProposalSelectedFirmPhoto.query.filter_by(proposal_id=id).delete()
+    ProposalSelectedMarketingPhoto.query.filter_by(proposal_id=id).delete()
+    
+    selected_photos = data.get('selected_firm_photos', '')
+    if selected_photos and proposal.firm_id:
+        from models import FirmPhoto
+        photo_ids = [int(pid) for pid in selected_photos.split(',') if pid.strip()]
+        for order, photo_id in enumerate(photo_ids):
+            photo = FirmPhoto.query.filter_by(id=photo_id, firm_id=proposal.firm_id).first()
+            if photo:
+                psfp = ProposalSelectedFirmPhoto(
+                    proposal_id=proposal.id,
+                    firm_photo_id=photo_id,
+                    display_order=order
+                )
+                db.session.add(psfp)
+    
+    selected_marketing = data.get('selected_marketing_photos', '')
+    if selected_marketing:
+        from models import MarketingPhoto
+        marketing_photo_ids = [int(pid) for pid in selected_marketing.split(',') if pid.strip()]
+        for order, photo_id in enumerate(marketing_photo_ids):
+            photo = MarketingPhoto.query.get(photo_id)
+            if photo:
+                psmp = ProposalSelectedMarketingPhoto(
+                    proposal_id=proposal.id,
+                    marketing_photo_id=photo_id,
+                    display_order=order
+                )
+                db.session.add(psmp)
+    
+    db.session.commit()
+    
+    return redirect(url_for('proposal_step2', id=proposal.id))
+
+
 @app.route('/proposals/<int:id>/step2', methods=['GET', 'POST'])
 def proposal_step2(id):
     proposal = Proposal.query.get_or_404(id)
