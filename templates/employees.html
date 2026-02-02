@@ -21,6 +21,28 @@
     </div>
 </div>
 
+<div id="bulk-action-toolbar" class="hidden bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg shadow-lg p-4 mb-6">
+    <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+            <i class="fas fa-users text-xl"></i>
+            <span id="selected-count" class="font-semibold">0 staff selected</span>
+        </div>
+        <div class="flex gap-3">
+            <button onclick="openProjectAssignModal()" class="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg transition flex items-center gap-2">
+                <i class="fas fa-project-diagram"></i>
+                <span>Add Projects</span>
+            </button>
+            <button onclick="openAIResponseModal()" class="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg transition flex items-center gap-2">
+                <i class="fas fa-robot"></i>
+                <span>AI Write Response</span>
+            </button>
+            <button onclick="clearSelection()" class="bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg transition">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
 {% if employees %}
 <div class="bg-white rounded-lg shadow overflow-hidden overflow-x-auto">
     <table class="w-full table-fixed">
@@ -80,6 +102,125 @@
 </div>
 {% endif %}
 
+<div id="project-assign-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-bold text-gray-800">
+                <i class="fas fa-project-diagram text-blue-600 mr-2"></i>
+                Add Projects to Selected Staff
+            </h2>
+            <button onclick="closeProjectAssignModal()" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        
+        <p class="text-gray-600 mb-4">Select projects to add to <span id="project-staff-count" class="font-semibold">0</span> selected staff members:</p>
+        
+        <div class="mb-4">
+            <input type="text" id="project-search" placeholder="Search projects..." 
+                   class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                   oninput="filterProjects()">
+        </div>
+        
+        <div id="project-list" class="space-y-2 max-h-80 overflow-y-auto border rounded-lg p-3 mb-4">
+            <p class="text-gray-500 text-center py-4">Loading projects...</p>
+        </div>
+        
+        <div class="flex justify-end gap-3">
+            <button onclick="closeProjectAssignModal()" class="px-4 py-2 border rounded-lg hover:bg-gray-50">
+                Cancel
+            </button>
+            <button onclick="assignSelectedProjects()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
+                <i class="fas fa-check mr-2"></i> Assign Projects
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="ai-response-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-bold text-gray-800">
+                <i class="fas fa-robot text-purple-600 mr-2"></i>
+                AI Response Generator
+            </h2>
+            <button onclick="closeAIResponseModal()" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        
+        <div class="grid grid-cols-2 gap-6">
+            <div>
+                <h3 class="font-semibold text-gray-700 mb-3">Selected Staff (<span id="ai-staff-count">0</span>)</h3>
+                <div id="ai-staff-list" class="space-y-2 max-h-40 overflow-y-auto border rounded-lg p-3 bg-gray-50 mb-4">
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Response Length</label>
+                    <div class="flex gap-2">
+                        <button type="button" onclick="setResponseLength('short')" id="len-short" 
+                                class="flex-1 px-4 py-2 border-2 border-blue-600 bg-blue-600 text-white rounded-lg transition">
+                            Short (250)
+                        </button>
+                        <button type="button" onclick="setResponseLength('medium')" id="len-medium" 
+                                class="flex-1 px-4 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:border-blue-600 transition">
+                            Medium (500)
+                        </button>
+                        <button type="button" onclick="setResponseLength('long')" id="len-long" 
+                                class="flex-1 px-4 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:border-blue-600 transition">
+                            Long (1000)
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" id="include-orgchart" class="w-5 h-5 text-blue-600 rounded">
+                        <span class="text-gray-700">Include org chart roles</span>
+                    </label>
+                    <p class="text-xs text-gray-500 mt-1 ml-7">Add organizational chart data so AI knows each person's role in proposals</p>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Optional: Select Proposal (for context)</label>
+                    <select id="ai-proposal-select" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-500">
+                        <option value="">No specific proposal</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Your Prompt / Question</label>
+                <textarea id="ai-prompt" rows="4" 
+                          placeholder="e.g., Write a team qualifications section highlighting the combined experience of these team members for a bridge inspection project..."
+                          class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-500 mb-4"></textarea>
+                
+                <button onclick="generateAIResponse()" id="generate-btn" class="w-full bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition mb-4">
+                    <i class="fas fa-magic mr-2"></i> Generate Response
+                </button>
+                
+                <div id="ai-response-container" class="hidden">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Generated Response</label>
+                    <div id="ai-response" class="border rounded-lg p-4 bg-gray-50 max-h-60 overflow-y-auto whitespace-pre-wrap text-sm"></div>
+                    <div class="flex gap-2 mt-3">
+                        <button onclick="copyResponse()" class="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50">
+                            <i class="fas fa-copy mr-2"></i> Copy
+                        </button>
+                        <button onclick="regenerateResponse()" class="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50">
+                            <i class="fas fa-redo mr-2"></i> Regenerate
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="ai-loading" class="hidden text-center py-6">
+                    <i class="fas fa-spinner fa-spin text-4xl text-purple-600 mb-2"></i>
+                    <p class="text-gray-600">Generating response...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div id="import-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
     <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <div class="flex justify-between items-center mb-4">
@@ -133,6 +274,240 @@
 
 <script>
 let scrapedPersonnel = [];
+let allProjects = [];
+let selectedResponseLength = 'short';
+
+function getSelectedEmployeeIds() {
+    return Array.from(document.querySelectorAll('.employee-checkbox:checked')).map(cb => cb.value);
+}
+
+function updateBulkToolbar() {
+    const checked = document.querySelectorAll('.employee-checkbox:checked');
+    const toolbar = document.getElementById('bulk-action-toolbar');
+    const mergeBtn = document.getElementById('mergeSelectedBtn');
+    
+    if (checked.length > 0) {
+        toolbar.classList.remove('hidden');
+        document.getElementById('selected-count').textContent = `${checked.length} staff selected`;
+    } else {
+        toolbar.classList.add('hidden');
+    }
+    
+    if (checked.length >= 2) {
+        mergeBtn.classList.remove('hidden');
+        mergeBtn.innerHTML = `<i class="fas fa-code-merge mr-2"></i> Merge ${checked.length} Selected`;
+    } else {
+        mergeBtn.classList.add('hidden');
+    }
+}
+
+function clearSelection() {
+    document.querySelectorAll('.employee-checkbox').forEach(cb => cb.checked = false);
+    document.getElementById('selectAll').checked = false;
+    updateBulkToolbar();
+}
+
+async function openProjectAssignModal() {
+    const ids = getSelectedEmployeeIds();
+    if (ids.length === 0) {
+        alert('Please select at least one staff member first');
+        return;
+    }
+    document.getElementById('project-staff-count').textContent = ids.length;
+    document.getElementById('project-assign-modal').classList.remove('hidden');
+    document.getElementById('project-search').value = '';
+    
+    if (allProjects.length === 0) {
+        try {
+            const response = await fetch('/api/projects/list');
+            allProjects = await response.json();
+        } catch (error) {
+            console.error('Failed to load projects:', error);
+        }
+    }
+    renderProjectList();
+    document.querySelectorAll('.project-checkbox').forEach(cb => cb.checked = false);
+}
+
+function closeProjectAssignModal() {
+    document.getElementById('project-assign-modal').classList.add('hidden');
+}
+
+function filterProjects() {
+    renderProjectList();
+}
+
+function renderProjectList() {
+    const search = document.getElementById('project-search').value.toLowerCase();
+    const filtered = allProjects.filter(p => 
+        p.title.toLowerCase().includes(search) || 
+        (p.location || '').toLowerCase().includes(search)
+    );
+    
+    const container = document.getElementById('project-list');
+    if (filtered.length === 0) {
+        container.innerHTML = '<p class="text-gray-500 text-center py-4">No projects found</p>';
+        return;
+    }
+    
+    container.innerHTML = filtered.map(p => `
+        <label class="flex items-start gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer">
+            <input type="checkbox" class="project-checkbox mt-1" value="${p.id}">
+            <div>
+                <div class="font-medium text-gray-800">${p.title}</div>
+                <div class="text-sm text-gray-500">${p.location || 'No location'} ${p.year_completed ? '(' + p.year_completed + ')' : ''}</div>
+            </div>
+        </label>
+    `).join('');
+}
+
+async function assignSelectedProjects() {
+    const employeeIds = getSelectedEmployeeIds();
+    const projectIds = Array.from(document.querySelectorAll('.project-checkbox:checked')).map(cb => cb.value);
+    
+    if (projectIds.length === 0) {
+        alert('Please select at least one project');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/employees/bulk-assign-projects', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ employee_ids: employeeIds, project_ids: projectIds })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            alert(`Successfully assigned ${result.assigned} project links!`);
+            closeProjectAssignModal();
+        } else {
+            alert('Error: ' + (result.error || 'Failed to assign projects'));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+async function openAIResponseModal() {
+    const ids = getSelectedEmployeeIds();
+    if (ids.length === 0) {
+        alert('Please select at least one staff member first');
+        return;
+    }
+    
+    document.getElementById('ai-staff-count').textContent = ids.length;
+    document.getElementById('ai-response-modal').classList.remove('hidden');
+    document.getElementById('ai-response-container').classList.add('hidden');
+    document.getElementById('ai-loading').classList.add('hidden');
+    document.getElementById('ai-prompt').value = '';
+    document.getElementById('ai-response').textContent = '';
+    document.getElementById('include-orgchart').checked = false;
+    document.getElementById('ai-proposal-select').value = '';
+    document.getElementById('generate-btn').disabled = false;
+    setResponseLength('short');
+    
+    document.getElementById('ai-staff-list').innerHTML = '<p class="text-gray-500 text-sm">Loading staff info...</p>';
+    
+    try {
+        const response = await fetch('/api/employees/bulk-info?ids=' + ids.join(','));
+        const employees = await response.json();
+        
+        const staffList = document.getElementById('ai-staff-list');
+        if (Array.isArray(employees)) {
+            staffList.innerHTML = employees.map(e => `
+                <div class="flex items-center gap-2 text-sm">
+                    <i class="fas fa-user text-gray-400"></i>
+                    <span class="font-medium">${e.name}</span>
+                    <span class="text-gray-500">- ${e.title || e.role || 'No title'}</span>
+                </div>
+            `).join('');
+        } else {
+            staffList.innerHTML = '<p class="text-red-500 text-sm">Failed to load staff info</p>';
+        }
+        
+        const proposalResponse = await fetch('/api/proposals/list');
+        const proposals = await proposalResponse.json();
+        const proposalSelect = document.getElementById('ai-proposal-select');
+        proposalSelect.innerHTML = '<option value="">No specific proposal</option>' + 
+            proposals.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+    } catch (error) {
+        console.error('Failed to load data:', error);
+        document.getElementById('ai-staff-list').innerHTML = '<p class="text-red-500 text-sm">Failed to load staff info</p>';
+    }
+}
+
+function closeAIResponseModal() {
+    document.getElementById('ai-response-modal').classList.add('hidden');
+}
+
+function setResponseLength(length) {
+    selectedResponseLength = length;
+    ['short', 'medium', 'long'].forEach(l => {
+        const btn = document.getElementById('len-' + l);
+        if (l === length) {
+            btn.classList.add('border-blue-600', 'bg-blue-600', 'text-white');
+            btn.classList.remove('border-gray-300', 'text-gray-700');
+        } else {
+            btn.classList.remove('border-blue-600', 'bg-blue-600', 'text-white');
+            btn.classList.add('border-gray-300', 'text-gray-700');
+        }
+    });
+}
+
+async function generateAIResponse() {
+    const ids = getSelectedEmployeeIds();
+    const prompt = document.getElementById('ai-prompt').value.trim();
+    const includeOrgChart = document.getElementById('include-orgchart').checked;
+    const proposalId = document.getElementById('ai-proposal-select').value;
+    
+    if (!prompt) {
+        alert('Please enter a prompt or question');
+        return;
+    }
+    
+    document.getElementById('ai-loading').classList.remove('hidden');
+    document.getElementById('generate-btn').disabled = true;
+    document.getElementById('ai-response-container').classList.add('hidden');
+    
+    try {
+        const response = await fetch('/api/employees/ai-response', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                employee_ids: ids,
+                prompt: prompt,
+                length: selectedResponseLength,
+                include_org_chart: includeOrgChart,
+                proposal_id: proposalId || null
+            })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            document.getElementById('ai-response').textContent = result.response;
+            document.getElementById('ai-response-container').classList.remove('hidden');
+        } else {
+            alert('Error: ' + (result.error || 'Failed to generate response'));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    } finally {
+        document.getElementById('ai-loading').classList.add('hidden');
+        document.getElementById('generate-btn').disabled = false;
+    }
+}
+
+function regenerateResponse() {
+    generateAIResponse();
+}
+
+function copyResponse() {
+    const text = document.getElementById('ai-response').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+        alert('Response copied to clipboard!');
+    });
+}
 
 async function scrapePersonnel() {
     const url = document.getElementById('website-url').value.trim();
@@ -229,18 +604,11 @@ function toggleSelectAll() {
     const selectAll = document.getElementById('selectAll');
     const checkboxes = document.querySelectorAll('.employee-checkbox');
     checkboxes.forEach(cb => cb.checked = selectAll.checked);
-    updateMergeButton();
+    updateBulkToolbar();
 }
 
 function updateMergeButton() {
-    const checked = document.querySelectorAll('.employee-checkbox:checked');
-    const mergeBtn = document.getElementById('mergeSelectedBtn');
-    if (checked.length >= 2) {
-        mergeBtn.classList.remove('hidden');
-        mergeBtn.textContent = `Merge ${checked.length} Selected`;
-    } else {
-        mergeBtn.classList.add('hidden');
-    }
+    updateBulkToolbar();
 }
 
 function mergeSelected() {

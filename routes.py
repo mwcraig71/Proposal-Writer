@@ -4067,3 +4067,184 @@ def api_save_proposal_orgchart(proposal_id):
         'success': True,
         'message': f'Org chart saved to proposal: {proposal.name}'
     })
+
+
+@app.route('/api/projects/list', methods=['GET'])
+def api_projects_list():
+    """Get list of all projects for bulk assignment"""
+    projects = Project.query.order_by(Project.title).all()
+    return jsonify([{
+        'id': p.id,
+        'title': p.title,
+        'location': p.location,
+        'year_completed': p.year_completed_professional
+    } for p in projects])
+
+
+@app.route('/api/employees/bulk-info', methods=['GET'])
+def api_employees_bulk_info():
+    """Get basic info for multiple employees by IDs"""
+    ids_param = request.args.get('ids', '').strip()
+    if not ids_param:
+        return jsonify({'success': False, 'error': 'No employee IDs provided'}), 400
+    
+    try:
+        ids = [int(i) for i in ids_param.split(',') if i.strip().isdigit()]
+    except (ValueError, TypeError):
+        return jsonify({'success': False, 'error': 'Invalid employee IDs'}), 400
+    
+    if not ids:
+        return jsonify({'success': False, 'error': 'No valid employee IDs provided'}), 400
+    
+    employees = Employee.query.filter(Employee.id.in_(ids)).all()
+    return jsonify([{
+        'id': e.id,
+        'name': e.display_name,
+        'title': e.title,
+        'role': e.role,
+        'years_experience': e.years_experience_total,
+        'bio': e.bio
+    } for e in employees])
+
+
+@app.route('/api/employees/bulk-assign-projects', methods=['POST'])
+def api_employees_bulk_assign_projects():
+    """Bulk assign projects to multiple employees"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'Invalid request data'}), 400
+    except:
+        return jsonify({'success': False, 'error': 'Invalid JSON'}), 400
+    
+    employee_ids = data.get('employee_ids', [])
+    project_ids = data.get('project_ids', [])
+    
+    if not employee_ids:
+        return jsonify({'success': False, 'error': 'No employees selected'}), 400
+    if not project_ids:
+        return jsonify({'success': False, 'error': 'No projects selected'}), 400
+    
+    assigned = 0
+    for emp_id in employee_ids:
+        for proj_id in project_ids:
+            try:
+                existing = EmployeeProjectLink.query.filter_by(
+                    employee_id=int(emp_id),
+                    project_id=int(proj_id)
+                ).first()
+                
+                if not existing:
+                    link = EmployeeProjectLink(
+                        employee_id=int(emp_id),
+                        project_id=int(proj_id)
+                    )
+                    db.session.add(link)
+                    assigned += 1
+            except (ValueError, TypeError):
+                continue
+    
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'assigned': assigned,
+        'message': f'Assigned {assigned} project links'
+    })
+
+
+@app.route('/api/employees/ai-response', methods=['POST'])
+def api_employees_ai_response():
+    """Generate AI response based on selected employees"""
+    from gemini_service import client
+    
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'Invalid request data'}), 400
+    except:
+        return jsonify({'success': False, 'error': 'Invalid JSON'}), 400
+    
+    employee_ids = data.get('employee_ids', [])
+    prompt = data.get('prompt', '').strip()
+    length = data.get('length', 'short')
+    include_org_chart = data.get('include_org_chart', False)
+    proposal_id = data.get('proposal_id')
+    
+    if not employee_ids:
+        return jsonify({'success': False, 'error': 'No employees selected'}), 400
+    if not prompt:
+        return jsonify({'success': False, 'error': 'Please enter a prompt'}), 400
+    
+    word_limits = {
+        'short': 250,
+        'medium': 500,
+        'long': 1000
+    }
+    word_limit = word_limits.get(length, 250)
+    
+    try:
+        employees = Employee.query.filter(Employee.id.in_([int(i) for i in employee_ids])).all()
+    except (ValueError, TypeError):
+        return jsonify({'success': False, 'error': 'Invalid employee IDs'}), 400
+    
+    if not employees:
+        return jsonify({'success': False, 'error': 'No employees found with the given IDs'}), 400
+    
+    staff_info = []
+    for e in employees:
+        info = f"Name: {e.display_name}\n"
+        if e.title:
+            info += f"Title: {e.title}\n"
+        if e.role:
+            info += f"Role: {e.role}\n"
+        if e.years_experience_total:
+            info += f"Years of Experience: {e.years_experience_total}\n"
+        if e.bio:
+            info += f"Bio: {e.bio[:500]}...\n" if len(e.bio or '') > 500 else f"Bio: {e.bio}\n"
+        if e.education:
+            info += f"Education: {e.education}\n"
+        if e.registrations:
+            info += f"Registrations: {e.registrations}\n"
+        staff_info.append(info)
+    
+    org_chart_context = ""
+    if include_org_chart and proposal_id:
+        proposal = Proposal.query.get(proposal_id)
+        if proposal and proposal.org_chart_data:
+            try:
+                org_data = json.loads(proposal.org_chart_data) if isinstance(proposal.org_chart_data, str) else proposal.org_chart_data
+                nodes = org_data.get('nodes', [])
+                org_roles = []
+                for node in nodes:
+                    node_data = node.get('data', {})
+                    if node_data.get('assignedStaff'):
+                        org_roles.append(f"- {node_data.get('assignedStaff')} serves as {node_data.get('role', 'Unknown Role')}")
+                if org_roles:
+                    org_chart_context = "\n\nOrganizational Chart Roles:\n" + "\n".join(org_roles)
+            except:
+                pass
+    
+    full_prompt = f"""You are a professional proposal writer. Based on the following staff information, {prompt}
+
+Staff Information:
+{'---'.join(staff_info)}
+{org_chart_context}
+
+Please write a response of approximately {word_limit} words. Be professional, highlight the team's combined qualifications, and write in a way suitable for government proposals or professional documents."""
+
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=full_prompt
+        )
+        
+        return jsonify({
+            'success': True,
+            'response': response.text
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
