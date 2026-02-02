@@ -56,6 +56,8 @@
     const currentHost = window.location.hostname;
     const currentProtocol = window.location.protocol;
     const currentPort = window.location.port;
+    const urlParams = new URLSearchParams(window.location.search);
+    const proposalId = urlParams.get('proposal');
     
     // In development (accessing via port 5000), use the dev server on 5173
     // In production (no port or port 80/443), use the built app at /orgchart-app
@@ -67,6 +69,12 @@
         // Production mode - use built app served by Flask
         orgchartUrl = currentProtocol + '//' + currentHost + '/orgchart-app/';
     }
+    
+    // Append proposal ID if present
+    if (proposalId) {
+        orgchartUrl += '?proposal=' + proposalId;
+    }
+    
     document.getElementById('launch-orgchart').href = orgchartUrl;
 </script>
 {% endblock %}
