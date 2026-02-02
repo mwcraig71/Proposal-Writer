@@ -4482,10 +4482,10 @@ Win Theme: {proposal.win_theme or 'Not defined'}
             firm = proposal.firm
             firm_info = f"""FIRM INFORMATION:
 Name: {firm.name}
-Address: {firm.address or 'N/A'}
+Address: {firm.street_address or 'N/A'}
 City/State: {firm.city or ''}, {firm.state or ''} {firm.zip_code or ''}
 Bio: {firm.bio[:1000] if firm.bio else 'N/A'}
-DUNS: {firm.duns_number or 'N/A'}
+UEI: {firm.uei or 'N/A'}
 """
             sections['firm_info'] = firm_info
         
