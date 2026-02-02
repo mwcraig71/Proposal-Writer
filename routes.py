@@ -4248,3 +4248,165 @@ Please write a response of approximately {word_limit} words. Be professional, hi
             'success': False,
             'error': str(e)
         }), 500
+
+
+@app.route('/api/employees/list', methods=['GET'])
+def api_employees_list():
+    """Get list of all employees for selection"""
+    employees = Employee.query.order_by(Employee.name).all()
+    return jsonify([{
+        'id': e.id,
+        'name': e.display_name,
+        'title': e.title
+    } for e in employees])
+
+
+@app.route('/api/projects/bulk-info', methods=['GET'])
+def api_projects_bulk_info():
+    """Get basic info for multiple projects by IDs"""
+    ids_param = request.args.get('ids', '')
+    if not ids_param:
+        return jsonify({'success': False, 'error': 'No project IDs provided'}), 400
+    
+    ids = [int(i) for i in ids_param.split(',') if i.strip().isdigit()]
+    if not ids:
+        return jsonify({'success': False, 'error': 'No valid project IDs provided'}), 400
+    
+    projects = Project.query.filter(Project.id.in_(ids)).all()
+    return jsonify([{
+        'id': p.id,
+        'title': p.title,
+        'location': p.location,
+        'owner_name': p.owner_name,
+        'year_completed_professional': p.year_completed_professional
+    } for p in projects])
+
+
+@app.route('/api/projects/bulk-assign-staff', methods=['POST'])
+def api_projects_bulk_assign_staff():
+    """Assign multiple employees to multiple projects"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'Invalid request data'}), 400
+    except:
+        return jsonify({'success': False, 'error': 'Invalid JSON'}), 400
+    
+    project_ids = data.get('project_ids', [])
+    employee_ids = data.get('employee_ids', [])
+    
+    if not project_ids:
+        return jsonify({'success': False, 'error': 'No projects selected'}), 400
+    if not employee_ids:
+        return jsonify({'success': False, 'error': 'No employees selected'}), 400
+    
+    assigned = 0
+    for proj_id in project_ids:
+        for emp_id in employee_ids:
+            try:
+                existing = EmployeeProjectExperience.query.filter_by(
+                    employee_id=int(emp_id),
+                    project_id=int(proj_id)
+                ).first()
+                
+                if not existing:
+                    link = EmployeeProjectExperience(
+                        employee_id=int(emp_id),
+                        project_id=int(proj_id)
+                    )
+                    db.session.add(link)
+                    assigned += 1
+            except (ValueError, TypeError):
+                continue
+    
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'assigned': assigned,
+        'message': f'Created {assigned} staff-project assignments'
+    })
+
+
+@app.route('/api/projects/ai-response', methods=['POST'])
+def api_projects_ai_response():
+    """Generate AI response based on selected projects"""
+    from gemini_service import client
+    
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'Invalid request data'}), 400
+    except:
+        return jsonify({'success': False, 'error': 'Invalid JSON'}), 400
+    
+    project_ids = data.get('project_ids', [])
+    prompt = data.get('prompt', '').strip()
+    length = data.get('length', 'short')
+    
+    if not project_ids:
+        return jsonify({'success': False, 'error': 'No projects selected'}), 400
+    if not prompt:
+        return jsonify({'success': False, 'error': 'Please enter a prompt'}), 400
+    
+    word_limits = {
+        'short': 250,
+        'medium': 500,
+        'long': 1000
+    }
+    word_limit = word_limits.get(length, 250)
+    
+    try:
+        projects = Project.query.filter(Project.id.in_([int(i) for i in project_ids])).all()
+    except (ValueError, TypeError):
+        return jsonify({'success': False, 'error': 'Invalid project IDs'}), 400
+    
+    if not projects:
+        return jsonify({'success': False, 'error': 'No projects found with the given IDs'}), 400
+    
+    project_info = []
+    for p in projects:
+        info = f"Project Title: {p.title}\n"
+        if p.location:
+            info += f"Location: {p.location}\n"
+        if p.owner_name:
+            info += f"Owner/Client: {p.owner_name}\n"
+        if p.year_completed_professional:
+            info += f"Year Completed: {p.year_completed_professional}\n"
+        if p.project_cost:
+            info += f"Project Cost: {p.project_cost}\n"
+        if p.brief_description:
+            desc = p.brief_description[:800] + '...' if len(p.brief_description or '') > 800 else p.brief_description
+            info += f"Description: {desc}\n"
+        if p.relevance_writeup:
+            info += f"Relevance: {p.relevance_writeup[:300]}...\n" if len(p.relevance_writeup or '') > 300 else f"Relevance: {p.relevance_writeup}\n"
+        project_info.append(info)
+    
+    system_prompt = f"""You are a professional proposal writer specializing in SF330 government proposals for architecture and engineering firms.
+You are helping to write content about the following projects:
+
+{chr(10).join([f'--- PROJECT {i+1} ---{chr(10)}{info}' for i, info in enumerate(project_info)])}
+
+Write a response of approximately {word_limit} words based on the user's request.
+Focus on presenting the projects professionally and highlighting their relevance to government/infrastructure work.
+Be specific and use actual data from the project information provided."""
+
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt,
+            config={
+                "system_instruction": system_prompt,
+                "max_output_tokens": word_limit * 3
+            }
+        )
+        
+        return jsonify({
+            'success': True,
+            'response': response.text
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500

@@ -21,6 +21,26 @@
     </div>
 </div>
 
+<!-- Bulk Action Toolbar -->
+<div id="bulk-toolbar" class="hidden fixed top-16 left-0 right-0 z-40 bg-blue-600 text-white py-3 px-6 shadow-lg">
+    <div class="max-w-7xl mx-auto flex items-center justify-between">
+        <div class="flex items-center gap-4">
+            <span id="bulk-selected-count" class="font-medium">0 projects selected</span>
+            <button onclick="clearSelection()" class="text-blue-200 hover:text-white text-sm">
+                <i class="fas fa-times mr-1"></i> Clear
+            </button>
+        </div>
+        <div class="flex items-center gap-3">
+            <button onclick="openStaffAssignModal()" class="bg-white text-blue-600 px-4 py-1.5 rounded-lg hover:bg-blue-50 transition font-medium">
+                <i class="fas fa-user-plus mr-2"></i> Add Staff
+            </button>
+            <button onclick="openProjectAIModal()" class="bg-blue-500 text-white px-4 py-1.5 rounded-lg hover:bg-blue-400 transition border border-blue-400">
+                <i class="fas fa-robot mr-2"></i> AI Write Response
+            </button>
+        </div>
+    </div>
+</div>
+
 {% if projects %}
 <div class="bg-white rounded-lg shadow overflow-hidden">
     <table class="w-full table-fixed">
@@ -93,6 +113,30 @@ function updateMergeButton() {
     } else {
         mergeBtn.classList.add('hidden');
     }
+    updateBulkToolbar();
+}
+
+function updateBulkToolbar() {
+    const checked = document.querySelectorAll('.project-checkbox:checked');
+    const toolbar = document.getElementById('bulk-toolbar');
+    const countSpan = document.getElementById('bulk-selected-count');
+    
+    if (checked.length > 0) {
+        toolbar.classList.remove('hidden');
+        countSpan.textContent = `${checked.length} project${checked.length > 1 ? 's' : ''} selected`;
+    } else {
+        toolbar.classList.add('hidden');
+    }
+}
+
+function clearSelection() {
+    document.querySelectorAll('.project-checkbox').forEach(cb => cb.checked = false);
+    document.getElementById('selectAll').checked = false;
+    updateMergeButton();
+}
+
+function getSelectedProjectIds() {
+    return Array.from(document.querySelectorAll('.project-checkbox:checked')).map(cb => parseInt(cb.value));
 }
 
 function mergeSelected() {
@@ -533,7 +577,307 @@ async function saveWebsiteProjects() {
         statusDiv.className = 'mt-4 p-3 rounded-lg bg-red-50 text-red-700';
     }
 }
+
+// Staff Assignment Modal Functions
+let allEmployees = [];
+let selectedProjectsForStaff = [];
+
+async function openStaffAssignModal() {
+    const ids = getSelectedProjectIds();
+    if (ids.length === 0) return;
+    
+    selectedProjectsForStaff = ids;
+    document.getElementById('staff-assign-modal').classList.remove('hidden');
+    document.getElementById('staff-search').value = '';
+    
+    document.getElementById('staff-list-container').innerHTML = '<p class="text-gray-500 text-sm">Loading staff...</p>';
+    
+    try {
+        const projResponse = await fetch('/api/projects/bulk-info?ids=' + ids.join(','));
+        const projects = await projResponse.json();
+        
+        const projectsList = document.getElementById('staff-modal-projects-list');
+        if (Array.isArray(projects)) {
+            projectsList.innerHTML = projects.map(p => `
+                <div class="text-sm text-gray-700">
+                    <i class="fas fa-project-diagram text-gray-400 mr-1"></i> ${p.title}
+                </div>
+            `).join('');
+        }
+        
+        const empResponse = await fetch('/api/employees/list');
+        allEmployees = await empResponse.json();
+        renderStaffList(allEmployees);
+    } catch (error) {
+        console.error('Failed to load data:', error);
+    }
+}
+
+function renderStaffList(employees) {
+    const container = document.getElementById('staff-list-container');
+    if (!employees || employees.length === 0) {
+        container.innerHTML = '<p class="text-gray-500 text-sm">No staff found</p>';
+        return;
+    }
+    container.innerHTML = employees.map(e => `
+        <label class="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer">
+            <input type="checkbox" class="staff-checkbox w-4 h-4 text-blue-600 rounded" value="${e.id}">
+            <span class="font-medium">${e.name}</span>
+            <span class="text-gray-500 text-sm">${e.title || ''}</span>
+        </label>
+    `).join('');
+}
+
+function filterStaff() {
+    const query = document.getElementById('staff-search').value.toLowerCase();
+    const filtered = allEmployees.filter(e => 
+        e.name.toLowerCase().includes(query) || 
+        (e.title && e.title.toLowerCase().includes(query))
+    );
+    renderStaffList(filtered);
+}
+
+function closeStaffAssignModal() {
+    document.getElementById('staff-assign-modal').classList.add('hidden');
+}
+
+async function assignStaffToProjects() {
+    const staffIds = Array.from(document.querySelectorAll('.staff-checkbox:checked')).map(cb => parseInt(cb.value));
+    const projectIds = selectedProjectsForStaff;
+    
+    if (staffIds.length === 0) {
+        alert('Please select at least one staff member');
+        return;
+    }
+    
+    const btn = document.getElementById('assign-staff-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Assigning...';
+    
+    try {
+        const response = await fetch('/api/projects/bulk-assign-staff', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ project_ids: projectIds, employee_ids: staffIds })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            closeStaffAssignModal();
+            clearSelection();
+            alert(`Successfully assigned ${staffIds.length} staff to ${projectIds.length} projects`);
+        } else {
+            alert(data.error || 'Failed to assign staff');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check mr-2"></i> Assign Staff';
+    }
+}
+
+// AI Response Modal Functions
+let selectedProjectsForAI = [];
+let selectedResponseLength = 'short';
+
+async function openProjectAIModal() {
+    const ids = getSelectedProjectIds();
+    if (ids.length === 0) return;
+    
+    selectedProjectsForAI = ids;
+    document.getElementById('project-ai-modal').classList.remove('hidden');
+    document.getElementById('project-ai-prompt').value = '';
+    document.getElementById('project-ai-response-container').classList.add('hidden');
+    document.getElementById('project-ai-response-text').textContent = '';
+    document.getElementById('project-ai-loading').classList.add('hidden');
+    document.getElementById('project-generate-btn').disabled = false;
+    setProjectResponseLength('short');
+    
+    document.getElementById('project-ai-list').innerHTML = '<p class="text-gray-500 text-sm">Loading projects...</p>';
+    
+    try {
+        const response = await fetch('/api/projects/bulk-info?ids=' + ids.join(','));
+        const projects = await response.json();
+        
+        const projectList = document.getElementById('project-ai-list');
+        if (Array.isArray(projects)) {
+            projectList.innerHTML = projects.map(p => `
+                <div class="flex items-center gap-2 text-sm">
+                    <i class="fas fa-project-diagram text-gray-400"></i>
+                    <span class="font-medium">${p.title}</span>
+                    <span class="text-gray-500">- ${p.owner_name || p.location || 'No details'}</span>
+                </div>
+            `).join('');
+        } else {
+            projectList.innerHTML = '<p class="text-red-500 text-sm">Failed to load project info</p>';
+        }
+    } catch (error) {
+        console.error('Failed to load data:', error);
+        document.getElementById('project-ai-list').innerHTML = '<p class="text-red-500 text-sm">Failed to load project info</p>';
+    }
+}
+
+function closeProjectAIModal() {
+    document.getElementById('project-ai-modal').classList.add('hidden');
+}
+
+function setProjectResponseLength(length) {
+    selectedResponseLength = length;
+    ['short', 'medium', 'long'].forEach(l => {
+        const btn = document.getElementById('proj-len-' + l);
+        if (l === length) {
+            btn.classList.add('border-blue-600', 'bg-blue-600', 'text-white');
+            btn.classList.remove('border-gray-300', 'text-gray-700');
+        } else {
+            btn.classList.remove('border-blue-600', 'bg-blue-600', 'text-white');
+            btn.classList.add('border-gray-300', 'text-gray-700');
+        }
+    });
+}
+
+async function generateProjectAIResponse() {
+    const prompt = document.getElementById('project-ai-prompt').value.trim();
+    if (!prompt) {
+        alert('Please enter a prompt');
+        return;
+    }
+    
+    const btn = document.getElementById('project-generate-btn');
+    btn.disabled = true;
+    document.getElementById('project-ai-loading').classList.remove('hidden');
+    document.getElementById('project-ai-response-container').classList.add('hidden');
+    
+    try {
+        const response = await fetch('/api/projects/ai-response', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                project_ids: selectedProjectsForAI,
+                prompt: prompt,
+                length: selectedResponseLength
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            document.getElementById('project-ai-response-text').textContent = data.response;
+            document.getElementById('project-ai-response-container').classList.remove('hidden');
+        } else {
+            alert(data.error || 'Failed to generate response');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    } finally {
+        btn.disabled = false;
+        document.getElementById('project-ai-loading').classList.add('hidden');
+    }
+}
+
+function copyProjectAIResponse() {
+    const text = document.getElementById('project-ai-response-text').textContent;
+    navigator.clipboard.writeText(text);
+    
+    const btn = event.target.closest('button');
+    const originalHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-check mr-1"></i> Copied!';
+    setTimeout(() => btn.innerHTML = originalHtml, 2000);
+}
 </script>
+
+<!-- Staff Assignment Modal -->
+<div id="staff-assign-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+        <div class="p-4 border-b flex justify-between items-center">
+            <h2 class="text-lg font-semibold text-gray-800">Add Staff to Projects</h2>
+            <button onclick="closeStaffAssignModal()" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="p-4 flex-1 overflow-y-auto">
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Selected Projects:</label>
+                <div id="staff-modal-projects-list" class="bg-gray-50 rounded p-3 max-h-24 overflow-y-auto space-y-1"></div>
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Search Staff:</label>
+                <input type="text" id="staff-search" oninput="filterStaff()" placeholder="Search by name or title..." class="w-full border rounded-lg p-2">
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Select Staff to Add:</label>
+                <div id="staff-list-container" class="border rounded-lg p-2 max-h-48 overflow-y-auto"></div>
+            </div>
+        </div>
+        <div class="p-4 border-t flex justify-end gap-3">
+            <button onclick="closeStaffAssignModal()" class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">Cancel</button>
+            <button id="assign-staff-btn" onclick="assignStaffToProjects()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                <i class="fas fa-check mr-2"></i> Assign Staff
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Project AI Response Modal -->
+<div id="project-ai-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+        <div class="p-4 border-b flex justify-between items-center">
+            <h2 class="text-lg font-semibold text-gray-800">AI Response Generator</h2>
+            <button onclick="closeProjectAIModal()" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="p-4 flex-1 overflow-y-auto">
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Selected Projects:</label>
+                <div id="project-ai-list" class="bg-gray-50 rounded p-3 max-h-32 overflow-y-auto space-y-1"></div>
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Response Length:</label>
+                <div class="flex gap-2">
+                    <button id="proj-len-short" onclick="setProjectResponseLength('short')" class="flex-1 py-2 px-3 border-2 rounded-lg text-sm font-medium transition border-blue-600 bg-blue-600 text-white">
+                        Short<br><span class="text-xs opacity-75">~250 words</span>
+                    </button>
+                    <button id="proj-len-medium" onclick="setProjectResponseLength('medium')" class="flex-1 py-2 px-3 border-2 rounded-lg text-sm font-medium transition border-gray-300 text-gray-700">
+                        Medium<br><span class="text-xs opacity-75">~500 words</span>
+                    </button>
+                    <button id="proj-len-long" onclick="setProjectResponseLength('long')" class="flex-1 py-2 px-3 border-2 rounded-lg text-sm font-medium transition border-gray-300 text-gray-700">
+                        Long<br><span class="text-xs opacity-75">~1000 words</span>
+                    </button>
+                </div>
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Your Prompt:</label>
+                <textarea id="project-ai-prompt" rows="3" placeholder="e.g., Write a project experience summary highlighting our bridge inspection capabilities..." class="w-full border rounded-lg p-3"></textarea>
+            </div>
+            <div id="project-ai-loading" class="hidden text-center py-4">
+                <i class="fas fa-spinner fa-spin text-blue-600 text-2xl"></i>
+                <p class="text-gray-600 mt-2">Generating response...</p>
+            </div>
+            <div id="project-ai-response-container" class="hidden">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Generated Response:</label>
+                <div class="bg-gray-50 rounded-lg p-4 border max-h-64 overflow-y-auto">
+                    <pre id="project-ai-response-text" class="whitespace-pre-wrap text-sm text-gray-800 font-sans"></pre>
+                </div>
+                <div class="flex justify-end gap-2 mt-3">
+                    <button onclick="copyProjectAIResponse()" class="text-sm text-blue-600 hover:text-blue-800">
+                        <i class="fas fa-copy mr-1"></i> Copy
+                    </button>
+                    <button onclick="generateProjectAIResponse()" class="text-sm text-blue-600 hover:text-blue-800">
+                        <i class="fas fa-redo mr-1"></i> Regenerate
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="p-4 border-t flex justify-end gap-3">
+            <button onclick="closeProjectAIModal()" class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">Cancel</button>
+            <button id="project-generate-btn" onclick="generateProjectAIResponse()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                <i class="fas fa-magic mr-2"></i> Generate
+            </button>
+        </div>
+    </div>
+</div>
 
 <div id="importModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
     <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
