@@ -228,63 +228,56 @@
     </div>
 </div>
 
-<!-- Floating AI Proposal Assistant -->
-<div id="ai-chat-fab" class="fixed bottom-6 right-6 z-50">
-    <button onclick="toggleFloatingChat()" id="ai-fab-btn" class="w-16 h-16 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg flex items-center justify-center transition-all duration-300 hover:scale-110">
-        <i class="fas fa-robot text-2xl" id="ai-fab-icon"></i>
-    </button>
-    <span class="absolute -top-2 -left-2 bg-purple-500 text-white text-xs px-2 py-0.5 rounded-full shadow">AI</span>
-</div>
-
-<div id="ai-chat-panel" class="fixed bottom-24 right-6 w-96 max-h-[70vh] bg-white rounded-xl shadow-2xl z-50 hidden flex-col overflow-hidden border border-gray-200">
-    <div class="bg-blue-600 text-white p-4 flex justify-between items-center">
+<!-- AI Proposal Assistant -->
+<div id="ai-assistant-container" class="bg-white rounded-lg shadow p-6 mb-8 transition-all duration-300">
+    <div class="flex items-center justify-between mb-4">
+        <h2 class="text-xl font-semibold text-gray-800">
+            <i class="fas fa-robot text-blue-600 mr-2"></i> AI Proposal Assistant
+        </h2>
         <div class="flex items-center gap-2">
-            <i class="fas fa-robot text-xl"></i>
-            <span class="font-semibold">AI Proposal Assistant</span>
-        </div>
-        <div class="flex items-center gap-2">
-            <button onclick="toggleSavedPanel()" class="p-2 hover:bg-blue-700 rounded-lg transition" title="Saved Responses">
-                <i class="fas fa-bookmark"></i>
+            <button onclick="toggleFullscreen()" id="fullscreen-btn" class="px-3 py-1.5 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition text-sm" title="Toggle Fullscreen">
+                <i class="fas fa-expand" id="fullscreen-icon"></i>
             </button>
-            <button onclick="toggleFloatingChat()" class="p-2 hover:bg-blue-700 rounded-lg transition">
-                <i class="fas fa-times"></i>
+            <button onclick="toggleAIAssistant()" id="ai-toggle-btn" class="text-blue-600 hover:text-blue-800 text-sm">
+                <i class="fas fa-chevron-down" id="ai-toggle-icon"></i> <span id="ai-toggle-text">Expand</span>
             </button>
         </div>
     </div>
+    <p class="text-gray-600 mb-4">Ask questions or request content about this proposal. The AI uses your writing style and tone settings. It has access to all proposal data including personnel, projects, firm info, org chart, RFP, win themes, and reference documents.</p>
     
-    <div id="ai-chat-messages" class="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50" style="max-height: 350px; min-height: 250px;">
-        <div class="text-center text-gray-500 py-6" id="ai-chat-empty">
-            <i class="fas fa-robot text-3xl text-gray-300 mb-2"></i>
-            <p class="text-sm">Ask me anything about this proposal.</p>
-            <p class="text-xs text-gray-400 mt-1">I have access to all proposal data.</p>
+    <div id="ai-assistant-content" class="hidden">
+        <div id="ai-chat-messages" class="bg-gray-50 rounded-lg border mb-4 overflow-y-auto p-4 space-y-4" style="height: 400px;">
+            <div class="text-center text-gray-500 py-8" id="ai-chat-empty">
+                <i class="fas fa-robot text-4xl text-gray-300 mb-3"></i>
+                <p>Start a conversation about this proposal.</p>
+                <p class="text-sm mt-1">I have access to all proposal data and will use your configured writing style and tone.</p>
+            </div>
         </div>
-    </div>
-    
-    <div id="saved-panel" class="hidden absolute inset-0 bg-white z-10 flex flex-col">
-        <div class="bg-purple-600 text-white p-4 flex justify-between items-center">
-            <span class="font-semibold"><i class="fas fa-bookmark mr-2"></i>Saved Responses</span>
-            <button onclick="toggleSavedPanel()" class="p-2 hover:bg-purple-700 rounded-lg transition">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <div id="saved-responses-list" class="flex-1 overflow-y-auto p-4">
-            <p class="text-gray-500 text-sm text-center py-4">No saved responses yet.</p>
-        </div>
-    </div>
-    
-    <div class="p-3 border-t bg-white">
+        
         <div class="flex gap-2">
-            <textarea id="proposal-ai-prompt" rows="1" class="flex-1 p-2 border rounded-lg resize-none text-sm" placeholder="Ask about this proposal..." onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();sendChatMessage();}" oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,80)+'px';"></textarea>
-            <button onclick="sendChatMessage()" id="proposal-ai-send-btn" class="px-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center">
+            <textarea id="proposal-ai-prompt" rows="3" class="flex-1 p-3 border rounded-lg resize-none" placeholder="Ask a question or request content about this proposal..." onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();sendChatMessage();}"></textarea>
+            <button onclick="sendChatMessage()" id="proposal-ai-send-btn" class="px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center">
                 <i class="fas fa-paper-plane"></i>
             </button>
         </div>
+        
         <div class="flex justify-between items-center mt-2">
-            <button onclick="clearChatHistory()" class="text-xs text-gray-400 hover:text-gray-600">
-                <i class="fas fa-trash-alt mr-1"></i> Clear
+            <button onclick="clearChatHistory()" class="text-sm text-gray-500 hover:text-gray-700">
+                <i class="fas fa-trash-alt mr-1"></i> Clear Chat
             </button>
-            <span class="text-[10px] text-gray-400">Enter to send</span>
+            <span class="text-xs text-gray-400">Press Enter to send, Shift+Enter for new line</span>
         </div>
+    </div>
+</div>
+
+<!-- Saved AI Responses -->
+<div class="bg-white rounded-lg shadow p-6 mb-8">
+    <h2 class="text-xl font-semibold text-gray-800 mb-4">
+        <i class="fas fa-bookmark text-purple-600 mr-2"></i> Saved AI Responses
+    </h2>
+    <p class="text-gray-600 mb-4">Responses you've saved from the AI assistant for this proposal.</p>
+    <div id="saved-responses-list" class="space-y-3">
+        <p class="text-gray-500 text-sm italic">Loading saved responses...</p>
     </div>
 </div>
 
@@ -400,34 +393,52 @@ async function deleteRefDoc(refId) {
 
 // AI Proposal Assistant Functions
 let chatHistory = [];
+let isFullscreen = false;
 
-function toggleFloatingChat() {
-    const panel = document.getElementById('ai-chat-panel');
-    const fabIcon = document.getElementById('ai-fab-icon');
+function toggleAIAssistant() {
+    const content = document.getElementById('ai-assistant-content');
+    const icon = document.getElementById('ai-toggle-icon');
+    const text = document.getElementById('ai-toggle-text');
     
-    if (panel.classList.contains('hidden')) {
-        panel.classList.remove('hidden');
-        panel.classList.add('flex');
-        fabIcon.classList.remove('fa-robot');
-        fabIcon.classList.add('fa-times');
+    if (content.classList.contains('hidden')) {
+        content.classList.remove('hidden');
+        icon.classList.remove('fa-chevron-down');
+        icon.classList.add('fa-chevron-up');
+        text.textContent = 'Collapse';
     } else {
-        panel.classList.add('hidden');
-        panel.classList.remove('flex');
-        fabIcon.classList.remove('fa-times');
-        fabIcon.classList.add('fa-robot');
-        document.getElementById('saved-panel').classList.add('hidden');
+        content.classList.add('hidden');
+        icon.classList.remove('fa-chevron-up');
+        icon.classList.add('fa-chevron-down');
+        text.textContent = 'Expand';
     }
 }
 
-function toggleSavedPanel() {
-    const savedPanel = document.getElementById('saved-panel');
-    if (savedPanel.classList.contains('hidden')) {
-        savedPanel.classList.remove('hidden');
-        savedPanel.classList.add('flex');
-        loadSavedResponses();
+function toggleFullscreen() {
+    const container = document.getElementById('ai-assistant-container');
+    const chatMessages = document.getElementById('ai-chat-messages');
+    const icon = document.getElementById('fullscreen-icon');
+    const content = document.getElementById('ai-assistant-content');
+    
+    isFullscreen = !isFullscreen;
+    
+    if (isFullscreen) {
+        container.classList.add('fixed', 'inset-4', 'z-50', 'max-w-none', 'overflow-auto');
+        container.style.margin = '0';
+        chatMessages.style.height = 'calc(100vh - 280px)';
+        icon.classList.remove('fa-expand');
+        icon.classList.add('fa-compress');
+        content.classList.remove('hidden');
+        document.getElementById('ai-toggle-icon').classList.remove('fa-chevron-down');
+        document.getElementById('ai-toggle-icon').classList.add('fa-chevron-up');
+        document.getElementById('ai-toggle-text').textContent = 'Collapse';
+        document.body.style.overflow = 'hidden';
     } else {
-        savedPanel.classList.add('hidden');
-        savedPanel.classList.remove('flex');
+        container.classList.remove('fixed', 'inset-4', 'z-50', 'max-w-none', 'overflow-auto');
+        container.style.margin = '';
+        chatMessages.style.height = '400px';
+        icon.classList.remove('fa-compress');
+        icon.classList.add('fa-expand');
+        document.body.style.overflow = '';
     }
 }
 
@@ -441,22 +452,20 @@ function addMessageToChat(role, content) {
     
     const bubble = document.createElement('div');
     bubble.className = role === 'user'
-        ? 'bg-blue-600 text-white rounded-lg px-3 py-2 max-w-[85%] text-sm'
-        : 'bg-white border rounded-lg px-3 py-2 max-w-[85%] shadow-sm text-sm';
+        ? 'bg-blue-600 text-white rounded-lg px-4 py-3 max-w-4xl'
+        : 'bg-white border rounded-lg px-4 py-3 max-w-4xl shadow-sm';
     
     if (role === 'assistant') {
-        const actions = document.createElement('div');
-        actions.className = 'flex justify-end gap-2 mt-2 pt-2 border-t border-gray-100';
-        actions.innerHTML = '<button onclick="saveMessage(this)" class="text-[10px] text-green-600 hover:text-green-800"><i class="fas fa-save"></i> Save</button><button onclick="copyMessage(this)" class="text-[10px] text-blue-600 hover:text-blue-800"><i class="fas fa-copy"></i> Copy</button>';
-        
-        const text = document.createElement('div');
-        text.className = 'whitespace-pre-wrap';
-        text.textContent = content;
-        bubble.appendChild(text);
-        bubble.appendChild(actions);
-    } else {
-        bubble.textContent = content;
+        const header = document.createElement('div');
+        header.className = 'flex justify-between items-center mb-3 pb-2 border-b';
+        header.innerHTML = '<span class="text-xs text-gray-500"><i class="fas fa-robot mr-1"></i> AI Assistant</span><div class="flex gap-3"><button onclick="saveMessage(this)" class="text-xs text-green-600 hover:text-green-800"><i class="fas fa-save mr-1"></i>Save</button><button onclick="copyMessage(this)" class="text-xs text-blue-600 hover:text-blue-800"><i class="fas fa-copy mr-1"></i>Copy</button></div>';
+        bubble.appendChild(header);
     }
+    
+    const text = document.createElement('div');
+    text.className = 'whitespace-pre-wrap text-sm leading-relaxed';
+    text.textContent = content;
+    bubble.appendChild(text);
     
     msgDiv.appendChild(bubble);
     container.appendChild(msgDiv);
@@ -518,7 +527,59 @@ async function sendChatMessage() {
 function clearChatHistory() {
     if (!confirm('Clear chat history?')) return;
     chatHistory = [];
-    document.getElementById('ai-chat-messages').innerHTML = '<div class="text-center text-gray-500 py-6" id="ai-chat-empty"><i class="fas fa-robot text-3xl text-gray-300 mb-2"></i><p class="text-sm">Ask me anything about this proposal.</p><p class="text-xs text-gray-400 mt-1">I have access to all proposal data.</p></div>';
+    document.getElementById('ai-chat-messages').innerHTML = '<div class="text-center text-gray-500 py-8" id="ai-chat-empty"><i class="fas fa-robot text-4xl text-gray-300 mb-3"></i><p>Start a conversation about this proposal.</p><p class="text-sm mt-1">I have access to all proposal data and will use your configured writing style and tone.</p></div>';
+}
+
+async function loadSavedResponses() {
+    try {
+        const res = await fetch('/api/proposals/{{ proposal.id }}/saved-responses');
+        const data = await res.json();
+        const container = document.getElementById('saved-responses-list');
+        
+        if (data.success && data.responses.length > 0) {
+            container.innerHTML = data.responses.map(r => `
+                <div class="bg-gray-50 border rounded-lg p-4">
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            ${r.label ? `<span class="font-medium text-gray-800">${r.label}</span>` : ''}
+                            <span class="text-xs text-gray-500 ${r.label ? 'ml-2' : ''}">${new Date(r.created_at).toLocaleString()}</span>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="copySavedResponse(this)" class="text-xs text-blue-600 hover:text-blue-800"><i class="fas fa-copy"></i> Copy</button>
+                            <button onclick="deleteSavedResponse(${r.id})" class="text-xs text-red-600 hover:text-red-800"><i class="fas fa-trash"></i> Delete</button>
+                        </div>
+                    </div>
+                    ${r.prompt ? `<p class="text-xs text-gray-500 mb-2 italic">Prompt: "${r.prompt.substring(0, 100)}${r.prompt.length > 100 ? '...' : ''}"</p>` : ''}
+                    <p class="text-sm text-gray-700 whitespace-pre-wrap saved-content">${r.response}</p>
+                </div>
+            `).join('');
+        } else {
+            container.innerHTML = '<p class="text-gray-500 text-sm italic">No saved responses yet. Use the AI assistant above and click "Save" to save responses here.</p>';
+        }
+    } catch (error) {
+        console.error('Error loading saved responses:', error);
+    }
+}
+
+function copySavedResponse(btn) {
+    const text = btn.closest('.bg-gray-50').querySelector('.saved-content').textContent;
+    navigator.clipboard.writeText(text);
+    const original = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+    setTimeout(() => btn.innerHTML = original, 2000);
+}
+
+async function deleteSavedResponse(id) {
+    if (!confirm('Delete this saved response?')) return;
+    try {
+        const res = await fetch(`/api/proposals/{{ proposal.id }}/saved-responses/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+            loadSavedResponses();
+        }
+    } catch (error) {
+        console.error('Error deleting response:', error);
+    }
 }
 
 function copyMessage(btn) {
