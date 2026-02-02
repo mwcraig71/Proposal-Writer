@@ -35,6 +35,26 @@
         <p class="text-gray-600">Select the key personnel to include in Section E of the SF330. You can also specify each person's role in this contract.</p>
     </div>
     
+    {% if proposals_with_orgcharts %}
+    <div class="mb-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+        <h3 class="font-semibold text-purple-800 mb-2">
+            <i class="fas fa-sitemap mr-2"></i> Import from Org Chart
+        </h3>
+        <p class="text-sm text-purple-600 mb-3">Select an existing proposal's org chart to automatically populate personnel and their roles.</p>
+        <div class="flex gap-3">
+            <select id="orgchart-select" class="flex-1 p-2 border rounded-lg">
+                <option value="">-- Select an Org Chart --</option>
+                {% for p in proposals_with_orgcharts %}
+                <option value="{{ p.id }}" {% if p.id == proposal.id %}selected{% endif %}>{{ p.tracking_number }} - {{ p.name }}</option>
+                {% endfor %}
+            </select>
+            <button type="button" id="import-orgchart-btn" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
+                <i class="fas fa-download mr-2"></i> Import Personnel
+            </button>
+        </div>
+    </div>
+    {% endif %}
+    
     {% if employees %}
     <div class="space-y-4 mb-6" id="personnel-list">
         {% for employee in employees %}
@@ -50,7 +70,7 @@
                 <input type="text" placeholder="Role in this contract" 
                        data-emp-id="{{ employee.id }}" 
                        class="role-input w-full p-2 border rounded text-sm"
-                       value="{{ employee.role or '' }}">
+                       value="{{ selected_roles.get(employee.id, '') or '' }}">
             </div>
         </div>
         {% endfor %}
@@ -74,6 +94,59 @@
 
 {% block scripts %}
 <script>
+const importBtn = document.getElementById('import-orgchart-btn');
+if (importBtn) {
+    importBtn.addEventListener('click', async () => {
+        const select = document.getElementById('orgchart-select');
+        const proposalId = select.value;
+        
+        if (!proposalId) {
+            alert('Please select an org chart first.');
+            return;
+        }
+        
+        importBtn.disabled = true;
+        importBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Importing...';
+        
+        try {
+            const response = await fetch(`/api/proposals/${proposalId}/orgchart-personnel`);
+            const result = await response.json();
+            
+            if (result.success && result.personnel) {
+                document.querySelectorAll('.employee-checkbox').forEach(cb => {
+                    cb.checked = false;
+                });
+                document.querySelectorAll('.role-input').forEach(input => {
+                    input.value = '';
+                });
+                
+                let imported = 0;
+                result.personnel.forEach(person => {
+                    const checkbox = document.getElementById(`emp-${person.employee_id}`);
+                    const roleInput = document.querySelector(`.role-input[data-emp-id="${person.employee_id}"]`);
+                    
+                    if (checkbox) {
+                        checkbox.checked = true;
+                        imported++;
+                    }
+                    if (roleInput && person.role) {
+                        roleInput.value = person.role;
+                    }
+                });
+                
+                alert(`Imported ${imported} personnel from org chart.`);
+            } else {
+                alert('Error: ' + (result.error || 'Could not import org chart data'));
+            }
+        } catch (error) {
+            alert('Error: ' + error.message);
+        }
+        
+        importBtn.disabled = false;
+        importBtn.innerHTML = '<i class="fas fa-download mr-2"></i> Import Personnel';
+    });
+}
+
 document.getElementById('next-btn').addEventListener('click', async () => {
     const selectedEmployees = [];
     const roles = {};
