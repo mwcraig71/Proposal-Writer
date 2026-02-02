@@ -5498,8 +5498,9 @@ def delete_performance_reference(id):
     
     if ref.pdf_object_key:
         try:
-            storage = ObjectStorageClient()
-            storage.delete(ref.pdf_object_key)
+            storage = get_storage_client()
+            if storage:
+                storage.delete(ref.pdf_object_key)
         except Exception:
             pass
     
@@ -5565,8 +5566,9 @@ def upload_reference_pdf(id):
     
     if ref.pdf_object_key:
         try:
-            storage = ObjectStorageClient()
-            storage.delete(ref.pdf_object_key)
+            storage = get_storage_client()
+            if storage:
+                storage.delete(ref.pdf_object_key)
         except Exception:
             pass
     
@@ -5574,7 +5576,9 @@ def upload_reference_pdf(id):
     object_key = f"references/{ref.id}/{uuid.uuid4().hex}_{filename}"
     
     try:
-        storage = ObjectStorageClient()
+        storage = get_storage_client()
+        if not storage:
+            return jsonify({'success': False, 'error': 'Object storage not configured'}), 500
         file_data = file.read()
         storage.upload_from_bytes(object_key, file_data)
         
@@ -5598,7 +5602,10 @@ def download_reference_pdf(id):
         return redirect(url_for('references_page'))
     
     try:
-        storage = ObjectStorageClient()
+        storage = get_storage_client()
+        if not storage:
+            flash('Object storage not configured', 'error')
+            return redirect(url_for('references_page'))
         file_data = storage.download_as_bytes(ref.pdf_object_key)
         return send_file(
             io.BytesIO(file_data),
@@ -5720,8 +5727,11 @@ Document text:
         db.session.flush()
         
         object_key = f"references/{ref.id}/{uuid.uuid4().hex}_{filename}"
-        storage = ObjectStorageClient()
-        storage.upload_from_bytes(object_key, file_data)
+        storage = get_storage_client()
+        if storage:
+            storage.upload_from_bytes(object_key, file_data)
+        else:
+            object_key = None
         
         ref.pdf_filename = filename
         ref.pdf_object_key = object_key
