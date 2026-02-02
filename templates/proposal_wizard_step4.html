@@ -253,6 +253,16 @@
                 <p class="text-gray-500 text-sm">No saved responses yet.</p>
             </div>
         </div>
+        
+        <div class="mt-6 pt-4 border-t">
+            <div class="flex justify-between items-center mb-3">
+                <h4 class="font-medium text-gray-700"><i class="fas fa-file-alt mr-2"></i>Linked Responses</h4>
+                <a href="/responses" class="text-sm text-blue-600 hover:text-blue-800">Browse Library</a>
+            </div>
+            <div id="linked-responses-list" class="max-h-64 overflow-y-auto">
+                <p class="text-gray-500 text-sm">No linked responses yet.</p>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -572,6 +582,64 @@ async function deleteSavedResponse(id) {
     }
 }
 
-document.addEventListener('DOMContentLoaded', loadSavedResponses);
+async function loadLinkedResponses() {
+    try {
+        const res = await fetch('/api/proposals/{{ proposal.id }}/linked-responses');
+        const data = await res.json();
+        const container = document.getElementById('linked-responses-list');
+        if (!data.success || !data.responses.length) {
+            container.innerHTML = '<p class="text-gray-500 text-sm">No linked responses yet. <a href="/responses" class="text-blue-600">Add from library</a></p>';
+            return;
+        }
+        container.innerHTML = data.responses.map(r => `
+            <div class="border rounded-lg p-3 bg-white mb-2" data-id="${r.id}">
+                <div class="flex justify-between items-start mb-2">
+                    <div>
+                        <span class="font-medium text-sm">${r.question || 'Response'}</span>
+                        <div class="flex gap-2 mt-1">
+                            ${r.client ? `<span class="text-xs bg-gray-100 px-2 py-0.5 rounded">${r.client}</span>` : ''}
+                            ${r.grade ? `<span class="text-xs ${r.grade === 'A' ? 'bg-green-100 text-green-800' : r.grade === 'B' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100'} px-2 py-0.5 rounded">${r.grade}</span>` : ''}
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="copyLinkedResponse(this)" class="text-xs text-blue-600 hover:text-blue-800" title="Copy"><i class="fas fa-copy"></i></button>
+                        <button onclick="unlinkResponse(${r.id})" class="text-xs text-red-600 hover:text-red-800" title="Unlink"><i class="fas fa-unlink"></i></button>
+                    </div>
+                </div>
+                <div class="text-sm text-gray-700 whitespace-pre-wrap max-h-24 overflow-y-auto">${r.response}</div>
+            </div>
+        `).join('');
+    } catch (e) {
+        console.error('Failed to load linked responses:', e);
+    }
+}
+
+function copyLinkedResponse(btn) {
+    const text = btn.closest('.border').querySelector('.whitespace-pre-wrap').textContent;
+    navigator.clipboard.writeText(text);
+    const original = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-check"></i>';
+    setTimeout(() => btn.innerHTML = original, 2000);
+}
+
+async function unlinkResponse(responseId) {
+    if (!confirm('Remove this response from this proposal?')) return;
+    try {
+        const res = await fetch(`/api/proposals/{{ proposal.id }}/unlink-response/${responseId}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+            loadLinkedResponses();
+        } else {
+            alert(data.error || 'Failed to unlink');
+        }
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadSavedResponses();
+    loadLinkedResponses();
+});
 </script>
 {% endblock %}

@@ -4806,6 +4806,18 @@ UEI: {firm.uei or 'N/A'}
                     intel_info += f"{intel.extracted_text[:1000]}\n"
             sections['intelligence'] = intel_info
         
+        linked_responses = ProposalLinkedResponse.query.filter_by(proposal_id=proposal_id).all()
+        if linked_responses:
+            responses_info = "LINKED RESPONSE LIBRARY:\n"
+            for link in linked_responses[:10]:
+                r = link.response
+                if r:
+                    responses_info += f"\n--- {r.question or 'Response'} (Grade: {r.grade or 'N/A'}) ---\n"
+                    responses_info += f"Client: {r.client or 'N/A'} | Year: {r.year or 'N/A'}\n"
+                    if r.response:
+                        responses_info += f"{r.response[:800]}\n"
+            sections['linked_responses'] = responses_info
+        
         return sections
     
     sections = collect_proposal_data()
@@ -5138,6 +5150,33 @@ def export_responses_csv():
         as_attachment=True,
         download_name='responses_export.csv'
     )
+
+
+@app.route('/api/proposals/<int:proposal_id>/linked-responses')
+def get_proposal_linked_responses(proposal_id):
+    """Get all linked responses for a proposal"""
+    proposal = Proposal.query.get(proposal_id)
+    if not proposal:
+        return jsonify({'success': False, 'error': 'Proposal not found'}), 404
+    
+    links = ProposalLinkedResponse.query.filter_by(proposal_id=proposal_id).order_by(ProposalLinkedResponse.display_order).all()
+    
+    responses = []
+    for link in links:
+        r = link.response
+        responses.append({
+            'id': r.id,
+            'year': r.year,
+            'client': r.client,
+            'project_type': r.project_type,
+            'contract': r.contract,
+            'firm': r.firm,
+            'grade': r.grade,
+            'question': r.question,
+            'response': r.response
+        })
+    
+    return jsonify({'success': True, 'responses': responses})
 
 
 @app.route('/api/proposals/<int:proposal_id>/link-response', methods=['POST'])
