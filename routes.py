@@ -1003,7 +1003,8 @@ def merge_employees():
         if not merge_emp:
             continue
         
-        for link in EmployeeProjectLink.query.filter_by(employee_id=merge_id).all():
+        links_to_transfer = EmployeeProjectLink.query.filter_by(employee_id=merge_id).all()
+        for link in links_to_transfer:
             existing = EmployeeProjectLink.query.filter_by(
                 employee_id=primary_id, project_id=link.project_id
             ).first()
@@ -1012,22 +1013,26 @@ def merge_employees():
             else:
                 db.session.delete(link)
         
-        for exp in merge_emp.project_experiences:
+        experiences_to_transfer = list(EmployeeProjectExperience.query.filter_by(employee_id=merge_id).all())
+        for exp in experiences_to_transfer:
             existing = EmployeeProjectExperience.query.filter_by(
                 employee_id=primary_id,
-                project_title=exp.project_title,
-                owner_name=exp.owner_name,
-                firm_name=exp.firm_name
+                project_title=exp.project_title
             ).first()
             if not existing:
                 exp.employee_id = primary_id
+                db.session.flush()
             else:
                 db.session.delete(exp)
         
-        for alt_bio in EmployeeAlternateBio.query.filter_by(employee_id=merge_id).all():
+        alt_bios_to_transfer = list(EmployeeAlternateBio.query.filter_by(employee_id=merge_id).all())
+        for alt_bio in alt_bios_to_transfer:
             alt_bio.employee_id = primary_id
+            db.session.flush()
         
         ProposalSelectedEmployee.query.filter_by(employee_id=merge_id).delete()
+        
+        db.session.flush()
         db.session.delete(merge_emp)
     
     db.session.commit()
