@@ -55,7 +55,18 @@
 <script>
     const currentHost = window.location.hostname;
     const currentProtocol = window.location.protocol;
-    const orgchartUrl = currentProtocol + '//' + currentHost + ':5173';
+    const currentPort = window.location.port;
+    
+    // In development (accessing via port 5000), use the dev server on 5173
+    // In production (no port or port 80/443), use the built app at /orgchart-app
+    let orgchartUrl;
+    if (currentPort === '5000' || currentHost.includes('localhost') || currentHost.includes('127.0.0.1')) {
+        // Development mode - use Vite dev server
+        orgchartUrl = currentProtocol + '//' + currentHost + ':5173';
+    } else {
+        // Production mode - use built app served by Flask
+        orgchartUrl = currentProtocol + '//' + currentHost + '/orgchart-app/';
+    }
     document.getElementById('launch-orgchart').href = orgchartUrl;
 </script>
 {% endblock %}

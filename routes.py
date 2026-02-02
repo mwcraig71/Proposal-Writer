@@ -1,7 +1,7 @@
 import os
 import json
 from functools import wraps
-from flask import render_template, request, jsonify, redirect, url_for, flash, send_file, session
+from flask import render_template, request, jsonify, redirect, url_for, flash, send_file, send_from_directory, session
 from werkzeug.utils import secure_filename
 from main import app
 from database import db
@@ -4002,8 +4002,30 @@ def _scrape_marketing_photos_impl():
 
 @app.route('/orgchart')
 def orgchart():
-    """Serve the org chart page"""
+    """Serve the org chart landing page (development mode)"""
     return render_template('orgchart.html')
+
+
+@app.route('/orgchart-app')
+@app.route('/orgchart-app/')
+def orgchart_app():
+    """Serve the built React org chart app (production mode)"""
+    import os
+    dist_path = os.path.join(os.path.dirname(__file__), 'orgchart', 'dist', 'index.html')
+    if os.path.exists(dist_path):
+        return send_file(dist_path)
+    else:
+        return "Org chart not built. Please build with: cd orgchart && npm run build", 404
+
+
+@app.route('/orgchart-app/<path:filename>')
+def orgchart_static(filename):
+    """Serve static files for the built org chart app"""
+    import os
+    return send_from_directory(
+        os.path.join(os.path.dirname(__file__), 'orgchart', 'dist'),
+        filename
+    )
 
 
 @app.route('/api/proposals/list', methods=['GET'])
