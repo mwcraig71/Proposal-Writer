@@ -212,6 +212,22 @@
     {% endif %}
 </div>
 
+<!-- Linked Responses Section (Always Visible) -->
+<div class="bg-white rounded-lg shadow p-6 mb-8">
+    <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-semibold text-gray-800">
+            <i class="fas fa-file-alt text-blue-600 mr-2"></i> Linked Responses from Library
+        </h2>
+        <a href="/responses" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm">
+            <i class="fas fa-plus mr-1"></i> Add from Library
+        </a>
+    </div>
+    <p class="text-gray-600 mb-4">Responses from your library that are linked to this proposal. These are included in AI context for content generation.</p>
+    <div id="linked-responses-list" class="space-y-3">
+        <p class="text-gray-500 text-sm italic">Loading linked responses...</p>
+    </div>
+</div>
+
 <!-- AI Proposal Assistant -->
 <div class="bg-white rounded-lg shadow p-6 mb-8">
     <div class="flex items-center justify-between mb-4">
@@ -251,16 +267,6 @@
             <h4 class="font-medium text-gray-700 mb-3"><i class="fas fa-bookmark mr-2"></i>Saved Responses</h4>
             <div id="saved-responses-list" class="max-h-64 overflow-y-auto">
                 <p class="text-gray-500 text-sm">No saved responses yet.</p>
-            </div>
-        </div>
-        
-        <div class="mt-6 pt-4 border-t">
-            <div class="flex justify-between items-center mb-3">
-                <h4 class="font-medium text-gray-700"><i class="fas fa-file-alt mr-2"></i>Linked Responses</h4>
-                <a href="/responses" class="text-sm text-blue-600 hover:text-blue-800">Browse Library</a>
-            </div>
-            <div id="linked-responses-list" class="max-h-64 overflow-y-auto min-h-[50px]">
-                <p class="text-gray-500 text-sm italic">Loading linked responses...</p>
             </div>
         </div>
     </div>
