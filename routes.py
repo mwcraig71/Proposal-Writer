@@ -5045,6 +5045,26 @@ def create_response():
     return redirect(url_for('responses_page'))
 
 
+@app.route('/responses/<int:id>', methods=['POST'])
+def update_response(id):
+    """Update an existing response"""
+    response = Response.query.get_or_404(id)
+    
+    response.year = int(request.form.get('year')) if request.form.get('year') else None
+    response.client = request.form.get('client', '').strip()
+    response.project_type = request.form.get('project_type', '').strip()
+    response.contract = request.form.get('contract', '').strip()
+    response.firm = request.form.get('firm', '').strip()
+    response.grade = request.form.get('grade', '').strip()
+    response.question = request.form.get('question', '').strip()
+    response.response = request.form.get('response', '').strip()
+    response.tags = request.form.get('tags', '').strip()
+    
+    db.session.commit()
+    flash('Response updated successfully', 'success')
+    return redirect(url_for('responses_page'))
+
+
 @app.route('/responses/<int:id>', methods=['DELETE'])
 def delete_response(id):
     """Delete a response"""
