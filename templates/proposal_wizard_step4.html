@@ -228,46 +228,62 @@
     </div>
 </div>
 
-<!-- AI Proposal Assistant -->
-<div class="bg-white rounded-lg shadow p-6 mb-8">
-    <div class="flex items-center justify-between mb-4">
-        <h2 class="text-xl font-semibold text-gray-800">
-            <i class="fas fa-robot text-blue-600 mr-2"></i> AI Proposal Assistant
-        </h2>
-        <button onclick="toggleAIAssistant()" id="ai-toggle-btn" class="text-blue-600 hover:text-blue-800 text-sm">
-            <i class="fas fa-chevron-down" id="ai-toggle-icon"></i> <span id="ai-toggle-text">Expand</span>
-        </button>
-    </div>
-    <p class="text-gray-600 mb-4">Ask questions or request content about this proposal. The AI has access to all proposal data including personnel, projects, firm info, org chart, RFP, win themes, and reference documents.</p>
-    
-    <div id="ai-assistant-content" class="hidden">
-        <div id="ai-chat-messages" class="bg-gray-50 rounded-lg border mb-4 h-96 overflow-y-auto p-4 space-y-4">
-            <div class="text-center text-gray-500 py-8" id="ai-chat-empty">
-                <i class="fas fa-robot text-4xl text-gray-300 mb-3"></i>
-                <p>Start a conversation about this proposal.</p>
-                <p class="text-sm mt-1">I have access to all proposal data including personnel, projects, firm info, org chart, RFP, and more.</p>
-            </div>
+<!-- Floating AI Proposal Assistant -->
+<div id="ai-chat-fab" class="fixed bottom-6 right-6 z-50">
+    <button onclick="toggleFloatingChat()" id="ai-fab-btn" class="w-16 h-16 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg flex items-center justify-center transition-all duration-300 hover:scale-110">
+        <i class="fas fa-robot text-2xl" id="ai-fab-icon"></i>
+    </button>
+    <span class="absolute -top-2 -left-2 bg-purple-500 text-white text-xs px-2 py-0.5 rounded-full shadow">AI</span>
+</div>
+
+<div id="ai-chat-panel" class="fixed bottom-24 right-6 w-96 max-h-[70vh] bg-white rounded-xl shadow-2xl z-50 hidden flex-col overflow-hidden border border-gray-200">
+    <div class="bg-blue-600 text-white p-4 flex justify-between items-center">
+        <div class="flex items-center gap-2">
+            <i class="fas fa-robot text-xl"></i>
+            <span class="font-semibold">AI Proposal Assistant</span>
         </div>
-        
+        <div class="flex items-center gap-2">
+            <button onclick="toggleSavedPanel()" class="p-2 hover:bg-blue-700 rounded-lg transition" title="Saved Responses">
+                <i class="fas fa-bookmark"></i>
+            </button>
+            <button onclick="toggleFloatingChat()" class="p-2 hover:bg-blue-700 rounded-lg transition">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+    
+    <div id="ai-chat-messages" class="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50" style="max-height: 350px; min-height: 250px;">
+        <div class="text-center text-gray-500 py-6" id="ai-chat-empty">
+            <i class="fas fa-robot text-3xl text-gray-300 mb-2"></i>
+            <p class="text-sm">Ask me anything about this proposal.</p>
+            <p class="text-xs text-gray-400 mt-1">I have access to all proposal data.</p>
+        </div>
+    </div>
+    
+    <div id="saved-panel" class="hidden absolute inset-0 bg-white z-10 flex flex-col">
+        <div class="bg-purple-600 text-white p-4 flex justify-between items-center">
+            <span class="font-semibold"><i class="fas fa-bookmark mr-2"></i>Saved Responses</span>
+            <button onclick="toggleSavedPanel()" class="p-2 hover:bg-purple-700 rounded-lg transition">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div id="saved-responses-list" class="flex-1 overflow-y-auto p-4">
+            <p class="text-gray-500 text-sm text-center py-4">No saved responses yet.</p>
+        </div>
+    </div>
+    
+    <div class="p-3 border-t bg-white">
         <div class="flex gap-2">
-            <textarea id="proposal-ai-prompt" rows="2" class="flex-1 p-3 border rounded-lg resize-none" placeholder="Ask a question or request content about this proposal..." onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();sendChatMessage();}"></textarea>
-            <button onclick="sendChatMessage()" id="proposal-ai-send-btn" class="px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center">
+            <textarea id="proposal-ai-prompt" rows="1" class="flex-1 p-2 border rounded-lg resize-none text-sm" placeholder="Ask about this proposal..." onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();sendChatMessage();}" oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,80)+'px';"></textarea>
+            <button onclick="sendChatMessage()" id="proposal-ai-send-btn" class="px-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center">
                 <i class="fas fa-paper-plane"></i>
             </button>
         </div>
-        
         <div class="flex justify-between items-center mt-2">
-            <button onclick="clearChatHistory()" class="text-sm text-gray-500 hover:text-gray-700">
-                <i class="fas fa-trash-alt mr-1"></i> Clear Chat
+            <button onclick="clearChatHistory()" class="text-xs text-gray-400 hover:text-gray-600">
+                <i class="fas fa-trash-alt mr-1"></i> Clear
             </button>
-            <span class="text-xs text-gray-400">Press Enter to send, Shift+Enter for new line</span>
-        </div>
-        
-        <div class="mt-6 pt-4 border-t">
-            <h4 class="font-medium text-gray-700 mb-3"><i class="fas fa-bookmark mr-2"></i>Saved Responses</h4>
-            <div id="saved-responses-list" class="max-h-64 overflow-y-auto">
-                <p class="text-gray-500 text-sm">No saved responses yet.</p>
-            </div>
+            <span class="text-[10px] text-gray-400">Enter to send</span>
         </div>
     </div>
 </div>
@@ -385,21 +401,33 @@ async function deleteRefDoc(refId) {
 // AI Proposal Assistant Functions
 let chatHistory = [];
 
-function toggleAIAssistant() {
-    const content = document.getElementById('ai-assistant-content');
-    const icon = document.getElementById('ai-toggle-icon');
-    const text = document.getElementById('ai-toggle-text');
+function toggleFloatingChat() {
+    const panel = document.getElementById('ai-chat-panel');
+    const fabIcon = document.getElementById('ai-fab-icon');
     
-    if (content.classList.contains('hidden')) {
-        content.classList.remove('hidden');
-        icon.classList.remove('fa-chevron-down');
-        icon.classList.add('fa-chevron-up');
-        text.textContent = 'Collapse';
+    if (panel.classList.contains('hidden')) {
+        panel.classList.remove('hidden');
+        panel.classList.add('flex');
+        fabIcon.classList.remove('fa-robot');
+        fabIcon.classList.add('fa-times');
     } else {
-        content.classList.add('hidden');
-        icon.classList.remove('fa-chevron-up');
-        icon.classList.add('fa-chevron-down');
-        text.textContent = 'Expand';
+        panel.classList.add('hidden');
+        panel.classList.remove('flex');
+        fabIcon.classList.remove('fa-times');
+        fabIcon.classList.add('fa-robot');
+        document.getElementById('saved-panel').classList.add('hidden');
+    }
+}
+
+function toggleSavedPanel() {
+    const savedPanel = document.getElementById('saved-panel');
+    if (savedPanel.classList.contains('hidden')) {
+        savedPanel.classList.remove('hidden');
+        savedPanel.classList.add('flex');
+        loadSavedResponses();
+    } else {
+        savedPanel.classList.add('hidden');
+        savedPanel.classList.remove('flex');
     }
 }
 
@@ -413,20 +441,22 @@ function addMessageToChat(role, content) {
     
     const bubble = document.createElement('div');
     bubble.className = role === 'user'
-        ? 'bg-blue-600 text-white rounded-lg px-4 py-2 max-w-3xl'
-        : 'bg-white border rounded-lg px-4 py-2 max-w-3xl shadow-sm';
+        ? 'bg-blue-600 text-white rounded-lg px-3 py-2 max-w-[85%] text-sm'
+        : 'bg-white border rounded-lg px-3 py-2 max-w-[85%] shadow-sm text-sm';
     
     if (role === 'assistant') {
-        const header = document.createElement('div');
-        header.className = 'flex justify-between items-center mb-2 pb-2 border-b';
-        header.innerHTML = '<span class="text-xs text-gray-500"><i class="fas fa-robot mr-1"></i> AI Assistant</span><div class="flex gap-2"><button onclick="saveMessage(this)" class="text-xs text-green-600 hover:text-green-800"><i class="fas fa-save"></i> Save</button><button onclick="copyMessage(this)" class="text-xs text-blue-600 hover:text-blue-800"><i class="fas fa-copy"></i> Copy</button></div>';
-        bubble.appendChild(header);
+        const actions = document.createElement('div');
+        actions.className = 'flex justify-end gap-2 mt-2 pt-2 border-t border-gray-100';
+        actions.innerHTML = '<button onclick="saveMessage(this)" class="text-[10px] text-green-600 hover:text-green-800"><i class="fas fa-save"></i> Save</button><button onclick="copyMessage(this)" class="text-[10px] text-blue-600 hover:text-blue-800"><i class="fas fa-copy"></i> Copy</button>';
+        
+        const text = document.createElement('div');
+        text.className = 'whitespace-pre-wrap';
+        text.textContent = content;
+        bubble.appendChild(text);
+        bubble.appendChild(actions);
+    } else {
+        bubble.textContent = content;
     }
-    
-    const text = document.createElement('div');
-    text.className = 'whitespace-pre-wrap text-sm';
-    text.textContent = content;
-    bubble.appendChild(text);
     
     msgDiv.appendChild(bubble);
     container.appendChild(msgDiv);
@@ -488,7 +518,7 @@ async function sendChatMessage() {
 function clearChatHistory() {
     if (!confirm('Clear chat history?')) return;
     chatHistory = [];
-    document.getElementById('ai-chat-messages').innerHTML = '<div class="text-center text-gray-500 py-8" id="ai-chat-empty"><i class="fas fa-robot text-4xl text-gray-300 mb-3"></i><p>Start a conversation about this proposal.</p><p class="text-sm mt-1">I have access to all proposal data including personnel, projects, firm info, org chart, RFP, and more.</p></div>';
+    document.getElementById('ai-chat-messages').innerHTML = '<div class="text-center text-gray-500 py-6" id="ai-chat-empty"><i class="fas fa-robot text-3xl text-gray-300 mb-2"></i><p class="text-sm">Ask me anything about this proposal.</p><p class="text-xs text-gray-400 mt-1">I have access to all proposal data.</p></div>';
 }
 
 function copyMessage(btn) {
