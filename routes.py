@@ -4669,3 +4669,181 @@ Write a response of approximately {word_limit} words. Be specific, professional,
             'success': False,
             'error': str(e)
         }), 500
+
+
+@app.route('/api/proposals/<int:proposal_id>/ai-chat', methods=['POST'])
+def api_proposal_ai_chat(proposal_id):
+    """Chatbot endpoint for proposal AI assistant with conversation history"""
+    from gemini_service import client
+    
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'Invalid request data'}), 400
+    except:
+        return jsonify({'success': False, 'error': 'Invalid JSON'}), 400
+    
+    message = data.get('message', '').strip()
+    history = data.get('history', [])
+    
+    if not message:
+        return jsonify({'success': False, 'error': 'Please enter a message'}), 400
+    
+    proposal = Proposal.query.get(proposal_id)
+    if not proposal:
+        return jsonify({'success': False, 'error': 'Proposal not found'}), 404
+    
+    # Collect proposal data (reuse the same logic)
+    def collect_proposal_data():
+        sections = {}
+        
+        proposal_info = f"""PROPOSAL INFORMATION:
+Name: {proposal.name}
+Tracking Number: {proposal.tracking_number or 'N/A'}
+Contract Title: {proposal.contract_title or 'N/A'}
+Contract Location: {proposal.contract_location or 'N/A'}
+Solicitation Number: {proposal.solicitation_number or 'N/A'}
+Status: {proposal.status}
+Win Theme: {proposal.win_theme or 'Not defined'}
+"""
+        sections['proposal_info'] = proposal_info
+        
+        if proposal.firm:
+            firm = proposal.firm
+            sections['firm_info'] = f"""FIRM INFORMATION:
+Name: {firm.name}
+Address: {firm.street_address or 'N/A'}
+City/State: {firm.city or ''}, {firm.state or ''} {firm.zip_code or ''}
+Bio: {firm.bio[:1000] if firm.bio else 'N/A'}
+UEI: {firm.uei or 'N/A'}
+"""
+        
+        selected_employees = ProposalSelectedEmployee.query.filter_by(proposal_id=proposal_id).all()
+        if selected_employees:
+            personnel_info = "SELECTED PERSONNEL:\n"
+            for pse in selected_employees:
+                emp = pse.employee
+                if emp:
+                    personnel_info += f"- {emp.display_name} | Role: {pse.role_in_contract or 'N/A'} | Title: {emp.title or 'N/A'} | Years Exp: {emp.years_experience_total or 'N/A'}\n"
+            sections['personnel'] = personnel_info
+        
+        selected_projects = ProposalSelectedProject.query.filter_by(proposal_id=proposal_id).all()
+        if selected_projects:
+            projects_info = "SELECTED PROJECTS:\n"
+            for psp in selected_projects:
+                proj = psp.project
+                if proj:
+                    desc = psp.custom_writeup or proj.brief_description or 'N/A'
+                    projects_info += f"- {proj.title} | Location: {proj.location or 'N/A'} | Owner: {proj.owner_name or 'N/A'} | Year: {proj.year_completed_professional or 'N/A'}\n  Description: {desc[:300]}\n"
+            sections['projects'] = projects_info
+        
+        if proposal.org_chart_data:
+            try:
+                org_data = json.loads(proposal.org_chart_data) if isinstance(proposal.org_chart_data, str) else proposal.org_chart_data
+                nodes = org_data.get('nodes', [])
+                if nodes:
+                    org_info = "ORGANIZATIONAL CHART:\n"
+                    for node in nodes:
+                        node_data = node.get('data', {})
+                        org_info += f"- {node_data.get('role', 'Unknown')}: {node_data.get('assignedStaff', 'Unassigned')}\n"
+                    sections['org_chart'] = org_info
+            except:
+                pass
+        
+        if proposal.rfp_text:
+            sections['rfp'] = f"RFP/RFQ CONTENT:\n{proposal.rfp_text[:4000]}\n"
+        
+        if proposal.reference_documents:
+            refs_info = "REFERENCE DOCUMENTS:\n"
+            for ref in proposal.reference_documents[:3]:
+                if ref.extracted_text:
+                    refs_info += f"--- {ref.filename} ---\n{ref.extracted_text[:1500]}\n"
+            sections['references'] = refs_info
+        
+        if proposal.intelligence_documents:
+            intel_info = "INTELLIGENCE DOCUMENTS:\n"
+            for intel in proposal.intelligence_documents[:3]:
+                intel_info += f"--- {intel.filename} ({intel.description or 'No description'}) ---\n"
+                if intel.extracted_text:
+                    intel_info += f"{intel.extracted_text[:1000]}\n"
+            sections['intelligence'] = intel_info
+        
+        return sections
+    
+    sections = collect_proposal_data()
+    
+    # Get writing style/tone
+    ai_style = AISettings.get_value('ai_writing_style', '')
+    ai_tone = AISettings.get_value('ai_writing_tone', '')
+    
+    style_instructions = ""
+    if ai_style or ai_tone:
+        style_instructions = "\n\nWriting Style Guidelines:"
+        if ai_style:
+            style_instructions += f"\n- Style: {ai_style}"
+        if ai_tone:
+            style_instructions += f"\n- Tone: {ai_tone}"
+    
+    # Build context from proposal data
+    total_chars = sum(len(s) for s in sections.values())
+    
+    # For large proposals, summarize
+    if total_chars > 40000:
+        try:
+            summaries = {}
+            for section_name, section_content in sections.items():
+                if len(section_content) > 500:
+                    summary_response = client.models.generate_content(
+                        model="gemini-2.5-flash",
+                        contents=f"Summarize concisely, keeping key facts:\n\n{section_content[:6000]}"
+                    )
+                    summaries[section_name] = summary_response.text
+                else:
+                    summaries[section_name] = section_content
+            proposal_context = "\n\n".join([f"=== {k.upper().replace('_', ' ')} ===\n{v}" for k, v in summaries.items()])
+        except Exception as e:
+            proposal_context = "\n\n".join(sections.values())[:30000]
+    else:
+        proposal_context = "\n\n".join(sections.values())
+    
+    # Build conversation for Gemini
+    system_prompt = f"""You are a professional SF330 proposal writer helping with a government architecture/engineering proposal. You have access to all the proposal data and can help write content, answer questions, and provide strategic advice.
+
+PROPOSAL DATA:
+{proposal_context}
+{style_instructions}
+
+Be helpful, specific, and professional. Use actual data from the proposal. Provide thorough, detailed responses."""
+
+    # Build messages including history
+    conversation_context = ""
+    if history:
+        for msg in history[-8:]:  # Keep last 8 messages for context
+            role = msg.get('role', 'user')
+            content = msg.get('content', '')
+            if role == 'user':
+                conversation_context += f"\nUser: {content}\n"
+            else:
+                conversation_context += f"\nAssistant: {content}\n"
+    
+    full_prompt = f"{conversation_context}\nUser: {message}\n\nAssistant:"
+
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=full_prompt,
+            config={
+                "system_instruction": system_prompt,
+                "max_output_tokens": 8000  # Allow long responses
+            }
+        )
+        
+        return jsonify({
+            'success': True,
+            'response': response.text
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500

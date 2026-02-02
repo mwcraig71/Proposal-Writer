@@ -225,50 +225,26 @@
     <p class="text-gray-600 mb-4">Ask questions or request content about this proposal. The AI has access to all proposal data including personnel, projects, firm info, org chart, RFP, win themes, and reference documents.</p>
     
     <div id="ai-assistant-content" class="hidden">
-        <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">Response Length:</label>
-            <div class="flex gap-2">
-                <button id="prop-len-short" onclick="setProposalResponseLength('short')" class="flex-1 py-2 px-3 border-2 rounded-lg text-sm font-medium transition border-blue-600 bg-blue-600 text-white">
-                    Short<br><span class="text-xs opacity-75">~250 words</span>
-                </button>
-                <button id="prop-len-medium" onclick="setProposalResponseLength('medium')" class="flex-1 py-2 px-3 border-2 rounded-lg text-sm font-medium transition border-gray-300 text-gray-700">
-                    Medium<br><span class="text-xs opacity-75">~500 words</span>
-                </button>
-                <button id="prop-len-long" onclick="setProposalResponseLength('long')" class="flex-1 py-2 px-3 border-2 rounded-lg text-sm font-medium transition border-gray-300 text-gray-700">
-                    Long<br><span class="text-xs opacity-75">~1000 words</span>
-                </button>
+        <div id="ai-chat-messages" class="bg-gray-50 rounded-lg border mb-4 h-96 overflow-y-auto p-4 space-y-4">
+            <div class="text-center text-gray-500 py-8" id="ai-chat-empty">
+                <i class="fas fa-robot text-4xl text-gray-300 mb-3"></i>
+                <p>Start a conversation about this proposal.</p>
+                <p class="text-sm mt-1">I have access to all proposal data including personnel, projects, firm info, org chart, RFP, and more.</p>
             </div>
         </div>
         
-        <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Your Question or Request:</label>
-            <textarea id="proposal-ai-prompt" rows="3" class="w-full p-3 border rounded-lg" placeholder="e.g., Write an executive summary highlighting our team's qualifications for this bridge inspection project..."></textarea>
-        </div>
-        
-        <div class="mb-4">
-            <button onclick="generateProposalAIResponse()" id="proposal-ai-generate-btn" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
-                <i class="fas fa-magic mr-2"></i> Generate Response
+        <div class="flex gap-2">
+            <textarea id="proposal-ai-prompt" rows="2" class="flex-1 p-3 border rounded-lg resize-none" placeholder="Ask a question or request content about this proposal..." onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();sendChatMessage();}"></textarea>
+            <button onclick="sendChatMessage()" id="proposal-ai-send-btn" class="px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center">
+                <i class="fas fa-paper-plane"></i>
             </button>
         </div>
         
-        <div id="proposal-ai-loading" class="hidden text-center py-6">
-            <i class="fas fa-spinner fa-spin text-blue-600 text-3xl"></i>
-            <p class="text-gray-600 mt-2" id="proposal-ai-loading-text">Analyzing proposal data...</p>
-        </div>
-        
-        <div id="proposal-ai-response-container" class="hidden">
-            <label class="block text-sm font-medium text-gray-700 mb-2">Generated Response:</label>
-            <div class="bg-gray-50 rounded-lg p-4 border max-h-96 overflow-y-auto">
-                <pre id="proposal-ai-response-text" class="whitespace-pre-wrap text-sm text-gray-800 font-sans"></pre>
-            </div>
-            <div class="flex justify-end gap-3 mt-3">
-                <button onclick="copyProposalAIResponse(this)" class="text-sm text-blue-600 hover:text-blue-800">
-                    <i class="fas fa-copy mr-1"></i> Copy
-                </button>
-                <button onclick="generateProposalAIResponse()" class="text-sm text-blue-600 hover:text-blue-800">
-                    <i class="fas fa-redo mr-1"></i> Regenerate
-                </button>
-            </div>
+        <div class="flex justify-between items-center mt-2">
+            <button onclick="clearChatHistory()" class="text-sm text-gray-500 hover:text-gray-700">
+                <i class="fas fa-trash-alt mr-1"></i> Clear Chat
+            </button>
+            <span class="text-xs text-gray-400">Press Enter to send, Shift+Enter for new line</span>
         </div>
     </div>
 </div>
@@ -384,7 +360,7 @@ async function deleteRefDoc(refId) {
 }
 
 // AI Proposal Assistant Functions
-let proposalResponseLength = 'short';
+let chatHistory = [];
 
 function toggleAIAssistant() {
     const content = document.getElementById('ai-assistant-content');
@@ -404,69 +380,100 @@ function toggleAIAssistant() {
     }
 }
 
-function setProposalResponseLength(length) {
-    proposalResponseLength = length;
-    ['short', 'medium', 'long'].forEach(l => {
-        const btn = document.getElementById('prop-len-' + l);
-        if (l === length) {
-            btn.classList.add('border-blue-600', 'bg-blue-600', 'text-white');
-            btn.classList.remove('border-gray-300', 'text-gray-700');
-        } else {
-            btn.classList.remove('border-blue-600', 'bg-blue-600', 'text-white');
-            btn.classList.add('border-gray-300', 'text-gray-700');
-        }
-    });
-}
-
-async function generateProposalAIResponse() {
-    const prompt = document.getElementById('proposal-ai-prompt').value.trim();
-    if (!prompt) {
-        alert('Please enter a question or request');
-        return;
+function addMessageToChat(role, content) {
+    const container = document.getElementById('ai-chat-messages');
+    const emptyState = document.getElementById('ai-chat-empty');
+    if (emptyState) emptyState.remove();
+    
+    const msgDiv = document.createElement('div');
+    msgDiv.className = role === 'user' ? 'flex justify-end' : 'flex justify-start';
+    
+    const bubble = document.createElement('div');
+    bubble.className = role === 'user'
+        ? 'bg-blue-600 text-white rounded-lg px-4 py-2 max-w-3xl'
+        : 'bg-white border rounded-lg px-4 py-2 max-w-3xl shadow-sm';
+    
+    if (role === 'assistant') {
+        const header = document.createElement('div');
+        header.className = 'flex justify-between items-center mb-2 pb-2 border-b';
+        header.innerHTML = '<span class="text-xs text-gray-500"><i class="fas fa-robot mr-1"></i> AI Assistant</span><button onclick="copyMessage(this)" class="text-xs text-blue-600 hover:text-blue-800"><i class="fas fa-copy"></i> Copy</button>';
+        bubble.appendChild(header);
     }
     
-    const btn = document.getElementById('proposal-ai-generate-btn');
+    const text = document.createElement('div');
+    text.className = 'whitespace-pre-wrap text-sm';
+    text.textContent = content;
+    bubble.appendChild(text);
+    
+    msgDiv.appendChild(bubble);
+    container.appendChild(msgDiv);
+    container.scrollTop = container.scrollHeight;
+}
+
+function addLoadingMessage() {
+    const container = document.getElementById('ai-chat-messages');
+    const msgDiv = document.createElement('div');
+    msgDiv.className = 'flex justify-start';
+    msgDiv.id = 'ai-loading-message';
+    msgDiv.innerHTML = '<div class="bg-white border rounded-lg px-4 py-3 shadow-sm"><i class="fas fa-spinner fa-spin text-blue-600 mr-2"></i><span class="text-gray-600 text-sm">Thinking...</span></div>';
+    container.appendChild(msgDiv);
+    container.scrollTop = container.scrollHeight;
+}
+
+function removeLoadingMessage() {
+    const loading = document.getElementById('ai-loading-message');
+    if (loading) loading.remove();
+}
+
+async function sendChatMessage() {
+    const input = document.getElementById('proposal-ai-prompt');
+    const prompt = input.value.trim();
+    if (!prompt) return;
+    
+    const btn = document.getElementById('proposal-ai-send-btn');
     btn.disabled = true;
-    document.getElementById('proposal-ai-loading').classList.remove('hidden');
-    document.getElementById('proposal-ai-response-container').classList.add('hidden');
-    document.getElementById('proposal-ai-loading-text').textContent = 'Analyzing proposal data...';
+    input.value = '';
+    
+    addMessageToChat('user', prompt);
+    chatHistory.push({ role: 'user', content: prompt });
+    addLoadingMessage();
     
     try {
-        const response = await fetch('/api/proposals/{{ proposal.id }}/ai-response', {
+        const response = await fetch('/api/proposals/{{ proposal.id }}/ai-chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                prompt: prompt,
-                length: proposalResponseLength
-            })
+            body: JSON.stringify({ message: prompt, history: chatHistory.slice(-10) })
         });
         
         const data = await response.json();
+        removeLoadingMessage();
         
         if (data.success) {
-            document.getElementById('proposal-ai-response-text').textContent = data.response;
-            document.getElementById('proposal-ai-response-container').classList.remove('hidden');
-            if (data.chunked) {
-                console.log('Response was generated using chunked processing due to large data size');
-            }
+            addMessageToChat('assistant', data.response);
+            chatHistory.push({ role: 'assistant', content: data.response });
         } else {
-            alert(data.error || 'Failed to generate response');
+            addMessageToChat('assistant', 'Error: ' + (data.error || 'Failed to generate response'));
         }
     } catch (error) {
-        alert('Error: ' + error.message);
+        removeLoadingMessage();
+        addMessageToChat('assistant', 'Error: ' + error.message);
     } finally {
         btn.disabled = false;
-        document.getElementById('proposal-ai-loading').classList.add('hidden');
     }
 }
 
-function copyProposalAIResponse(btn) {
-    const text = document.getElementById('proposal-ai-response-text').textContent;
+function clearChatHistory() {
+    if (!confirm('Clear chat history?')) return;
+    chatHistory = [];
+    document.getElementById('ai-chat-messages').innerHTML = '<div class="text-center text-gray-500 py-8" id="ai-chat-empty"><i class="fas fa-robot text-4xl text-gray-300 mb-3"></i><p>Start a conversation about this proposal.</p><p class="text-sm mt-1">I have access to all proposal data including personnel, projects, firm info, org chart, RFP, and more.</p></div>';
+}
+
+function copyMessage(btn) {
+    const text = btn.closest('.bg-white').querySelector('.whitespace-pre-wrap').textContent;
     navigator.clipboard.writeText(text);
-    
-    const originalHtml = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-check mr-1"></i> Copied!';
-    setTimeout(() => btn.innerHTML = originalHtml, 2000);
+    const original = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+    setTimeout(() => btn.innerHTML = original, 2000);
 }
 </script>
 {% endblock %}
