@@ -64,4 +64,4 @@ externalPort = 5173
 [deployment]
 deploymentTarget = "autoscale"
 run = ["gunicorn", "--bind=0.0.0.0:5000", "--reuse-port", "--workers=2", "--timeout=120", "main:app"]
-build = ["bash", "-c", "cd orgchart && npm install && npm run build"]
+build = ["bash", "-c", "cd orgchart && npm install && npx vite build"]
