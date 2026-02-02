@@ -184,18 +184,58 @@
 
 <div class="bg-white rounded-lg shadow p-6 mb-8">
     <h2 class="text-xl font-semibold text-gray-800 mb-4">
+        <i class="fas fa-list-alt text-indigo-600 mr-2"></i> AI Proposal Outline
+    </h2>
+    <p class="text-gray-600 mb-4">Generate a strategic proposal outline based on the RFP requirements and all linked proposal data. This outline will guide the cover letter and written sections.</p>
+    
+    <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Custom Instructions (optional)</label>
+        <textarea id="outline-instructions" rows="3" class="w-full p-2 border rounded-lg" placeholder="e.g., Emphasize PM's 15 years experience with TXDOT, highlight our load rating expertise, focus on our track record with this client...">{{ proposal.proposal_outline_instructions or '' }}</textarea>
+    </div>
+    
+    <button onclick="generateOutline()" id="generate-outline-btn" class="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
+        <i class="fas fa-brain mr-2"></i> Generate Proposal Outline
+    </button>
+    
+    <div id="outline-container" class="mt-6 {% if not proposal.proposal_outline %}hidden{% endif %}">
+        <div class="flex justify-between items-center mb-2">
+            <h3 class="font-semibold text-gray-800">Proposal Outline</h3>
+            <div class="flex gap-2">
+                <button onclick="toggleOutlineEdit()" id="edit-outline-btn" class="text-sm text-blue-600 hover:text-blue-800">
+                    <i class="fas fa-edit mr-1"></i> Edit
+                </button>
+                <button onclick="saveOutline()" id="save-outline-btn" class="text-sm text-green-600 hover:text-green-800 hidden">
+                    <i class="fas fa-save mr-1"></i> Save
+                </button>
+            </div>
+        </div>
+        <div id="outline-display" class="bg-indigo-50 p-4 rounded-lg whitespace-pre-line text-sm border border-indigo-200">{{ proposal.proposal_outline or '' }}</div>
+        <textarea id="outline-editor" class="hidden w-full p-4 border border-indigo-300 rounded-lg text-sm font-mono" rows="20">{{ proposal.proposal_outline or '' }}</textarea>
+        <p class="text-xs text-gray-500 mt-2"><i class="fas fa-info-circle mr-1"></i> This outline will be used as a guide when generating the cover letter and written sections below.</p>
+    </div>
+</div>
+
+<div class="bg-white rounded-lg shadow p-6 mb-8">
+    <h2 class="text-xl font-semibold text-gray-800 mb-4">
         <i class="fas fa-file-alt text-purple-600 mr-2"></i> AI Cover Letter & Written Sections
     </h2>
-    <p class="text-gray-600 mb-4">Generate a cover letter and written sections using the RFP, firm, personnel, and project data.</p>
+    <p class="text-gray-600 mb-4">Generate a cover letter and written sections using the RFP, firm, personnel, project data, and the proposal outline above.</p>
     
     <div class="mb-4">
         <label class="block text-sm font-medium text-gray-700 mb-1">Custom Instructions (optional)</label>
         <textarea id="cover-letter-instructions" rows="3" class="w-full p-2 border rounded-lg" placeholder="Add any specific requirements or instructions for the cover letter..."></textarea>
     </div>
     
+    {% if proposal.proposal_outline %}
     <button onclick="generateCoverLetter()" id="generate-cover-btn" class="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
         <i class="fas fa-magic mr-2"></i> Generate Cover Letter
     </button>
+    {% else %}
+    <button disabled class="px-6 py-3 bg-gray-400 text-white rounded-lg cursor-not-allowed">
+        <i class="fas fa-magic mr-2"></i> Generate Outline First
+    </button>
+    <p class="text-sm text-amber-600 mt-2"><i class="fas fa-exclamation-triangle mr-1"></i> Please generate the proposal outline above before creating the cover letter.</p>
+    {% endif %}
     
     {% if proposal.cover_letter %}
     <div class="mt-6 border-t pt-4">
@@ -300,6 +340,88 @@
 </div>
 
 <script>
+async function generateOutline() {
+    const btn = document.getElementById('generate-outline-btn');
+    const instructions = document.getElementById('outline-instructions').value;
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Generating Outline...';
+    
+    try {
+        const response = await fetch('/proposals/{{ proposal.id }}/generate-outline', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({custom_instructions: instructions})
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+            document.getElementById('outline-container').classList.remove('hidden');
+            document.getElementById('outline-display').textContent = result.outline;
+            document.getElementById('outline-editor').value = result.outline;
+            location.reload();
+        } else {
+            alert(result.error || 'Error generating outline');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+    
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-brain mr-2"></i> Generate Proposal Outline';
+}
+
+function toggleOutlineEdit() {
+    const display = document.getElementById('outline-display');
+    const editor = document.getElementById('outline-editor');
+    const editBtn = document.getElementById('edit-outline-btn');
+    const saveBtn = document.getElementById('save-outline-btn');
+    
+    if (editor.classList.contains('hidden')) {
+        editor.value = display.textContent;
+        display.classList.add('hidden');
+        editor.classList.remove('hidden');
+        editBtn.classList.add('hidden');
+        saveBtn.classList.remove('hidden');
+        editor.focus();
+    } else {
+        display.classList.remove('hidden');
+        editor.classList.add('hidden');
+        editBtn.classList.remove('hidden');
+        saveBtn.classList.add('hidden');
+    }
+}
+
+async function saveOutline() {
+    const editor = document.getElementById('outline-editor');
+    const display = document.getElementById('outline-display');
+    const saveBtn = document.getElementById('save-outline-btn');
+    
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Saving...';
+    
+    try {
+        const response = await fetch('/proposals/{{ proposal.id }}/save-outline', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({outline: editor.value})
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+            display.textContent = editor.value;
+            toggleOutlineEdit();
+        } else {
+            alert('Error saving outline');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+    
+    saveBtn.disabled = false;
+    saveBtn.innerHTML = '<i class="fas fa-save mr-1"></i> Save';
+}
+
 async function generateCoverLetter() {
     const btn = document.getElementById('generate-cover-btn');
     const instructions = document.getElementById('cover-letter-instructions').value;

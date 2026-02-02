@@ -867,7 +867,8 @@ def generate_cover_letter_ai(
     custom_instructions: str = '',
     reference_proposals: str = '',
     org_chart_data: str = '',
-    org_chart_notes: str = ''
+    org_chart_notes: str = '',
+    proposal_outline: str = ''
 ) -> dict:
     """Generate a cover letter and written sections using RFP + firm + staff + project data."""
     
@@ -945,7 +946,14 @@ RFP/RFQ REQUIREMENTS (if available):
 {rfp_text[:15000] if rfp_text else 'RFP text not available'}
 {reference_section}
 {org_chart_section}
+{f'''
+PROPOSAL OUTLINE (IMPORTANT - Use this as your primary guide):
+The following outline was created to guide the proposal writing. Follow its themes, emphasis areas, and win strategies closely:
 
+{proposal_outline[:10000]}
+
+---END PROPOSAL OUTLINE---
+''' if proposal_outline else ''}
 WRITING SPECIFICATIONS:
 - Style: {style or 'Professional and technical'}
 - Tone: {tone or 'Formal but accessible'}
@@ -988,3 +996,157 @@ Return valid JSON with this structure:
             "cover_letter": response.text or "",
             "written_sections": ""
         }
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=4, max=60),
+    retry=retry_if_exception(is_rate_limit_error)
+)
+def generate_proposal_outline_ai(
+    rfp_text: str,
+    firm_name: str,
+    firm_bio: str,
+    employees: list,
+    projects: list,
+    contract_title: str,
+    solicitation_number: str,
+    custom_instructions: str = '',
+    org_chart_data: str = '',
+    org_chart_notes: str = '',
+    linked_responses: list = None,
+    linked_references: list = None
+) -> str:
+    """Generate a proposal outline based on RFP requirements and all linked proposal data."""
+    
+    employees_summary = []
+    pm_info = []
+    senior_leaders = []
+    
+    for e in employees:
+        role = e.get('role_in_contract', '').upper()
+        emp_line = f"- {e['name']}: {e.get('title', '')} - {e.get('role_in_contract', '')} ({e.get('years_experience', '')} years experience)"
+        employees_summary.append(emp_line)
+        
+        if 'PM' in role or 'PROJECT MANAGER' in role or 'PRINCIPAL' in role:
+            pm_info.append(f"  * {e['name']}: {e.get('title', '')} with {e.get('years_experience', '')} years experience. {e.get('bio', '')[:500] if e.get('bio') else ''}")
+        elif 'LEADER' in role or 'DPM' in role or 'QA' in role or 'MANAGER' in role:
+            senior_leaders.append(f"  * {e['name']}: {e.get('role_in_contract', '')} with {e.get('years_experience', '')} years experience")
+    
+    projects_summary = '\n'.join([
+        f"- {p['title']}: {p.get('location', '')} for {p.get('owner', '')}"
+        for p in projects
+    ])
+    
+    org_chart_section = ""
+    if org_chart_data:
+        try:
+            chart_json = json.loads(org_chart_data)
+            nodes = chart_json.get('nodes', [])
+            org_structure = []
+            for node in nodes:
+                data = node.get('data', {})
+                role = data.get('role', '')
+                assigned_staff = data.get('assignedStaff', '')
+                staff_list = data.get('staffList', [])
+                if role:
+                    if assigned_staff:
+                        org_structure.append(f"  - {role}: {assigned_staff}")
+                    elif staff_list:
+                        org_structure.append(f"  - {role}: {', '.join(staff_list)}")
+            
+            if org_structure:
+                org_chart_section = f"""
+PROJECT TEAM STRUCTURE:
+{chr(10).join(org_structure)}
+{f'Team Notes: {org_chart_notes}' if org_chart_notes else ''}
+"""
+        except (json.JSONDecodeError, KeyError):
+            pass
+    
+    responses_section = ""
+    if linked_responses:
+        responses_section = "LINKED RESPONSE LIBRARY CONTENT:\n"
+        for r in linked_responses[:5]:
+            responses_section += f"- {r.get('question', '')[:100]}: {r.get('response', '')[:300]}...\n"
+    
+    references_section = ""
+    if linked_references:
+        references_section = "PERFORMANCE REFERENCES:\n"
+        for ref in linked_references[:5]:
+            references_section += f"- {ref.get('project_name', '')}: Score {ref.get('final_score', 'N/A')} - {ref.get('client', '')}\n"
+    
+    prompt = f"""You are an expert proposal strategist for Architect-Engineer (A/E) federal contracts. Create a detailed PROPOSAL OUTLINE that will guide the writing of a winning SF330 submission.
+
+CONTRACT INFORMATION:
+- Title: {contract_title}
+- Solicitation Number: {solicitation_number}
+
+FIRM INFORMATION:
+- Name: {firm_name}
+- Bio: {firm_bio[:2000] if firm_bio else 'Not provided'}
+
+PROJECT MANAGER AND SENIOR LEADERSHIP EXPERIENCE:
+{chr(10).join(pm_info) if pm_info else 'PM not yet designated'}
+
+OTHER SENIOR TEAM LEADERS:
+{chr(10).join(senior_leaders) if senior_leaders else 'None identified'}
+
+FULL TEAM:
+{chr(10).join(employees_summary) or 'None selected'}
+
+RELEVANT PROJECTS:
+{projects_summary or 'None selected'}
+{org_chart_section}
+{responses_section}
+{references_section}
+
+RFP/RFQ REQUIREMENTS:
+{rfp_text[:20000] if rfp_text else 'RFP text not available - create a general outline for an engineering services proposal'}
+
+{f'CUSTOM INSTRUCTIONS FROM USER: {custom_instructions}' if custom_instructions else ''}
+
+Generate a comprehensive PROPOSAL OUTLINE that includes:
+
+1. EXECUTIVE SUMMARY OUTLINE
+   - Key win themes (3-5 compelling differentiators)
+   - Primary message to convey
+   
+2. UNDERSTANDING OF THE PROJECT
+   - Key requirements identified from RFP
+   - Technical challenges to address
+   - Approach themes
+   
+3. MANAGEMENT APPROACH OUTLINE
+   - How to highlight PM's relevant experience with this client or similar work
+   - Team structure messaging
+   - Communication and coordination approach
+   
+4. TECHNICAL APPROACH OUTLINE
+   - Key technical themes to emphasize
+   - Innovative approaches or methodologies
+   - Quality control highlights
+   
+5. RELEVANT EXPERIENCE THEMES
+   - How to tie projects to this contract
+   - Specific accomplishments to highlight
+   - Client relationship experience to emphasize
+   
+6. KEY PERSONNEL EMPHASIS
+   - Specific experience to highlight for PM and senior leaders
+   - Client relationship history to mention
+   - Technical expertise differentiators
+   
+7. WIN STRATEGY NOTES
+   - What makes this team uniquely qualified
+   - Potential weaknesses to mitigate
+   - Evaluation criteria alignment
+
+Format this as a clear, actionable outline that can guide the writing of cover letter and written sections. Use bullet points and clear headings."""
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt
+    )
+    
+    return response.text or ""

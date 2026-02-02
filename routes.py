@@ -2058,6 +2058,101 @@ def upload_reference(id):
     })
 
 
+@app.route('/proposals/<int:id>/generate-outline', methods=['POST'])
+def generate_proposal_outline(id):
+    """Generate AI proposal outline based on RFP and all linked data"""
+    proposal = Proposal.query.get_or_404(id)
+    data = request.json
+    custom_instructions = data.get('custom_instructions', '')
+    
+    from models import FirmAlternateDescription, ProposalLinkedResponse, ProposalLinkedReference
+    from gemini_service import generate_proposal_outline_ai
+    
+    firm_bio = ''
+    if proposal.firm:
+        firm_bio = proposal.firm.bio or ''
+        if proposal.firm_bio_alternate_id:
+            alt = FirmAlternateDescription.query.get(proposal.firm_bio_alternate_id)
+            if alt:
+                firm_bio = alt.description or firm_bio
+    
+    employees_data = []
+    for pse in proposal.selected_employees:
+        emp = pse.employee
+        employees_data.append({
+            'name': emp.name,
+            'title': emp.title,
+            'role_in_contract': pse.role_in_contract,
+            'years_experience': emp.years_experience_total,
+            'bio': emp.bio,
+            'education': emp.education,
+            'registrations': emp.registrations
+        })
+    
+    projects_data = []
+    for psp in proposal.selected_projects:
+        proj = psp.project
+        projects_data.append({
+            'title': proj.title,
+            'location': proj.location,
+            'owner': proj.owner_name,
+            'description': proj.brief_description
+        })
+    
+    linked_responses = []
+    for link in ProposalLinkedResponse.query.filter_by(proposal_id=id).all():
+        resp = link.response
+        linked_responses.append({
+            'question': resp.question,
+            'response': resp.response
+        })
+    
+    linked_references = []
+    for link in ProposalLinkedReference.query.filter_by(proposal_id=id).all():
+        ref = link.reference
+        linked_references.append({
+            'project_name': ref.project_name,
+            'final_score': ref.final_score,
+            'client': ref.client
+        })
+    
+    try:
+        outline = generate_proposal_outline_ai(
+            rfp_text=proposal.rfp_text or '',
+            firm_name=proposal.firm.name if proposal.firm else '',
+            firm_bio=firm_bio,
+            employees=employees_data,
+            projects=projects_data,
+            contract_title=proposal.contract_title or '',
+            solicitation_number=proposal.solicitation_number or '',
+            custom_instructions=custom_instructions,
+            org_chart_data=proposal.org_chart_data or '',
+            org_chart_notes=proposal.org_chart_notes or '',
+            linked_responses=linked_responses,
+            linked_references=linked_references
+        )
+        
+        proposal.proposal_outline = outline
+        proposal.proposal_outline_instructions = custom_instructions
+        db.session.commit()
+        
+        return jsonify({'success': True, 'outline': outline})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/proposals/<int:id>/save-outline', methods=['POST'])
+def save_proposal_outline(id):
+    """Save edited proposal outline"""
+    proposal = Proposal.query.get_or_404(id)
+    data = request.json
+    
+    proposal.proposal_outline = data.get('outline', '')
+    db.session.commit()
+    
+    return jsonify({'success': True})
+
+
 @app.route('/proposals/<int:id>/generate-cover-letter', methods=['POST'])
 def generate_cover_letter(id):
     """Generate AI cover letter using RFP + firm + staff + project data"""
@@ -2120,7 +2215,8 @@ def generate_cover_letter(id):
         custom_instructions=custom_instructions,
         reference_proposals=reference_proposals_text,
         org_chart_data=proposal.org_chart_data or '',
-        org_chart_notes=proposal.org_chart_notes or ''
+        org_chart_notes=proposal.org_chart_notes or '',
+        proposal_outline=proposal.proposal_outline or ''
     )
     
     proposal.cover_letter = result.get('cover_letter', '')

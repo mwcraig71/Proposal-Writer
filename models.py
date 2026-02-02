@@ -227,6 +227,8 @@ class Proposal(db.Model):
     rfp_content = db.Column(db.LargeBinary)
     rfp_text = db.Column(db.Text)
     win_theme = db.Column(db.Text)  # Key messages and strategy for winning
+    proposal_outline = db.Column(db.Text)  # AI-generated proposal outline based on RFP and data
+    proposal_outline_instructions = db.Column(db.Text)  # Custom instructions used for outline
     cover_letter = db.Column(db.Text)
     written_sections = db.Column(db.Text)
     org_chart_data = db.Column(db.Text)  # JSON string storing org chart nodes and edges
