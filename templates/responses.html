@@ -1,0 +1,547 @@
+{% extends "base.html" %}
+
+{% block title %}Responses - SF330 AI{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <div>
+        <h1 class="text-3xl font-bold text-gray-800 mb-2">Responses</h1>
+        <p class="text-gray-600">Question and response library for proposals</p>
+    </div>
+    <div class="flex gap-3">
+        <button onclick="showImportModal()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">
+            <i class="fas fa-file-import mr-2"></i> Import CSV
+        </button>
+        <a href="/responses/export" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition">
+            <i class="fas fa-file-export mr-2"></i> Export CSV
+        </a>
+        <button onclick="showAddModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+            <i class="fas fa-plus mr-2"></i> Add Response
+        </button>
+    </div>
+</div>
+
+<div class="bg-white rounded-lg shadow mb-6 p-4">
+    <form method="get" class="grid grid-cols-1 md:grid-cols-6 gap-4">
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Year</label>
+            <select name="year" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                <option value="">All Years</option>
+                {% for y in years %}
+                <option value="{{ y }}" {% if y|string == request.args.get('year', '') %}selected{% endif %}>{{ y }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Client</label>
+            <select name="client" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                <option value="">All Clients</option>
+                {% for c in clients %}
+                <option value="{{ c }}" {% if c == request.args.get('client', '') %}selected{% endif %}>{{ c }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Project Type</label>
+            <select name="project_type" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                <option value="">All Types</option>
+                {% for pt in project_types %}
+                <option value="{{ pt }}" {% if pt == request.args.get('project_type', '') %}selected{% endif %}>{{ pt }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Firm</label>
+            <select name="firm" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                <option value="">All Firms</option>
+                {% for f in firms %}
+                <option value="{{ f }}" {% if f == request.args.get('firm', '') %}selected{% endif %}>{{ f }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Grade</label>
+            <select name="grade" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                <option value="">All Grades</option>
+                {% for g in grades %}
+                <option value="{{ g }}" {% if g == request.args.get('grade', '') %}selected{% endif %}>{{ g }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="flex items-end gap-2">
+            <button type="submit" class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                <i class="fas fa-filter mr-1"></i> Filter
+            </button>
+            <a href="/responses" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                <i class="fas fa-times"></i>
+            </a>
+        </div>
+    </form>
+</div>
+
+<div class="bg-white rounded-lg shadow overflow-hidden">
+    <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+            <tr>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <a href="?sort=year&dir={{ 'desc' if sort == 'year' and dir == 'asc' else 'asc' }}{{ '&year=' ~ request.args.get('year', '') if request.args.get('year') else '' }}{{ '&client=' ~ request.args.get('client', '') if request.args.get('client') else '' }}{{ '&project_type=' ~ request.args.get('project_type', '') if request.args.get('project_type') else '' }}{{ '&firm=' ~ request.args.get('firm', '') if request.args.get('firm') else '' }}{{ '&grade=' ~ request.args.get('grade', '') if request.args.get('grade') else '' }}" class="flex items-center hover:text-blue-600">
+                        Year {% if sort == 'year' %}<i class="fas fa-sort-{{ 'up' if dir == 'asc' else 'down' }} ml-1"></i>{% endif %}
+                    </a>
+                </th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project Type</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contract</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <a href="?sort=grade&dir={{ 'desc' if sort == 'grade' and dir == 'asc' else 'asc' }}{{ '&year=' ~ request.args.get('year', '') if request.args.get('year') else '' }}{{ '&client=' ~ request.args.get('client', '') if request.args.get('client') else '' }}{{ '&project_type=' ~ request.args.get('project_type', '') if request.args.get('project_type') else '' }}{{ '&firm=' ~ request.args.get('firm', '') if request.args.get('firm') else '' }}{{ '&grade=' ~ request.args.get('grade', '') if request.args.get('grade') else '' }}" class="flex items-center hover:text-blue-600">
+                        Grade {% if sort == 'grade' %}<i class="fas fa-sort-{{ 'up' if dir == 'asc' else 'down' }} ml-1"></i>{% endif %}
+                    </a>
+                </th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Question/Section</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+            {% for response in responses %}
+            <tr class="hover:bg-gray-50 cursor-pointer" onclick="showResponseModal({{ response.id }})">
+                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ response.year or '-' }}</td>
+                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ response.client or '-' }}</td>
+                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ response.project_type or '-' }}</td>
+                <td class="px-4 py-3 text-sm text-gray-900 max-w-xs truncate">{{ response.contract or '-' }}</td>
+                <td class="px-4 py-3 whitespace-nowrap text-sm">
+                    {% if response.grade %}
+                    <span class="px-2 py-1 rounded-full text-xs font-medium 
+                        {% if response.grade == 'A' %}bg-green-100 text-green-800
+                        {% elif response.grade == 'B' %}bg-blue-100 text-blue-800
+                        {% elif response.grade == 'C' %}bg-yellow-100 text-yellow-800
+                        {% else %}bg-gray-100 text-gray-800{% endif %}">
+                        {{ response.grade }}
+                    </span>
+                    {% else %}-{% endif %}
+                </td>
+                <td class="px-4 py-3 text-sm text-gray-900 max-w-md truncate">{{ response.question or '-' }}</td>
+                <td class="px-4 py-3 whitespace-nowrap text-sm" onclick="event.stopPropagation()">
+                    <button onclick="showAddToProposalModal({{ response.id }})" class="text-blue-600 hover:text-blue-800 mr-2" title="Add to Proposal">
+                        <i class="fas fa-plus-circle"></i>
+                    </button>
+                    <button onclick="showRewriteModal({{ response.id }})" class="text-purple-600 hover:text-purple-800 mr-2" title="Rewrite with AI">
+                        <i class="fas fa-magic"></i>
+                    </button>
+                    <button onclick="deleteResponse({{ response.id }})" class="text-red-600 hover:text-red-800" title="Delete">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="7" class="px-4 py-12 text-center text-gray-500">
+                    <i class="fas fa-file-alt text-4xl text-gray-300 mb-3"></i>
+                    <p class="text-lg">No responses found</p>
+                    <p class="text-sm">Add responses manually or import from CSV</p>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div id="response-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+        <div class="flex justify-between items-center p-4 border-b">
+            <h3 class="text-xl font-bold text-gray-800" id="modal-title">Response Details</h3>
+            <div class="flex gap-2">
+                <button onclick="toggleFullscreen()" class="text-gray-500 hover:text-gray-700" title="Fullscreen">
+                    <i class="fas fa-expand"></i>
+                </button>
+                <button onclick="closeResponseModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+        </div>
+        <div class="p-6 overflow-y-auto flex-1" id="modal-content">
+        </div>
+        <div class="flex justify-end gap-3 p-4 border-t" id="modal-actions">
+        </div>
+    </div>
+</div>
+
+<div id="add-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center p-4 border-b">
+            <h3 class="text-xl font-bold text-gray-800">Add New Response</h3>
+            <button onclick="closeAddModal()" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <form action="/responses" method="post" class="p-6 space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Year</label>
+                    <input type="number" name="year" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Grade</label>
+                    <select name="grade" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <option value="">Select Grade</option>
+                        <option value="A">A</option>
+                        <option value="B">B</option>
+                        <option value="C">C</option>
+                        <option value="D">D</option>
+                        <option value="F">F</option>
+                    </select>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Client</label>
+                    <input type="text" name="client" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Firm</label>
+                    <input type="text" name="firm" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Project Type</label>
+                    <input type="text" name="project_type" list="project-types" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    <datalist id="project-types">
+                        <option value="Bridge Inspection">
+                        <option value="Load Rating">
+                        <option value="Bridge Repair">
+                        <option value="NDT">
+                        <option value="Load Testing">
+                        <option value="New Design">
+                        <option value="Other">
+                    </datalist>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Contract</label>
+                    <input type="text" name="contract" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Question/Section</label>
+                <input type="text" name="question" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Response</label>
+                <textarea name="response" rows="8" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"></textarea>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Tags (comma separated)</label>
+                <input type="text" name="tags" placeholder="#bridge, #inspection" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="flex justify-end gap-3 pt-4">
+                <button type="button" onclick="closeAddModal()" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Save Response</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="import-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-lg">
+        <div class="flex justify-between items-center p-4 border-b">
+            <h3 class="text-xl font-bold text-gray-800">Import Responses from CSV</h3>
+            <button onclick="closeImportModal()" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <form action="/responses/import" method="post" enctype="multipart/form-data" class="p-6 space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">CSV File</label>
+                <input type="file" name="file" accept=".csv" required
+                    class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+            </div>
+            <div class="bg-gray-50 p-4 rounded-lg text-sm text-gray-600">
+                <p class="font-medium mb-2">Expected columns:</p>
+                <p>Year, Client, Project Type, Contract, Firm, Grade, Question/Section, Response</p>
+            </div>
+            <div class="flex justify-end gap-3 pt-4">
+                <button type="button" onclick="closeImportModal()" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">Import</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="proposal-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+        <div class="flex justify-between items-center p-4 border-b">
+            <h3 class="text-xl font-bold text-gray-800">Add to Proposal</h3>
+            <button onclick="closeProposalModal()" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <div class="p-6">
+            <input type="hidden" id="link-response-id">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Select Proposal</label>
+                <select id="proposal-select" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    <option value="">Select a proposal...</option>
+                </select>
+            </div>
+            <div class="flex justify-end gap-3 pt-6">
+                <button type="button" onclick="closeProposalModal()" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
+                <button type="button" onclick="linkToProposal()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Add</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="rewrite-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+        <div class="flex justify-between items-center p-4 border-b">
+            <h3 class="text-xl font-bold text-gray-800">Rewrite with AI</h3>
+            <button onclick="closeRewriteModal()" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <div class="p-6 flex-1 overflow-y-auto">
+            <input type="hidden" id="rewrite-response-id">
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Original Response</label>
+                <div id="original-response" class="p-3 bg-gray-50 rounded-lg text-sm text-gray-700 max-h-40 overflow-y-auto"></div>
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Instructions (optional)</label>
+                <input type="text" id="rewrite-instructions" placeholder="e.g., Make it more concise, focus on safety aspects" 
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Rewritten Response</label>
+                <div id="rewrite-result" class="p-3 bg-blue-50 rounded-lg text-sm text-gray-700 min-h-[100px] max-h-60 overflow-y-auto">
+                    <p class="text-gray-400 italic">Click "Rewrite" to generate a new version</p>
+                </div>
+            </div>
+        </div>
+        <div class="flex justify-between gap-3 p-4 border-t">
+            <button type="button" onclick="doRewrite()" id="rewrite-btn" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                <i class="fas fa-magic mr-2"></i> Rewrite
+            </button>
+            <div class="flex gap-3">
+                <button type="button" onclick="closeRewriteModal()" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
+                <button type="button" onclick="saveRewrite()" id="save-rewrite-btn" disabled class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">Save as New</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentResponseData = null;
+let proposalsList = [];
+
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        const res = await fetch('/api/proposals/list');
+        proposalsList = await res.json();
+    } catch (e) {
+        console.error('Failed to load proposals:', e);
+    }
+});
+
+function showAddModal() {
+    document.getElementById('add-modal').classList.remove('hidden');
+}
+function closeAddModal() {
+    document.getElementById('add-modal').classList.add('hidden');
+}
+
+function showImportModal() {
+    document.getElementById('import-modal').classList.remove('hidden');
+}
+function closeImportModal() {
+    document.getElementById('import-modal').classList.add('hidden');
+}
+
+async function showResponseModal(id) {
+    try {
+        const res = await fetch(`/api/responses/${id}`);
+        const data = await res.json();
+        if (!data.success) {
+            alert(data.error || 'Failed to load response');
+            return;
+        }
+        currentResponseData = data.response;
+        
+        document.getElementById('modal-title').textContent = data.response.question || 'Response Details';
+        document.getElementById('modal-content').innerHTML = `
+            <div class="grid grid-cols-3 gap-4 mb-4 text-sm">
+                <div><span class="font-medium text-gray-500">Year:</span> ${data.response.year || '-'}</div>
+                <div><span class="font-medium text-gray-500">Client:</span> ${data.response.client || '-'}</div>
+                <div><span class="font-medium text-gray-500">Firm:</span> ${data.response.firm || '-'}</div>
+                <div><span class="font-medium text-gray-500">Project Type:</span> ${data.response.project_type || '-'}</div>
+                <div><span class="font-medium text-gray-500">Contract:</span> ${data.response.contract || '-'}</div>
+                <div><span class="font-medium text-gray-500">Grade:</span> <span class="px-2 py-1 rounded-full text-xs font-medium ${data.response.grade === 'A' ? 'bg-green-100 text-green-800' : data.response.grade === 'B' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}">${data.response.grade || '-'}</span></div>
+            </div>
+            <div class="mb-4">
+                <h4 class="font-medium text-gray-700 mb-2">Question/Section</h4>
+                <p class="text-gray-600">${data.response.question || '-'}</p>
+            </div>
+            <div>
+                <h4 class="font-medium text-gray-700 mb-2">Response</h4>
+                <div class="prose max-w-none text-gray-700 whitespace-pre-wrap">${data.response.response || '-'}</div>
+            </div>
+        `;
+        document.getElementById('modal-actions').innerHTML = `
+            <button onclick="showAddToProposalModal(${id}); closeResponseModal();" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                <i class="fas fa-plus-circle mr-2"></i> Add to Proposal
+            </button>
+            <button onclick="showRewriteModal(${id}); closeResponseModal();" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                <i class="fas fa-magic mr-2"></i> Rewrite with AI
+            </button>
+            <button onclick="copyResponse()" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                <i class="fas fa-copy mr-2"></i> Copy
+            </button>
+        `;
+        document.getElementById('response-modal').classList.remove('hidden');
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+function closeResponseModal() {
+    document.getElementById('response-modal').classList.add('hidden');
+    document.getElementById('response-modal').querySelector('.bg-white').classList.remove('fixed', 'inset-4', 'max-w-4xl', 'max-h-[90vh]');
+}
+
+function toggleFullscreen() {
+    const modal = document.getElementById('response-modal').querySelector('.bg-white');
+    modal.classList.toggle('fixed');
+    modal.classList.toggle('inset-4');
+    modal.classList.toggle('max-w-4xl');
+}
+
+function copyResponse() {
+    if (currentResponseData) {
+        navigator.clipboard.writeText(currentResponseData.response || '');
+        alert('Response copied to clipboard');
+    }
+}
+
+async function deleteResponse(id) {
+    if (!confirm('Are you sure you want to delete this response?')) return;
+    try {
+        const res = await fetch(`/responses/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.error || 'Failed to delete');
+        }
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+function showAddToProposalModal(responseId) {
+    document.getElementById('link-response-id').value = responseId;
+    const select = document.getElementById('proposal-select');
+    select.innerHTML = '<option value="">Select a proposal...</option>';
+    proposalsList.forEach(p => {
+        select.innerHTML += `<option value="${p.id}">${p.name}</option>`;
+    });
+    document.getElementById('proposal-modal').classList.remove('hidden');
+}
+function closeProposalModal() {
+    document.getElementById('proposal-modal').classList.add('hidden');
+}
+
+async function linkToProposal() {
+    const responseId = document.getElementById('link-response-id').value;
+    const proposalId = document.getElementById('proposal-select').value;
+    if (!proposalId) {
+        alert('Please select a proposal');
+        return;
+    }
+    try {
+        const res = await fetch(`/api/proposals/${proposalId}/link-response`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ response_id: responseId })
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert('Response added to proposal');
+            closeProposalModal();
+        } else {
+            alert(data.error || 'Failed to link response');
+        }
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+async function showRewriteModal(responseId) {
+    document.getElementById('rewrite-response-id').value = responseId;
+    document.getElementById('rewrite-result').innerHTML = '<p class="text-gray-400 italic">Click "Rewrite" to generate a new version</p>';
+    document.getElementById('save-rewrite-btn').disabled = true;
+    document.getElementById('rewrite-instructions').value = '';
+    
+    try {
+        const res = await fetch(`/api/responses/${responseId}`);
+        const data = await res.json();
+        if (data.success) {
+            document.getElementById('original-response').textContent = data.response.response || '';
+        }
+    } catch (e) {}
+    
+    document.getElementById('rewrite-modal').classList.remove('hidden');
+}
+function closeRewriteModal() {
+    document.getElementById('rewrite-modal').classList.add('hidden');
+}
+
+async function doRewrite() {
+    const responseId = document.getElementById('rewrite-response-id').value;
+    const instructions = document.getElementById('rewrite-instructions').value;
+    const btn = document.getElementById('rewrite-btn');
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Rewriting...';
+    document.getElementById('rewrite-result').innerHTML = '<p class="text-gray-400 italic">Generating...</p>';
+    
+    try {
+        const res = await fetch(`/api/responses/${responseId}/rewrite`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ instructions })
+        });
+        const data = await res.json();
+        if (data.success) {
+            document.getElementById('rewrite-result').textContent = data.rewritten;
+            document.getElementById('save-rewrite-btn').disabled = false;
+        } else {
+            document.getElementById('rewrite-result').innerHTML = `<p class="text-red-500">${data.error || 'Failed to rewrite'}</p>`;
+        }
+    } catch (e) {
+        document.getElementById('rewrite-result').innerHTML = `<p class="text-red-500">Error: ${e.message}</p>`;
+    }
+    
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-magic mr-2"></i> Rewrite';
+}
+
+async function saveRewrite() {
+    const responseId = document.getElementById('rewrite-response-id').value;
+    const rewritten = document.getElementById('rewrite-result').textContent;
+    
+    try {
+        const res = await fetch(`/api/responses/${responseId}/save-rewrite`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rewritten })
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert('Rewritten response saved as new entry');
+            location.reload();
+        } else {
+            alert(data.error || 'Failed to save');
+        }
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+</script>
+{% endblock %}

@@ -12,7 +12,8 @@ from models import (
     ClientContact, ExperienceAlternateDescription, Certification, CertificationType,
     EmployeePhoto, ProjectPhoto, ProposalReference, ProposalIntelligence,
     FirmPhoto, ProposalSelectedFirmPhoto, MarketingPhoto, ProposalSelectedMarketingPhoto,
-    EmployeeAlternateBio, FirmAlternateDescription, ProposalSavedResponse
+    EmployeeAlternateBio, FirmAlternateDescription, ProposalSavedResponse,
+    Response, ProposalLinkedResponse
 )
 from replit.object_storage import Client as ObjectStorageClient
 import uuid
@@ -4953,3 +4954,303 @@ def delete_proposal_saved_response(proposal_id, response_id):
     db.session.commit()
     
     return jsonify({'success': True, 'message': 'Response deleted'})
+
+
+# ========== RESPONSES ROUTES ==========
+
+@app.route('/responses')
+def responses_page():
+    """Responses library page with filtering and sorting"""
+    query = Response.query
+    
+    year_filter = request.args.get('year', '')
+    client_filter = request.args.get('client', '')
+    project_type_filter = request.args.get('project_type', '')
+    firm_filter = request.args.get('firm', '')
+    grade_filter = request.args.get('grade', '')
+    
+    if year_filter:
+        query = query.filter(Response.year == int(year_filter))
+    if client_filter:
+        query = query.filter(Response.client == client_filter)
+    if project_type_filter:
+        query = query.filter(Response.project_type == project_type_filter)
+    if firm_filter:
+        query = query.filter(Response.firm == firm_filter)
+    if grade_filter:
+        query = query.filter(Response.grade == grade_filter)
+    
+    sort = request.args.get('sort', 'year')
+    dir = request.args.get('dir', 'desc')
+    
+    if sort == 'year':
+        query = query.order_by(Response.year.desc() if dir == 'desc' else Response.year.asc())
+    elif sort == 'grade':
+        query = query.order_by(Response.grade.asc() if dir == 'asc' else Response.grade.desc())
+    else:
+        query = query.order_by(Response.created_at.desc())
+    
+    responses = query.all()
+    
+    years = db.session.query(Response.year).filter(Response.year.isnot(None)).distinct().order_by(Response.year.desc()).all()
+    years = [y[0] for y in years]
+    
+    clients = db.session.query(Response.client).filter(Response.client.isnot(None), Response.client != '').distinct().order_by(Response.client).all()
+    clients = [c[0] for c in clients]
+    
+    project_types = db.session.query(Response.project_type).filter(Response.project_type.isnot(None), Response.project_type != '').distinct().order_by(Response.project_type).all()
+    project_types = [pt[0] for pt in project_types]
+    
+    firms = db.session.query(Response.firm).filter(Response.firm.isnot(None), Response.firm != '').distinct().order_by(Response.firm).all()
+    firms = [f[0] for f in firms]
+    
+    grades = db.session.query(Response.grade).filter(Response.grade.isnot(None), Response.grade != '').distinct().order_by(Response.grade).all()
+    grades = [g[0] for g in grades]
+    
+    return render_template('responses.html', 
+                           responses=responses, 
+                           years=years, clients=clients, project_types=project_types, firms=firms, grades=grades,
+                           sort=sort, dir=dir)
+
+
+@app.route('/responses', methods=['POST'])
+def create_response():
+    """Create a new response"""
+    response = Response(
+        year=int(request.form.get('year')) if request.form.get('year') else None,
+        client=request.form.get('client', '').strip(),
+        project_type=request.form.get('project_type', '').strip(),
+        contract=request.form.get('contract', '').strip(),
+        firm=request.form.get('firm', '').strip(),
+        grade=request.form.get('grade', '').strip(),
+        question=request.form.get('question', '').strip(),
+        response=request.form.get('response', '').strip(),
+        tags=request.form.get('tags', '').strip()
+    )
+    db.session.add(response)
+    db.session.commit()
+    flash('Response created successfully', 'success')
+    return redirect(url_for('responses_page'))
+
+
+@app.route('/responses/<int:id>', methods=['DELETE'])
+def delete_response(id):
+    """Delete a response"""
+    response = Response.query.get_or_404(id)
+    db.session.delete(response)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/api/responses/<int:id>')
+def api_get_response(id):
+    """Get response details as JSON"""
+    response = Response.query.get(id)
+    if not response:
+        return jsonify({'success': False, 'error': 'Response not found'}), 404
+    
+    return jsonify({
+        'success': True,
+        'response': {
+            'id': response.id,
+            'year': response.year,
+            'client': response.client,
+            'project_type': response.project_type,
+            'contract': response.contract,
+            'firm': response.firm,
+            'grade': response.grade,
+            'question': response.question,
+            'response': response.response,
+            'tags': response.tags
+        }
+    })
+
+
+@app.route('/responses/import', methods=['POST'])
+def import_responses_csv():
+    """Import responses from CSV file"""
+    import csv
+    import io
+    
+    if 'file' not in request.files:
+        flash('No file uploaded', 'error')
+        return redirect(url_for('responses_page'))
+    
+    file = request.files['file']
+    if file.filename == '':
+        flash('No file selected', 'error')
+        return redirect(url_for('responses_page'))
+    
+    try:
+        content = file.read().decode('utf-8-sig')
+        reader = csv.DictReader(io.StringIO(content))
+        
+        count = 0
+        for row in reader:
+            year_val = row.get('Year', '').strip()
+            response_text = row.get('Response', '').strip()
+            
+            if not response_text:
+                continue
+            
+            response = Response(
+                year=int(year_val) if year_val and year_val.isdigit() else None,
+                client=row.get('Client', '').strip(),
+                project_type=row.get('Project  Type', row.get('Project Type', '')).strip(),
+                contract=row.get('Contract', '').strip(),
+                firm=row.get('Firm', row.get('Firm ', '')).strip(),
+                grade=row.get('Grade', '').strip(),
+                question=row.get('Question/Section', row.get('Question', '')).strip(),
+                response=response_text
+            )
+            db.session.add(response)
+            count += 1
+        
+        db.session.commit()
+        flash(f'Imported {count} responses successfully', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error importing CSV: {str(e)}', 'error')
+    
+    return redirect(url_for('responses_page'))
+
+
+@app.route('/responses/export')
+def export_responses_csv():
+    """Export responses to CSV file"""
+    import csv
+    import io
+    
+    responses = Response.query.order_by(Response.year.desc()).all()
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['Year', 'Client', 'Project Type', 'Contract', 'Firm', 'Grade', 'Question/Section', 'Response'])
+    
+    for r in responses:
+        writer.writerow([r.year or '', r.client or '', r.project_type or '', r.contract or '', 
+                        r.firm or '', r.grade or '', r.question or '', r.response or ''])
+    
+    output.seek(0)
+    return send_file(
+        io.BytesIO(output.getvalue().encode('utf-8-sig')),
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name='responses_export.csv'
+    )
+
+
+@app.route('/api/proposals/<int:proposal_id>/link-response', methods=['POST'])
+def link_response_to_proposal(proposal_id):
+    """Link a response to a proposal"""
+    proposal = Proposal.query.get(proposal_id)
+    if not proposal:
+        return jsonify({'success': False, 'error': 'Proposal not found'}), 404
+    
+    data = request.get_json()
+    response_id = data.get('response_id')
+    
+    response = Response.query.get(response_id)
+    if not response:
+        return jsonify({'success': False, 'error': 'Response not found'}), 404
+    
+    existing = ProposalLinkedResponse.query.filter_by(proposal_id=proposal_id, response_id=response_id).first()
+    if existing:
+        return jsonify({'success': False, 'error': 'Response already linked to this proposal'}), 400
+    
+    max_order = db.session.query(db.func.max(ProposalLinkedResponse.display_order)).filter_by(proposal_id=proposal_id).scalar() or 0
+    
+    link = ProposalLinkedResponse(
+        proposal_id=proposal_id,
+        response_id=response_id,
+        display_order=max_order + 1
+    )
+    db.session.add(link)
+    db.session.commit()
+    
+    return jsonify({'success': True, 'message': 'Response linked to proposal'})
+
+
+@app.route('/api/proposals/<int:proposal_id>/unlink-response/<int:response_id>', methods=['DELETE'])
+def unlink_response_from_proposal(proposal_id, response_id):
+    """Unlink a response from a proposal"""
+    link = ProposalLinkedResponse.query.filter_by(proposal_id=proposal_id, response_id=response_id).first()
+    if not link:
+        return jsonify({'success': False, 'error': 'Link not found'}), 404
+    
+    db.session.delete(link)
+    db.session.commit()
+    
+    return jsonify({'success': True})
+
+
+@app.route('/api/responses/<int:id>/rewrite', methods=['POST'])
+def rewrite_response_with_ai(id):
+    """Rewrite a response using AI"""
+    from gemini_service import client
+    
+    response = Response.query.get(id)
+    if not response:
+        return jsonify({'success': False, 'error': 'Response not found'}), 404
+    
+    data = request.get_json() or {}
+    instructions = data.get('instructions', '').strip()
+    
+    ai_style = AISettings.get_value('ai_writing_style', '')
+    ai_tone = AISettings.get_value('ai_writing_tone', '')
+    
+    style_instructions = ""
+    if ai_style:
+        style_instructions += f"\nWriting Style: {ai_style}"
+    if ai_tone:
+        style_instructions += f"\nTone: {ai_tone}"
+    
+    prompt = f"""Rewrite the following proposal response. Keep the key information but improve clarity, professionalism, and impact.
+{style_instructions}
+
+{f"Additional instructions: {instructions}" if instructions else ""}
+
+Original Response:
+{response.response}
+
+Rewritten Response:"""
+    
+    try:
+        result = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config={"max_output_tokens": 4000}
+        )
+        return jsonify({'success': True, 'rewritten': result.text})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/responses/<int:id>/save-rewrite', methods=['POST'])
+def save_rewritten_response(id):
+    """Save a rewritten response as a new entry"""
+    original = Response.query.get(id)
+    if not original:
+        return jsonify({'success': False, 'error': 'Original response not found'}), 404
+    
+    data = request.get_json()
+    rewritten = data.get('rewritten', '').strip()
+    
+    if not rewritten:
+        return jsonify({'success': False, 'error': 'Rewritten text is required'}), 400
+    
+    new_response = Response(
+        year=original.year,
+        client=original.client,
+        project_type=original.project_type,
+        contract=original.contract,
+        firm=original.firm,
+        grade=original.grade,
+        question=original.question,
+        response=rewritten,
+        tags=(original.tags + ',rewritten') if original.tags else 'rewritten'
+    )
+    db.session.add(new_response)
+    db.session.commit()
+    
+    return jsonify({'success': True, 'id': new_response.id})

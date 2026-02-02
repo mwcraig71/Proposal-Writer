@@ -497,3 +497,47 @@ class ProposalSavedResponse(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     proposal = db.relationship('Proposal', backref=db.backref('saved_responses', lazy=True, cascade='all, delete-orphan'))
+
+
+class Response(db.Model):
+    """Stores reusable question/response library for proposals"""
+    __tablename__ = 'responses'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    year = db.Column(db.Integer)
+    client = db.Column(db.String(255))
+    project_type = db.Column(db.String(255))
+    contract = db.Column(db.String(500))
+    firm = db.Column(db.String(255))
+    grade = db.Column(db.String(10))
+    question = db.Column(db.Text)
+    response = db.Column(db.Text)
+    tags = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def get_tags_list(self):
+        """Return tags as a list"""
+        if not self.tags:
+            return []
+        return [t.strip() for t in self.tags.split(',') if t.strip()]
+    
+    def set_tags_from_list(self, tags_list):
+        """Set tags from a list"""
+        self.tags = ','.join(tags_list) if tags_list else ''
+
+
+class ProposalLinkedResponse(db.Model):
+    """Junction table for responses linked to a proposal"""
+    __tablename__ = 'proposal_linked_responses'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    proposal_id = db.Column(db.Integer, db.ForeignKey('proposals.id'), nullable=False)
+    response_id = db.Column(db.Integer, db.ForeignKey('responses.id'), nullable=False)
+    display_order = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    proposal = db.relationship('Proposal', backref=db.backref('linked_responses', lazy=True, cascade='all, delete-orphan'))
+    response = db.relationship('Response', backref=db.backref('proposal_links', lazy=True, cascade='all, delete-orphan'))
+    
+    __table_args__ = (db.UniqueConstraint('proposal_id', 'response_id', name='unique_proposal_response'),)
