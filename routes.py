@@ -5382,12 +5382,15 @@ def references_page():
     
     references = query.all()
     
+    projects = Project.query.order_by(Project.title).all()
+    
     return render_template('references.html',
                           references=references,
                           clients=[c[0] for c in clients],
                           firms=[f[0] for f in firms],
                           employees=employees,
                           proposals=proposals,
+                          projects=projects,
                           client_filter=client_filter,
                           firm_filter=firm_filter,
                           personnel_filter=personnel_filter,
@@ -5400,7 +5403,9 @@ def create_reference():
     """Create a new reference manually"""
     from datetime import datetime as dt
     
+    project_id = request.form.get('project_id', '').strip()
     ref = Reference(
+        project_id=int(project_id) if project_id else None,
         client=request.form.get('client', '').strip(),
         agency=request.form.get('agency', '').strip(),
         project_name=request.form.get('project_name', '').strip(),
@@ -5450,6 +5455,8 @@ def update_reference(id):
     
     ref = Reference.query.get_or_404(id)
     
+    project_id = request.form.get('project_id', '').strip()
+    ref.project_id = int(project_id) if project_id else None
     ref.client = request.form.get('client', '').strip()
     ref.agency = request.form.get('agency', '').strip()
     ref.project_name = request.form.get('project_name', '').strip()
@@ -5518,6 +5525,7 @@ def get_reference_api(id):
         'success': True,
         'reference': {
             'id': ref.id,
+            'project_id': ref.project_id,
             'client': ref.client,
             'agency': ref.agency,
             'project_name': ref.project_name,

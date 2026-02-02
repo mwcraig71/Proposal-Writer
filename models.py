@@ -548,6 +548,8 @@ class Reference(db.Model):
     __tablename__ = 'references'
     
     id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=True)
+    project = db.relationship('Project', backref='references')
     client = db.Column(db.String(255))
     agency = db.Column(db.String(255))
     project_name = db.Column(db.String(500))
