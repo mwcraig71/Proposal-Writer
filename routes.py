@@ -653,6 +653,69 @@ def delete_project_experience(id, exp_id):
     return jsonify({'success': True})
 
 
+@app.route('/employees/<int:id>/alternate-bios', methods=['GET'])
+@login_required
+def get_alternate_bios(id):
+    """Get all alternate bios for an employee"""
+    employee = Employee.query.get_or_404(id)
+    bios = EmployeeAlternateBio.query.filter_by(employee_id=id).order_by(EmployeeAlternateBio.created_at.desc()).all()
+    return jsonify([{
+        'id': b.id,
+        'label': b.label,
+        'bio': b.bio,
+        'created_at': b.created_at.isoformat() if b.created_at else None
+    } for b in bios])
+
+
+@app.route('/employees/<int:id>/alternate-bios', methods=['POST'])
+@login_required
+def add_alternate_bio(id):
+    """Add a new alternate bio for an employee"""
+    employee = Employee.query.get_or_404(id)
+    data = request.json
+    
+    alt_bio = EmployeeAlternateBio(
+        employee_id=id,
+        label=data.get('label', 'New Bio'),
+        bio=data.get('bio', '')
+    )
+    db.session.add(alt_bio)
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'id': alt_bio.id,
+        'label': alt_bio.label,
+        'bio': alt_bio.bio
+    })
+
+
+@app.route('/employees/<int:id>/alternate-bios/<int:bio_id>', methods=['PUT'])
+@login_required
+def update_alternate_bio(id, bio_id):
+    """Update an alternate bio"""
+    alt_bio = EmployeeAlternateBio.query.filter_by(id=bio_id, employee_id=id).first_or_404()
+    data = request.json
+    
+    if 'label' in data:
+        alt_bio.label = data['label']
+    if 'bio' in data:
+        alt_bio.bio = data['bio']
+    
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/employees/<int:id>/alternate-bios/<int:bio_id>', methods=['DELETE'])
+@login_required
+def delete_alternate_bio(id, bio_id):
+    """Delete an alternate bio"""
+    alt_bio = EmployeeAlternateBio.query.filter_by(id=bio_id, employee_id=id).first_or_404()
+    db.session.delete(alt_bio)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
 @app.route('/employees/<int:id>/experience/<int:exp_id>/toggle-sf330', methods=['POST'])
 def toggle_sf330_include(id, exp_id):
     """Toggle SF330 inclusion flag for a project experience"""
