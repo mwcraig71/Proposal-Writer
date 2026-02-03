@@ -551,13 +551,28 @@ def employee_detail(id):
     firms = Firm.query.all()
     employees = [{'id': e.id, 'name': e.name} for e in Employee.query.order_by(Employee.name).all()]
     
+    # Serialize project experiences for JavaScript
+    project_experiences_json = [{
+        'id': exp.id,
+        'project_title': exp.project_title,
+        'role_performed': exp.role_performed,
+        'year_completed': exp.year_completed,
+        'location': exp.location,
+        'owner_name': exp.owner_name,
+        'brief_description': exp.brief_description,
+        'sf330_include': exp.sf330_include,
+        'is_current_firm': exp.is_current_firm,
+        'firm_name': exp.firm_name,
+        'project_cost': exp.project_cost
+    } for exp in project_experiences]
+    
     # Find marketing photos tagged with this employee's name
     employee_tag = f"#{employee.name.replace(' ', '')}"
     all_marketing = MarketingPhoto.query.all()
     marketing_photos = [p for p in all_marketing if employee_tag.lower() in (p.tags or '').lower()]
     
-    return render_template('employee_detail.html', employee=employee, projects=projects, project_experiences=project_experiences, 
-                           firms=firms, employees=employees, marketing_photos=marketing_photos)
+    return render_template('employee_detail.html', employee=employee, projects=projects, project_experiences=project_experiences,
+                           project_experiences_json=project_experiences_json, firms=firms, employees=employees, marketing_photos=marketing_photos)
 
 
 @app.route('/employees/<int:id>', methods=['PUT'])

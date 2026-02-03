@@ -603,7 +603,7 @@
 <script>
 const allEmployees = {{ employees|tojson|safe if employees else '[]' }};
 const employeeId = {{ employee.id }};
-const projectExperiences = {{ project_experiences|tojson|safe if project_experiences else '[]' }};
+const projectExperiences = {{ project_experiences_json|tojson|safe if project_experiences_json else '[]' }};
 
 // Marketing photo picker
 async function openMarketingPicker() {
