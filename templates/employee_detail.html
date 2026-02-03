@@ -1296,10 +1296,14 @@ document.querySelectorAll('.edit-exp-btn').forEach(btn => {
     });
 });
 
-function sortExperiences() {
+function sortExperiences(save = true) {
     const sortBy = document.getElementById('sort-experiences').value;
     const list = document.getElementById('project-experience-list');
     const items = Array.from(list.children);
+    
+    if (save) {
+        localStorage.setItem('employee_{{ employee.id }}_exp_sort', sortBy);
+    }
     
     items.sort((a, b) => {
         switch(sortBy) {
@@ -1330,6 +1334,17 @@ function sortExperiences() {
     
     items.forEach(item => list.appendChild(item));
 }
+
+(function restoreSortPreference() {
+    const saved = localStorage.getItem('employee_{{ employee.id }}_exp_sort');
+    if (saved) {
+        const select = document.getElementById('sort-experiences');
+        if (select) {
+            select.value = saved;
+            sortExperiences(false);
+        }
+    }
+})();
 
 function closeModal() {
     document.getElementById('experience-modal').classList.add('hidden');
