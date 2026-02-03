@@ -1201,13 +1201,33 @@ def project_detail(id):
     employee_links = EmployeeProjectLink.query.filter_by(project_id=id).all()
     all_employees = Employee.query.all()
     
+    # Get personnel writeups linked to this project
+    personnel_writeups = EmployeeProjectExperience.query.filter_by(linked_project_id=id).all()
+    
+    # Serialize personnel writeups for JavaScript
+    personnel_writeups_json = [{
+        'id': pw.id,
+        'employee_id': pw.employee_id,
+        'employee_name': pw.employee.name if pw.employee else 'Unknown',
+        'project_title': pw.project_title,
+        'role_performed': pw.role_performed,
+        'year_completed': pw.year_completed,
+        'brief_description': pw.brief_description,
+        'location': pw.location,
+        'owner_name': pw.owner_name,
+        'project_cost': pw.project_cost,
+        'firm_name': pw.firm_name,
+        'is_current_firm': pw.is_current_firm
+    } for pw in personnel_writeups]
+    
     # Find marketing photos tagged with this project's name
     project_tag = f"#{project.title.replace(' ', '')}"
     all_marketing = MarketingPhoto.query.all()
     marketing_photos = [p for p in all_marketing if project_tag.lower() in (p.tags or '').lower()]
     
     return render_template('project_detail.html', project=project, employee_links=employee_links, 
-                           all_employees=all_employees, marketing_photos=marketing_photos)
+                           all_employees=all_employees, marketing_photos=marketing_photos,
+                           personnel_writeups=personnel_writeups, personnel_writeups_json=personnel_writeups_json)
 
 
 @app.route('/projects/<int:id>', methods=['PUT'])
@@ -1263,6 +1283,90 @@ def delete_project(id):
     db.session.delete(project)
     db.session.commit()
     return jsonify({'success': True})
+
+
+@app.route('/api/personnel-writeups/<int:pw_id>', methods=['PUT'])
+@login_required
+def update_personnel_writeup(pw_id):
+    """Update a personnel writeup (EmployeeProjectExperience)"""
+    pw = EmployeeProjectExperience.query.get_or_404(pw_id)
+    data = request.json
+    
+    if 'role_performed' in data:
+        pw.role_performed = data['role_performed']
+    if 'brief_description' in data:
+        pw.brief_description = data['brief_description']
+    if 'project_title' in data:
+        pw.project_title = data['project_title']
+    
+    db.session.commit()
+    return jsonify({
+        'success': True,
+        'id': pw.id,
+        'role_performed': pw.role_performed,
+        'brief_description': pw.brief_description
+    })
+
+
+@app.route('/api/personnel-writeups/<int:pw_id>/unlink', methods=['POST'])
+@login_required
+def unlink_personnel_writeup(pw_id):
+    """Unlink a personnel writeup from its linked project"""
+    pw = EmployeeProjectExperience.query.get_or_404(pw_id)
+    pw.linked_project_id = None
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/api/personnel-writeups/<int:pw_id>/ai-enhance', methods=['POST'])
+@login_required
+def ai_enhance_personnel_writeup(pw_id):
+    """Enhance a personnel writeup using the linked project's description"""
+    from gemini_service import enhance_personnel_writeup
+    
+    pw = EmployeeProjectExperience.query.get_or_404(pw_id)
+    data = request.json
+    
+    project_id = data.get('project_id')
+    if not project_id:
+        return jsonify({'success': False, 'error': 'project_id is required'}), 400
+    
+    instructions = data.get('instructions', '')
+    
+    project = Project.query.get(project_id)
+    if not project:
+        return jsonify({'success': False, 'error': 'Project not found'}), 404
+    
+    employee_name = pw.employee.name if pw.employee else 'Unknown'
+    
+    try:
+        enhanced = enhance_personnel_writeup(
+            personnel_writeup=pw.brief_description or '',
+            project_description=project.brief_description or '',
+            employee_name=employee_name,
+            role=pw.role_performed or '',
+            instructions=instructions
+        )
+        return jsonify({'success': True, 'enhanced': enhanced})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/projects/<int:id>/sync-personnel-names', methods=['POST'])
+@login_required
+def sync_personnel_project_names(id):
+    """Sync all linked personnel writeup project names to match this project's title"""
+    project = Project.query.get_or_404(id)
+    
+    writeups = EmployeeProjectExperience.query.filter_by(linked_project_id=id).all()
+    count = 0
+    
+    for pw in writeups:
+        pw.project_title = project.title
+        count += 1
+    
+    db.session.commit()
+    return jsonify({'success': True, 'count': count})
 
 
 @app.route('/projects/<int:project_id>/team/<int:link_id>', methods=['PUT'])

@@ -120,6 +120,7 @@ class EmployeeProjectExperience(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False)
+    linked_project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=True)
     project_title = db.Column(db.String(500), nullable=False)
     location = db.Column(db.String(255))
     owner_name = db.Column(db.String(255))
@@ -134,6 +135,7 @@ class EmployeeProjectExperience(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     employee = db.relationship('Employee', backref=db.backref('project_experiences', lazy=True, cascade='all, delete-orphan'))
+    linked_project = db.relationship('Project', backref=db.backref('personnel_writeups', lazy=True))
 
 
 class ExperienceAlternateDescription(db.Model):

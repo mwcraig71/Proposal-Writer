@@ -849,6 +849,54 @@ Return ONLY the rewritten text, no explanations or formatting markers."""
     return (response.text or "").strip()
 
 
+def enhance_personnel_writeup(
+    personnel_writeup: str,
+    project_description: str,
+    employee_name: str,
+    role: str = '',
+    instructions: str = ''
+) -> str:
+    """Enhance a personnel project writeup using the linked project's description."""
+    from models import AISettings
+    
+    style = AISettings.get_value('writing_style', 'professional and technical')
+    tone = AISettings.get_value('writing_tone', 'formal but accessible')
+    
+    prompt = f"""You are a professional technical writer specializing in A/E qualification documentation for federal SF330 forms.
+
+Your task is to enhance a personnel's project writeup by incorporating relevant details from the master project description.
+
+EMPLOYEE NAME: {employee_name}
+ROLE ON PROJECT: {role or 'Not specified'}
+
+WRITING STYLE: {style}
+WRITING TONE: {tone}
+
+{f'ADDITIONAL INSTRUCTIONS: {instructions}' if instructions else ''}
+
+CURRENT PERSONNEL WRITEUP:
+{personnel_writeup or 'No writeup provided'}
+
+MASTER PROJECT DESCRIPTION:
+{project_description}
+
+Enhance the personnel writeup by:
+1. Incorporating relevant technical details from the master project description
+2. Focusing on the employee's specific role and contributions
+3. Maintaining first-person or third-person perspective (match the original if present)
+4. Including quantifiable achievements and specific technical details
+5. Keeping it concise but comprehensive for SF330 Section E requirements
+
+Return ONLY the enhanced writeup text, no explanations or formatting markers."""
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt
+    )
+    
+    return (response.text or "").strip()
+
+
 @retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=2, max=10),
