@@ -930,6 +930,38 @@ def delete_experience_alternate_description(alt_id):
     return jsonify({'success': True})
 
 
+@app.route('/api/experience/<int:exp_id>/generate-alternate-description', methods=['POST'])
+@login_required
+def generate_alternate_experience_description(exp_id):
+    """Generate an alternate description using AI"""
+    from gemini_service import generate_alternate_project_writeup
+    
+    exp = EmployeeProjectExperience.query.get_or_404(exp_id)
+    data = request.json or {}
+    direction = data.get('direction', '')
+    
+    employee_name = exp.employee.name if exp.employee else 'Unknown'
+    
+    linked_project_desc = None
+    if exp.linked_project_id and exp.linked_project:
+        linked_project_desc = exp.linked_project.brief_description
+    
+    try:
+        description = generate_alternate_project_writeup(
+            project_title=exp.project_title or '',
+            current_description=exp.brief_description or '',
+            role=exp.role_performed or '',
+            employee_name=employee_name,
+            location=exp.location or '',
+            owner_name=exp.owner_name or '',
+            linked_project_description=linked_project_desc,
+            direction=direction
+        )
+        return jsonify({'success': True, 'description': description})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
 @app.route('/api/projects/<int:project_id>/copy-to-resume', methods=['POST'])
 def copy_project_to_resume(project_id):
     """Copy a project description to an employee's resume experience"""

@@ -503,19 +503,100 @@
 </div>
 
 <div id="alt-desc-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
-    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
-        <div class="p-6">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-xl font-semibold">Alternate Descriptions</h3>
+    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+        <div class="p-6 border-b">
+            <div class="flex justify-between items-center">
+                <h3 class="text-xl font-semibold"><i class="fas fa-list-alt text-purple-600 mr-2"></i>Alternate Descriptions</h3>
                 <button onclick="closeAltDescModal()" class="text-gray-500 hover:text-gray-700">
                     <i class="fas fa-times text-xl"></i>
                 </button>
             </div>
-            <input type="hidden" id="alt-exp-id" value="">
-            <div id="alt-descriptions-list" class="space-y-4 mb-4"></div>
-            <button type="button" onclick="addAltDescription()" class="w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-blue-500 hover:text-blue-500">
-                <i class="fas fa-plus mr-1"></i> Add Alternate Description
+            <p class="text-sm text-gray-500 mt-2">Create multiple versions of this project description for different proposals</p>
+        </div>
+        <input type="hidden" id="alt-exp-id" value="">
+        <div class="p-6 overflow-y-auto flex-1">
+            <div class="flex space-x-3 mb-4">
+                <button type="button" onclick="showAddAltDescForm()" class="flex-1 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                    <i class="fas fa-plus mr-1"></i> Add Manually
+                </button>
+                <button type="button" onclick="showAIGenerateDescModal()" class="flex-1 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
+                    <i class="fas fa-magic mr-1"></i> Generate with AI
+                </button>
+            </div>
+            
+            <div id="add-alt-desc-form" class="hidden border rounded-lg p-4 mb-4 bg-gray-50">
+                <h4 class="font-medium text-gray-700 mb-3">Add New Description</h4>
+                <div class="mb-3">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Label *</label>
+                    <input type="text" id="new-alt-desc-label" class="w-full p-2 border rounded-lg" placeholder="e.g., Bridge Focus, Technical Details">
+                </div>
+                <div class="mb-3">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                    <textarea id="new-alt-desc-text" rows="4" class="w-full p-2 border rounded-lg" placeholder="Enter the project description..."></textarea>
+                </div>
+                <div class="flex space-x-2">
+                    <button type="button" onclick="saveNewAltDesc()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">
+                        <i class="fas fa-save mr-1"></i> Save
+                    </button>
+                    <button type="button" onclick="hideAddAltDescForm()" class="px-4 py-2 border rounded-lg hover:bg-gray-100 transition">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+            
+            <div id="alt-descriptions-list" class="space-y-4"></div>
+            <p id="no-alt-desc-msg" class="text-gray-500 text-center py-4 hidden">No alternate descriptions yet. Add one above.</p>
+        </div>
+        <div class="p-4 border-t bg-gray-50">
+            <button type="button" onclick="closeAltDescModal()" class="w-full py-2 border rounded-lg hover:bg-gray-100 transition">
+                Close
             </button>
+        </div>
+    </div>
+</div>
+
+<div id="ai-generate-desc-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+        <div class="p-6 border-b">
+            <div class="flex justify-between items-center">
+                <h3 class="text-xl font-semibold"><i class="fas fa-magic text-purple-600 mr-2"></i>AI Generate Description</h3>
+                <button onclick="closeAIGenerateDescModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <p class="text-sm text-gray-500 mt-2">Generate a new project description using AI</p>
+        </div>
+        <div class="p-6 overflow-y-auto flex-1">
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Project Context</label>
+                <div id="ai-desc-context" class="bg-gray-50 border rounded-lg p-3 text-sm text-gray-600 max-h-24 overflow-y-auto"></div>
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Label for New Description *</label>
+                <input type="text" id="ai-desc-label" class="w-full p-2 border rounded-lg" placeholder="e.g., Technical Focus, Management Emphasis">
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Direction / Instructions</label>
+                <p class="text-xs text-gray-500 mb-2">Guide the AI on style, focus, or specific points to emphasize</p>
+                <textarea id="ai-desc-direction" rows="3" class="w-full p-2 border rounded-lg" placeholder="Example: Focus on structural analysis aspects. Emphasize load rating experience. Keep it concise for SF330."></textarea>
+            </div>
+            <div id="ai-desc-preview" class="hidden mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Generated Description Preview</label>
+                <textarea id="ai-desc-result" rows="6" class="w-full p-2 border rounded-lg bg-white"></textarea>
+            </div>
+        </div>
+        <div class="p-6 border-t bg-gray-50">
+            <div class="flex space-x-3">
+                <button type="button" id="generate-desc-btn" onclick="generateAIDescription()" class="flex-1 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition">
+                    <i class="fas fa-magic mr-2"></i> Generate
+                </button>
+                <button type="button" id="save-ai-desc-btn" onclick="saveAIGeneratedDesc()" class="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition hidden">
+                    <i class="fas fa-save mr-2"></i> Save Description
+                </button>
+                <button type="button" onclick="closeAIGenerateDescModal()" class="px-4 py-2 border rounded-lg hover:bg-gray-100 transition">
+                    Cancel
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -1440,51 +1521,39 @@ function showAltDescModal(expId) {
 
 function closeAltDescModal() {
     document.getElementById('alt-desc-modal').classList.add('hidden');
+    hideAddAltDescForm();
 }
 
-async function loadAltDescriptions(expId) {
-    const list = document.getElementById('alt-descriptions-list');
-    list.innerHTML = '<p class="text-gray-500 text-center py-4">Loading...</p>';
-    
-    try {
-        const response = await fetch(`/api/experience/${expId}/alternate-descriptions`);
-        const descriptions = await response.json();
-        
-        if (descriptions.length === 0) {
-            list.innerHTML = '<p class="text-gray-500 text-center py-4">No alternate descriptions yet</p>';
-        } else {
-            list.innerHTML = descriptions.map(d => `
-                <div class="border rounded-lg p-4" id="alt-${d.id}">
-                    <div class="flex justify-between items-start mb-2">
-                        <input type="text" value="${d.label}" class="font-medium border-b border-transparent hover:border-gray-300 focus:border-blue-500 outline-none" onchange="updateAltDesc(${d.id}, this.value, null)">
-                        <div class="flex space-x-2">
-                            <button onclick="rewriteAltDesc(${d.id})" class="text-purple-600 hover:text-purple-800 text-sm">
-                                <i class="fas fa-magic"></i>
-                            </button>
-                            <button onclick="deleteAltDesc(${d.id})" class="text-red-600 hover:text-red-800 text-sm">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <textarea class="w-full p-2 border rounded text-sm" rows="3" onchange="updateAltDesc(${d.id}, null, this.value)">${d.description || ''}</textarea>
-                </div>
-            `).join('');
-        }
-    } catch (error) {
-        list.innerHTML = '<p class="text-red-500 text-center py-4">Error loading descriptions</p>';
-    }
+function showAddAltDescForm() {
+    document.getElementById('add-alt-desc-form').classList.remove('hidden');
+    document.getElementById('new-alt-desc-label').value = '';
+    document.getElementById('new-alt-desc-text').value = '';
+    document.getElementById('new-alt-desc-label').focus();
 }
 
-async function addAltDescription() {
+function hideAddAltDescForm() {
+    document.getElementById('add-alt-desc-form').classList.add('hidden');
+}
+
+async function saveNewAltDesc() {
     const expId = document.getElementById('alt-exp-id').value;
+    const label = document.getElementById('new-alt-desc-label').value.trim();
+    const description = document.getElementById('new-alt-desc-text').value.trim();
+    
+    if (!label) {
+        alert('Please enter a label');
+        return;
+    }
+    
     try {
         const response = await fetch(`/api/experience/${expId}/alternate-descriptions`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ label: 'New Version', description: '' })
+            body: JSON.stringify({ label, description })
         });
         const result = await response.json();
         if (result.success) {
+            hideAddAltDescForm();
             loadAltDescriptions(expId);
         }
     } catch (error) {
@@ -1492,19 +1561,100 @@ async function addAltDescription() {
     }
 }
 
-async function updateAltDesc(id, label, description) {
-    const data = {};
-    if (label !== null) data.label = label;
-    if (description !== null) data.description = description;
+async function loadAltDescriptions(expId) {
+    const list = document.getElementById('alt-descriptions-list');
+    const noMsg = document.getElementById('no-alt-desc-msg');
+    list.innerHTML = '<p class="text-gray-500 text-center py-4">Loading...</p>';
     
     try {
-        await fetch(`/api/experience/alternate-descriptions/${id}`, {
+        const response = await fetch(`/api/experience/${expId}/alternate-descriptions`);
+        const descriptions = await response.json();
+        
+        if (descriptions.length === 0) {
+            list.innerHTML = '';
+            noMsg.classList.remove('hidden');
+        } else {
+            noMsg.classList.add('hidden');
+            list.innerHTML = descriptions.map(d => {
+                const labelHtml = d.label ? d.label.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;') : '';
+                const descHtml = d.description ? d.description.replace(/</g, '&lt;').replace(/>/g, '&gt;') : '';
+                return `
+                <div class="border rounded-lg p-4" id="alt-${d.id}" data-label="${labelHtml}" data-desc="${descHtml.replace(/"/g, '&quot;')}">
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="flex-1 mr-2">
+                            <input type="text" id="alt-label-${d.id}" value="${labelHtml}" class="w-full font-medium text-gray-800 border rounded px-2 py-1 focus:border-blue-500 outline-none" readonly>
+                        </div>
+                        <div class="flex space-x-1">
+                            <button onclick="toggleEditAltDesc(${d.id})" class="text-blue-600 hover:text-blue-800 text-sm px-2 py-1" title="Edit" id="edit-btn-${d.id}">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button onclick="saveAltDesc(${d.id})" class="text-green-600 hover:text-green-800 text-sm px-2 py-1 hidden" title="Save" id="save-btn-${d.id}">
+                                <i class="fas fa-save"></i>
+                            </button>
+                            <button onclick="rewriteAltDesc(${d.id})" class="text-purple-600 hover:text-purple-800 text-sm px-2 py-1" title="AI Rewrite">
+                                <i class="fas fa-magic"></i>
+                            </button>
+                            <button onclick="deleteAltDesc(${d.id})" class="text-red-600 hover:text-red-800 text-sm px-2 py-1" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <textarea id="alt-text-${d.id}" class="w-full p-2 border rounded text-sm bg-gray-50" rows="3" readonly>${descHtml}</textarea>
+                </div>
+            `}).join('');
+        }
+    } catch (error) {
+        list.innerHTML = '<p class="text-red-500 text-center py-4">Error loading descriptions</p>';
+    }
+}
+
+function toggleEditAltDesc(id) {
+    const labelInput = document.getElementById(`alt-label-${id}`);
+    const textArea = document.getElementById(`alt-text-${id}`);
+    const editBtn = document.getElementById(`edit-btn-${id}`);
+    const saveBtn = document.getElementById(`save-btn-${id}`);
+    
+    const isEditing = !labelInput.readOnly;
+    
+    if (isEditing) {
+        labelInput.readOnly = true;
+        textArea.readOnly = true;
+        textArea.classList.add('bg-gray-50');
+        textArea.classList.remove('bg-white');
+        editBtn.classList.remove('hidden');
+        saveBtn.classList.add('hidden');
+    } else {
+        labelInput.readOnly = false;
+        textArea.readOnly = false;
+        textArea.classList.remove('bg-gray-50');
+        textArea.classList.add('bg-white');
+        editBtn.classList.add('hidden');
+        saveBtn.classList.remove('hidden');
+        labelInput.focus();
+    }
+}
+
+async function saveAltDesc(id) {
+    const label = document.getElementById(`alt-label-${id}`).value.trim();
+    const description = document.getElementById(`alt-text-${id}`).value;
+    
+    if (!label) {
+        alert('Label cannot be empty');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/experience/alternate-descriptions/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
+            body: JSON.stringify({ label, description })
         });
+        const result = await response.json();
+        if (result.success) {
+            toggleEditAltDesc(id);
+        }
     } catch (error) {
-        alert('Error updating');
+        alert('Error saving');
     }
 }
 
@@ -1513,6 +1663,10 @@ async function deleteAltDesc(id) {
     try {
         await fetch(`/api/experience/alternate-descriptions/${id}`, { method: 'DELETE' });
         document.getElementById(`alt-${id}`).remove();
+        const list = document.getElementById('alt-descriptions-list');
+        if (list.children.length === 0) {
+            document.getElementById('no-alt-desc-msg').classList.remove('hidden');
+        }
     } catch (error) {
         alert('Error deleting');
     }
@@ -1522,7 +1676,7 @@ async function rewriteAltDesc(id) {
     const instructions = prompt('Enter custom rewrite instructions (optional):');
     if (instructions === null) return;
     
-    const textarea = document.querySelector(`#alt-${id} textarea`);
+    const textarea = document.getElementById(`alt-text-${id}`);
     const description = textarea.value;
     
     if (!description) {
@@ -1539,10 +1693,116 @@ async function rewriteAltDesc(id) {
         const result = await response.json();
         if (result.rewritten) {
             textarea.value = result.rewritten;
-            updateAltDesc(id, null, result.rewritten);
+            const label = document.getElementById(`alt-label-${id}`).value;
+            await fetch(`/api/experience/alternate-descriptions/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ label, description: result.rewritten })
+            });
         }
     } catch (error) {
         alert('Error rewriting');
+    }
+}
+
+function showAIGenerateDescModal() {
+    const expId = document.getElementById('alt-exp-id').value;
+    
+    if (typeof projectExperiences === 'undefined' || !Array.isArray(projectExperiences)) {
+        alert('Project context not available');
+        return;
+    }
+    
+    const exp = projectExperiences.find(e => e.id == expId);
+    
+    if (!exp) {
+        alert('Error loading project context');
+        return;
+    }
+    
+    let context = `<strong>Project:</strong> ${exp.project_title || 'Untitled'}`;
+    if (exp.role_performed) context += `<br><strong>Role:</strong> ${exp.role_performed}`;
+    if (exp.location) context += `<br><strong>Location:</strong> ${exp.location}`;
+    if (exp.brief_description) context += `<br><strong>Current Description:</strong> ${exp.brief_description.substring(0, 150)}${exp.brief_description.length > 150 ? '...' : ''}`;
+    
+    document.getElementById('ai-desc-context').innerHTML = context;
+    document.getElementById('ai-desc-label').value = '';
+    document.getElementById('ai-desc-direction').value = '';
+    document.getElementById('ai-desc-result').value = '';
+    document.getElementById('ai-desc-preview').classList.add('hidden');
+    document.getElementById('save-ai-desc-btn').classList.add('hidden');
+    document.getElementById('generate-desc-btn').classList.remove('hidden');
+    
+    document.getElementById('ai-generate-desc-modal').classList.remove('hidden');
+}
+
+function closeAIGenerateDescModal() {
+    document.getElementById('ai-generate-desc-modal').classList.add('hidden');
+}
+
+async function generateAIDescription() {
+    const expId = document.getElementById('alt-exp-id').value;
+    const label = document.getElementById('ai-desc-label').value.trim();
+    const direction = document.getElementById('ai-desc-direction').value.trim();
+    
+    if (!label) {
+        alert('Please enter a label for the new description');
+        return;
+    }
+    
+    const btn = document.getElementById('generate-desc-btn');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Generating...';
+    btn.disabled = true;
+    
+    try {
+        const response = await fetch(`/api/experience/${expId}/generate-alternate-description`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ direction })
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+            document.getElementById('ai-desc-result').value = result.description;
+            document.getElementById('ai-desc-preview').classList.remove('hidden');
+            document.getElementById('save-ai-desc-btn').classList.remove('hidden');
+        } else {
+            alert('Error: ' + (result.error || 'Failed to generate'));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+
+async function saveAIGeneratedDesc() {
+    const expId = document.getElementById('alt-exp-id').value;
+    const label = document.getElementById('ai-desc-label').value.trim();
+    const description = document.getElementById('ai-desc-result').value.trim();
+    
+    if (!label || !description) {
+        alert('Label and description are required');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/experience/${expId}/alternate-descriptions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ label, description })
+        });
+        const result = await response.json();
+        if (result.success) {
+            closeAIGenerateDescModal();
+            loadAltDescriptions(expId);
+        } else {
+            alert('Error saving description');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
     }
 }
 

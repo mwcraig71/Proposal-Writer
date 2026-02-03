@@ -897,6 +897,67 @@ Return ONLY the enhanced writeup text, no explanations or formatting markers."""
     return (response.text or "").strip()
 
 
+def generate_alternate_project_writeup(
+    project_title: str,
+    current_description: str,
+    role: str = '',
+    employee_name: str = '',
+    location: str = '',
+    owner_name: str = '',
+    linked_project_description: str = None,
+    direction: str = ''
+) -> str:
+    """Generate an alternate project writeup description using AI."""
+    from models import AISettings
+    
+    style = AISettings.get_value('writing_style', 'professional and technical')
+    tone = AISettings.get_value('writing_tone', 'formal but accessible')
+    
+    context_parts = []
+    context_parts.append(f"PROJECT TITLE: {project_title}")
+    if role:
+        context_parts.append(f"EMPLOYEE ROLE: {role}")
+    if employee_name:
+        context_parts.append(f"EMPLOYEE NAME: {employee_name}")
+    if location:
+        context_parts.append(f"LOCATION: {location}")
+    if owner_name:
+        context_parts.append(f"OWNER/CLIENT: {owner_name}")
+    if current_description:
+        context_parts.append(f"CURRENT DESCRIPTION:\n{current_description}")
+    if linked_project_description:
+        context_parts.append(f"LINKED PROJECT DESCRIPTION (use for additional context):\n{linked_project_description}")
+    
+    context = "\n".join(context_parts)
+    
+    prompt = f"""You are a professional technical writer specializing in A/E qualification documentation for federal SF330 forms.
+
+Your task is to generate an alternate project description for an employee's resume/experience section.
+
+{context}
+
+WRITING STYLE: {style}
+WRITING TONE: {tone}
+
+{f'ADDITIONAL DIRECTION: {direction}' if direction else ''}
+
+Generate a new project description that:
+1. Highlights the employee's specific role and contributions
+2. Is written in a professional SF330-appropriate style
+3. Focuses on technical achievements and quantifiable results where possible
+4. Is concise but comprehensive (typically 2-4 sentences)
+5. Can be used as an alternate version with different emphasis than the original
+
+Return ONLY the project description text, no explanations or formatting markers."""
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt
+    )
+    
+    return (response.text or "").strip()
+
+
 @retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=2, max=10),
