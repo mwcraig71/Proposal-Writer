@@ -42,49 +42,190 @@
 </div>
 
 {% if projects %}
-<div class="bg-white rounded-lg shadow overflow-hidden">
-    <table class="w-full table-fixed">
-        <thead class="bg-gray-50">
-            <tr>
-                <th class="w-12 px-4 py-3 text-left">
-                    <input type="checkbox" id="selectAll" onchange="toggleSelectAll()" class="w-4 h-4 text-blue-600 rounded">
-                </th>
-                <th class="w-1/4 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
-                <th class="w-1/6 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
-                <th class="w-1/6 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Owner</th>
-                <th class="w-16 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Year</th>
-                <th class="w-28 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Modified</th>
-                <th class="w-20 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-            </tr>
-        </thead>
-        <tbody class="divide-y divide-gray-200">
-            {% for project in projects %}
-            <tr class="hover:bg-gray-50">
-                <td class="px-4 py-4">
-                    <input type="checkbox" class="project-checkbox w-4 h-4 text-blue-600 rounded" value="{{ project.id }}" onchange="updateMergeButton()">
-                </td>
-                <td class="px-6 py-4">
-                    <div class="font-medium text-gray-900 truncate" title="{{ project.title }}">{{ project.title }}</div>
-                </td>
-                <td class="px-6 py-4 text-gray-600 truncate" title="{{ project.location or '' }}">{{ project.location or '-' }}</td>
-                <td class="px-6 py-4 text-gray-600 truncate" title="{{ project.owner_name or '' }}">{{ project.owner_name or '-' }}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ project.year_completed_professional or '-' }}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-xs text-gray-500">{{ project.updated_at.strftime('%b %d, %Y') if project.updated_at else '-' }}</td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="flex gap-3">
-                        <a href="/projects/{{ project.id }}" class="text-blue-600 hover:text-blue-800" title="Edit">
-                            <i class="fas fa-edit"></i>
-                        </a>
-                        <button onclick="deleteProject({{ project.id }}, '{{ project.title | e }}')" class="text-red-600 hover:text-red-800" title="Delete">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<!-- Firm Tabs -->
+<div class="mb-4">
+    <div class="flex flex-wrap gap-2 border-b border-gray-200 pb-2">
+        <button onclick="showFirmTab('all')" id="tab-all" class="px-4 py-2 rounded-t-lg font-medium transition bg-gray-600 text-white">
+            All Projects <span class="ml-1 px-2 py-0.5 rounded-full text-xs bg-white text-gray-700">{{ projects|length }}</span>
+        </button>
+        {% for fd in firm_data %}
+        <button onclick="showFirmTab('{{ fd.firm.id }}')" id="tab-{{ fd.firm.id }}" class="px-4 py-2 rounded-t-lg font-medium transition {{ fd.color.tab_inactive }} hover:opacity-80">
+            {{ fd.firm.name }} <span class="ml-1 px-2 py-0.5 rounded-full text-xs {{ fd.color.badge }}">{{ fd.projects|length }}</span>
+        </button>
+        {% endfor %}
+        {% if unassigned_projects %}
+        <button onclick="showFirmTab('unassigned')" id="tab-unassigned" class="px-4 py-2 rounded-t-lg font-medium transition bg-gray-100 text-gray-700 hover:bg-gray-200">
+            Unassigned <span class="ml-1 px-2 py-0.5 rounded-full text-xs bg-gray-200 text-gray-700">{{ unassigned_projects|length }}</span>
+        </button>
+        {% endif %}
+    </div>
 </div>
+
+<!-- All Projects Tab -->
+<div id="panel-all" class="firm-panel">
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+        <table class="w-full table-fixed">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="w-12 px-4 py-3 text-left">
+                        <input type="checkbox" class="select-all-checkbox w-4 h-4 text-blue-600 rounded" data-panel="all" onchange="toggleSelectAllInPanel('all')">
+                    </th>
+                    <th class="w-1/5 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                    <th class="w-28 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Firm</th>
+                    <th class="w-1/6 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                    <th class="w-1/6 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Owner</th>
+                    <th class="w-16 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Year</th>
+                    <th class="w-20 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+                {% for project in projects %}
+                {% set firm_color = None %}
+                {% for fd in firm_data %}
+                    {% if fd.firm.id == project.firm_id %}
+                        {% set firm_color = fd.color %}
+                    {% endif %}
+                {% endfor %}
+                <tr class="hover:bg-gray-50 {% if firm_color %}{{ firm_color.bg }}{% endif %}">
+                    <td class="px-4 py-4">
+                        <input type="checkbox" class="project-checkbox w-4 h-4 text-blue-600 rounded" value="{{ project.id }}" data-panel="all" onchange="updateMergeButton()">
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="font-medium text-gray-900 truncate" title="{{ project.title }}">{{ project.title }}</div>
+                    </td>
+                    <td class="px-6 py-4">
+                        {% if project.firm %}
+                        <span class="text-xs px-2 py-1 rounded-full {% if firm_color %}{{ firm_color.badge }}{% else %}bg-gray-100 text-gray-700{% endif %}">{{ project.firm.name }}</span>
+                        {% else %}
+                        <span class="text-xs text-gray-400">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 text-gray-600 truncate" title="{{ project.location or '' }}">{{ project.location or '-' }}</td>
+                    <td class="px-6 py-4 text-gray-600 truncate" title="{{ project.owner_name or '' }}">{{ project.owner_name or '-' }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ project.year_completed_professional or '-' }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex gap-3">
+                            <a href="/projects/{{ project.id }}" class="text-blue-600 hover:text-blue-800" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <button onclick="deleteProject({{ project.id }}, '{{ project.title | e }}')" class="text-red-600 hover:text-red-800" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Firm-specific Panels -->
+{% for fd in firm_data %}
+<div id="panel-{{ fd.firm.id }}" class="firm-panel hidden">
+    <div class="bg-white rounded-lg shadow overflow-hidden border-l-4 {{ fd.color.border }}" style="border-left-color: var(--{{ fd.color.border.split('-')[1] }}-{{ fd.color.border.split('-')[2] }});">
+        {% if fd.projects %}
+        <table class="w-full table-fixed">
+            <thead class="{{ fd.color.bg }}">
+                <tr>
+                    <th class="w-12 px-4 py-3 text-left">
+                        <input type="checkbox" class="select-all-checkbox w-4 h-4 text-blue-600 rounded" data-panel="{{ fd.firm.id }}" onchange="toggleSelectAllInPanel('{{ fd.firm.id }}')">
+                    </th>
+                    <th class="w-1/4 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                    <th class="w-1/6 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                    <th class="w-1/6 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Owner</th>
+                    <th class="w-16 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Year</th>
+                    <th class="w-28 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Modified</th>
+                    <th class="w-20 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+                {% for project in fd.projects %}
+                <tr class="hover:bg-gray-50 {{ fd.color.bg }}">
+                    <td class="px-4 py-4">
+                        <input type="checkbox" class="project-checkbox w-4 h-4 text-blue-600 rounded" value="{{ project.id }}" data-panel="{{ fd.firm.id }}" onchange="updateMergeButton()">
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="font-medium text-gray-900 truncate" title="{{ project.title }}">{{ project.title }}</div>
+                    </td>
+                    <td class="px-6 py-4 text-gray-600 truncate" title="{{ project.location or '' }}">{{ project.location or '-' }}</td>
+                    <td class="px-6 py-4 text-gray-600 truncate" title="{{ project.owner_name or '' }}">{{ project.owner_name or '-' }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ project.year_completed_professional or '-' }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-xs text-gray-500">{{ project.updated_at.strftime('%b %d, %Y') if project.updated_at else '-' }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex gap-3">
+                            <a href="/projects/{{ project.id }}" class="text-blue-600 hover:text-blue-800" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <button onclick="deleteProject({{ project.id }}, '{{ project.title | e }}')" class="text-red-600 hover:text-red-800" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="p-12 text-center {{ fd.color.bg }}">
+            <i class="fas fa-project-diagram text-gray-300 text-4xl mb-3"></i>
+            <p class="text-gray-500">No projects assigned to {{ fd.firm.name }} yet.</p>
+            <p class="text-sm text-gray-400 mt-1">Edit a project to assign it to this firm.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endfor %}
+
+<!-- Unassigned Projects Panel -->
+{% if unassigned_projects %}
+<div id="panel-unassigned" class="firm-panel hidden">
+    <div class="bg-white rounded-lg shadow overflow-hidden border-l-4 border-gray-300">
+        <table class="w-full table-fixed">
+            <thead class="bg-gray-100">
+                <tr>
+                    <th class="w-12 px-4 py-3 text-left">
+                        <input type="checkbox" class="select-all-checkbox w-4 h-4 text-blue-600 rounded" data-panel="unassigned" onchange="toggleSelectAllInPanel('unassigned')">
+                    </th>
+                    <th class="w-1/4 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                    <th class="w-1/6 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                    <th class="w-1/6 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Owner</th>
+                    <th class="w-16 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Year</th>
+                    <th class="w-28 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Modified</th>
+                    <th class="w-20 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+                {% for project in unassigned_projects %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-4">
+                        <input type="checkbox" class="project-checkbox w-4 h-4 text-blue-600 rounded" value="{{ project.id }}" data-panel="unassigned" onchange="updateMergeButton()">
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="font-medium text-gray-900 truncate" title="{{ project.title }}">{{ project.title }}</div>
+                    </td>
+                    <td class="px-6 py-4 text-gray-600 truncate" title="{{ project.location or '' }}">{{ project.location or '-' }}</td>
+                    <td class="px-6 py-4 text-gray-600 truncate" title="{{ project.owner_name or '' }}">{{ project.owner_name or '-' }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ project.year_completed_professional or '-' }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-xs text-gray-500">{{ project.updated_at.strftime('%b %d, %Y') if project.updated_at else '-' }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex gap-3">
+                            <a href="/projects/{{ project.id }}" class="text-blue-600 hover:text-blue-800" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <button onclick="deleteProject({{ project.id }}, '{{ project.title | e }}')" class="text-red-600 hover:text-red-800" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
 {% else %}
 <div class="bg-white rounded-lg shadow p-12 text-center">
     <i class="fas fa-project-diagram text-gray-300 text-6xl mb-4"></i>
@@ -97,9 +238,62 @@
 {% endif %}
 
 <script>
-function toggleSelectAll() {
-    const selectAll = document.getElementById('selectAll');
-    const checkboxes = document.querySelectorAll('.project-checkbox');
+// Tab colors for firm styling
+const firmTabColors = {
+    {% for fd in firm_data %}
+    '{{ fd.firm.id }}': {
+        active: '{{ fd.color.tab }}',
+        inactive: '{{ fd.color.tab_inactive }}'
+    },
+    {% endfor %}
+    'all': { active: 'bg-gray-600 text-white', inactive: 'bg-gray-100 text-gray-700' },
+    'unassigned': { active: 'bg-gray-500 text-white', inactive: 'bg-gray-100 text-gray-700' }
+};
+
+let currentTab = 'all';
+
+function showFirmTab(firmId) {
+    // Hide all panels
+    document.querySelectorAll('.firm-panel').forEach(p => p.classList.add('hidden'));
+    
+    // Show selected panel
+    const panel = document.getElementById('panel-' + firmId);
+    if (panel) panel.classList.remove('hidden');
+    
+    // Update tab styles
+    document.querySelectorAll('[id^="tab-"]').forEach(tab => {
+        const tabId = tab.id.replace('tab-', '');
+        const colors = firmTabColors[tabId];
+        if (colors) {
+            if (tabId === firmId) {
+                tab.className = 'px-4 py-2 rounded-t-lg font-medium transition ' + colors.active + ' text-white';
+            } else {
+                tab.className = 'px-4 py-2 rounded-t-lg font-medium transition ' + colors.inactive + ' hover:opacity-80';
+            }
+        }
+    });
+    
+    currentTab = firmId;
+    
+    // Clear selection when switching tabs
+    clearSelection();
+    
+    // Save tab preference
+    localStorage.setItem('projectsActiveTab', firmId);
+}
+
+// Restore last active tab on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const savedTab = localStorage.getItem('projectsActiveTab');
+    if (savedTab && document.getElementById('tab-' + savedTab)) {
+        showFirmTab(savedTab);
+    }
+});
+
+function toggleSelectAllInPanel(panelId) {
+    const panel = document.getElementById('panel-' + panelId);
+    const selectAll = panel.querySelector('.select-all-checkbox');
+    const checkboxes = panel.querySelectorAll('.project-checkbox');
     checkboxes.forEach(cb => cb.checked = selectAll.checked);
     updateMergeButton();
 }
@@ -131,7 +325,7 @@ function updateBulkToolbar() {
 
 function clearSelection() {
     document.querySelectorAll('.project-checkbox').forEach(cb => cb.checked = false);
-    document.getElementById('selectAll').checked = false;
+    document.querySelectorAll('.select-all-checkbox').forEach(cb => cb.checked = false);
     updateMergeButton();
 }
 

@@ -1236,13 +1236,48 @@ def merge_employees():
 @app.route('/projects')
 def projects():
     projects = Project.query.order_by(Project.title).all()
-    return render_template('projects.html', projects=projects)
+    firms = Firm.query.order_by(Firm.name).all()
+    
+    # Group projects by firm
+    projects_by_firm = {}
+    unassigned_projects = []
+    for project in projects:
+        if project.firm_id:
+            if project.firm_id not in projects_by_firm:
+                projects_by_firm[project.firm_id] = []
+            projects_by_firm[project.firm_id].append(project)
+        else:
+            unassigned_projects.append(project)
+    
+    # Define colors for each firm (cycle through if more firms than colors)
+    firm_colors = [
+        {'bg': 'bg-blue-50', 'border': 'border-blue-200', 'tab': 'bg-blue-600', 'tab_inactive': 'bg-blue-100 text-blue-700', 'badge': 'bg-blue-100 text-blue-800'},
+        {'bg': 'bg-green-50', 'border': 'border-green-200', 'tab': 'bg-green-600', 'tab_inactive': 'bg-green-100 text-green-700', 'badge': 'bg-green-100 text-green-800'},
+        {'bg': 'bg-purple-50', 'border': 'border-purple-200', 'tab': 'bg-purple-600', 'tab_inactive': 'bg-purple-100 text-purple-700', 'badge': 'bg-purple-100 text-purple-800'},
+        {'bg': 'bg-orange-50', 'border': 'border-orange-200', 'tab': 'bg-orange-600', 'tab_inactive': 'bg-orange-100 text-orange-700', 'badge': 'bg-orange-100 text-orange-800'},
+        {'bg': 'bg-pink-50', 'border': 'border-pink-200', 'tab': 'bg-pink-600', 'tab_inactive': 'bg-pink-100 text-pink-700', 'badge': 'bg-pink-100 text-pink-800'},
+        {'bg': 'bg-teal-50', 'border': 'border-teal-200', 'tab': 'bg-teal-600', 'tab_inactive': 'bg-teal-100 text-teal-700', 'badge': 'bg-teal-100 text-teal-800'},
+    ]
+    
+    # Build firm data with colors
+    firm_data = []
+    for i, firm in enumerate(firms):
+        color = firm_colors[i % len(firm_colors)]
+        firm_data.append({
+            'firm': firm,
+            'projects': projects_by_firm.get(firm.id, []),
+            'color': color
+        })
+    
+    return render_template('projects.html', projects=projects, firms=firms, firm_data=firm_data, 
+                          unassigned_projects=unassigned_projects, firm_colors=firm_colors)
 
 
 @app.route('/projects/add', methods=['GET', 'POST'])
 def add_project():
     if request.method == 'POST':
         data = request.form
+        firm_id = data.get('firm_id')
         project = Project(
             title=data.get('title', ''),
             location=data.get('location'),
@@ -1254,13 +1289,15 @@ def add_project():
             project_cost=data.get('project_cost'),
             project_delivery_method=data.get('project_delivery_method'),
             brief_description=data.get('brief_description'),
-            relevance_writeup=data.get('relevance_writeup')
+            relevance_writeup=data.get('relevance_writeup'),
+            firm_id=int(firm_id) if firm_id else None
         )
         db.session.add(project)
         db.session.commit()
         return redirect(f'/projects/{project.id}')
     
-    return render_template('project_add.html')
+    firms = Firm.query.order_by(Firm.name).all()
+    return render_template('project_add.html', firms=firms)
 
 
 @app.route('/projects/<int:id>')
@@ -1294,9 +1331,11 @@ def project_detail(id):
     all_marketing = MarketingPhoto.query.all()
     marketing_photos = [p for p in all_marketing if project_tag.lower() in (p.tags or '').lower()]
     
+    firms = Firm.query.order_by(Firm.name).all()
     return render_template('project_detail.html', project=project, employee_links=employee_links, 
                            all_employees=all_employees, marketing_photos=marketing_photos,
-                           personnel_writeups=personnel_writeups, personnel_writeups_json=personnel_writeups_json)
+                           personnel_writeups=personnel_writeups, personnel_writeups_json=personnel_writeups_json,
+                           firms=firms)
 
 
 @app.route('/projects/<int:id>', methods=['PUT'])
@@ -1317,6 +1356,11 @@ def update_project(id):
     project.relevance_writeup = data.get('relevance_writeup', project.relevance_writeup)
     project.is_with_other_firm = data.get('is_with_other_firm') in [True, 'true', 'True', '1', 1]
     project.other_firm_name = data.get('other_firm_name', project.other_firm_name) if project.is_with_other_firm else None
+    
+    # Handle firm_id assignment
+    if 'firm_id' in data:
+        firm_id = data.get('firm_id')
+        project.firm_id = int(firm_id) if firm_id else None
     
     owner_contact_id = data.get('owner_contact_id')
     if owner_contact_id:

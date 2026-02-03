@@ -20,6 +20,16 @@
                     <label class="block text-sm font-medium text-gray-700 mb-1">Project Title</label>
                     <input type="text" name="title" value="{{ project.title }}" class="w-full p-2 border rounded-lg">
                 </div>
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Assigned Firm</label>
+                    <select name="firm_id" class="w-full p-2 border rounded-lg">
+                        <option value="">-- No Firm Assigned --</option>
+                        {% for firm in firms %}
+                        <option value="{{ firm.id }}" {% if project.firm_id == firm.id %}selected{% endif %}>{{ firm.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <p class="text-xs text-gray-500 mt-1">Projects are organized by firm in the database view</p>
+                </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Location</label>
                     <input type="text" name="location" value="{{ project.location or '' }}" class="w-full p-2 border rounded-lg">

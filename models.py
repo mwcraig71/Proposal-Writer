@@ -172,6 +172,7 @@ class Project(db.Model):
     __tablename__ = 'projects'
     
     id = db.Column(db.Integer, primary_key=True)
+    firm_id = db.Column(db.Integer, db.ForeignKey('firms.id'), nullable=True)
     title = db.Column(db.String(500), nullable=False)
     location = db.Column(db.String(255))
     year_completed_professional = db.Column(db.String(50))
@@ -192,6 +193,7 @@ class Project(db.Model):
     
     employee_links = db.relationship('EmployeeProjectLink', backref='project', lazy=True)
     firm_involvements = db.relationship('ProjectFirmInvolvement', backref='project', lazy=True)
+    firm = db.relationship('Firm', backref=db.backref('projects', lazy=True))
 
 
 class ProjectAlternateDescription(db.Model):
