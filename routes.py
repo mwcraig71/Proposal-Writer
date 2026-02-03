@@ -551,6 +551,10 @@ def employee_detail(id):
     firms = Firm.query.all()
     employees = [{'id': e.id, 'name': e.name} for e in Employee.query.order_by(Employee.name).all()]
     
+    # Get all projects for linking
+    all_projects = Project.query.order_by(Project.title).all()
+    all_projects_json = [{'id': p.id, 'title': p.title} for p in all_projects]
+    
     # Serialize project experiences for JavaScript
     project_experiences_json = [{
         'id': exp.id,
@@ -563,7 +567,9 @@ def employee_detail(id):
         'sf330_include': exp.sf330_include,
         'is_current_firm': exp.is_current_firm,
         'firm_name': exp.firm_name,
-        'project_cost': exp.project_cost
+        'project_cost': exp.project_cost,
+        'linked_project_id': exp.linked_project_id,
+        'linked_project_title': exp.linked_project.title if exp.linked_project else None
     } for exp in project_experiences]
     
     # Find marketing photos tagged with this employee's name
@@ -572,7 +578,8 @@ def employee_detail(id):
     marketing_photos = [p for p in all_marketing if employee_tag.lower() in (p.tags or '').lower()]
     
     return render_template('employee_detail.html', employee=employee, projects=projects, project_experiences=project_experiences,
-                           project_experiences_json=project_experiences_json, firms=firms, employees=employees, marketing_photos=marketing_photos)
+                           project_experiences_json=project_experiences_json, firms=firms, employees=employees, 
+                           marketing_photos=marketing_photos, all_projects_json=all_projects_json)
 
 
 @app.route('/employees/<int:id>', methods=['PUT'])
@@ -1316,6 +1323,39 @@ def unlink_personnel_writeup(pw_id):
     pw.linked_project_id = None
     db.session.commit()
     return jsonify({'success': True})
+
+
+@app.route('/api/personnel-writeups/<int:pw_id>/link', methods=['POST'])
+@login_required
+def link_personnel_writeup(pw_id):
+    """Link a personnel writeup to a project"""
+    pw = EmployeeProjectExperience.query.get_or_404(pw_id)
+    data = request.json
+    
+    if not data:
+        return jsonify({'success': False, 'error': 'Request body is required'}), 400
+    
+    project_id = data.get('project_id')
+    if not project_id:
+        return jsonify({'success': False, 'error': 'project_id is required'}), 400
+    
+    try:
+        project_id = int(project_id)
+    except (ValueError, TypeError):
+        return jsonify({'success': False, 'error': 'project_id must be an integer'}), 400
+    
+    project = Project.query.get(project_id)
+    if not project:
+        return jsonify({'success': False, 'error': 'Project not found'}), 404
+    
+    pw.linked_project_id = project_id
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'linked_project_id': project_id,
+        'linked_project_title': project.title
+    })
 
 
 @app.route('/api/personnel-writeups/<int:pw_id>/ai-enhance', methods=['POST'])
