@@ -569,7 +569,8 @@ def employee_detail(id):
         'firm_name': exp.firm_name,
         'project_cost': exp.project_cost,
         'linked_project_id': exp.linked_project_id,
-        'linked_project_title': exp.linked_project.title if exp.linked_project else None
+        'linked_project_title': exp.linked_project.title if exp.linked_project else None,
+        'selected_alt_description_id': exp.selected_alt_description_id
     } for exp in project_experiences]
     
     # Find marketing photos tagged with this employee's name
@@ -960,6 +961,32 @@ def generate_alternate_experience_description(exp_id):
         return jsonify({'success': True, 'description': description})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/experience/<int:exp_id>/select-description', methods=['POST'])
+@login_required
+def select_experience_description(exp_id):
+    """Set which description (main or alternate) to use for the resume"""
+    exp = EmployeeProjectExperience.query.get_or_404(exp_id)
+    data = request.json or {}
+    alt_desc_id = data.get('alt_description_id')
+    
+    if alt_desc_id is None or alt_desc_id == '' or alt_desc_id == 'main':
+        exp.selected_alt_description_id = None
+    else:
+        alt = ExperienceAlternateDescription.query.get(alt_desc_id)
+        if alt and alt.experience_id == exp_id:
+            exp.selected_alt_description_id = alt_desc_id
+        else:
+            return jsonify({'success': False, 'error': 'Invalid alternate description'}), 400
+    
+    db.session.commit()
+    return jsonify({
+        'success': True,
+        'selected_id': exp.selected_alt_description_id,
+        'active_description': exp.active_description,
+        'active_label': exp.active_description_label
+    })
 
 
 @app.route('/api/projects/<int:project_id>/copy-to-resume', methods=['POST'])

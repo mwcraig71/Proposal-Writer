@@ -187,7 +187,12 @@
                             {% if exp.linked_project_id and exp.linked_project %}
                             <p class="text-sm text-indigo-600 mt-1"><i class="fas fa-link mr-1"></i>Linked to: <a href="/projects/{{ exp.linked_project_id }}" class="underline hover:text-indigo-800">{{ exp.linked_project.title }}</a></p>
                             {% endif %}
-                            {% if exp.brief_description %}<p class="text-sm text-gray-600 mt-2">{{ exp.brief_description[:200] }}{% if exp.brief_description|length > 200 %}...{% endif %}</p>{% endif %}
+                            {% if exp.active_description %}<p class="text-sm text-gray-600 mt-2">{{ exp.active_description[:200] }}{% if exp.active_description|length > 200 %}...{% endif %}</p>{% endif %}
+                            <p class="text-xs mt-1">
+                                <span class="{% if exp.selected_alt_description_id %}bg-purple-100 text-purple-700{% else %}bg-gray-100 text-gray-600{% endif %} px-2 py-0.5 rounded">
+                                    <i class="fas fa-file-alt mr-1"></i>{{ exp.active_description_label }}
+                                </span>
+                            </p>
                             <p class="text-xs text-gray-400 mt-2"><i class="fas fa-clock mr-1"></i>Last modified: {{ exp.updated_at.strftime('%b %d, %Y %I:%M %p') if exp.updated_at else 'N/A' }}</p>
                         </div>
                         <div class="flex space-x-2 ml-4">
@@ -506,15 +511,21 @@
     <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col">
         <div class="p-6 border-b">
             <div class="flex justify-between items-center">
-                <h3 class="text-xl font-semibold"><i class="fas fa-list-alt text-purple-600 mr-2"></i>Alternate Descriptions</h3>
+                <h3 class="text-xl font-semibold"><i class="fas fa-list-alt text-purple-600 mr-2"></i>Manage Descriptions</h3>
                 <button onclick="closeAltDescModal()" class="text-gray-500 hover:text-gray-700">
                     <i class="fas fa-times text-xl"></i>
                 </button>
             </div>
-            <p class="text-sm text-gray-500 mt-2">Create multiple versions of this project description for different proposals</p>
+            <p class="text-sm text-gray-500 mt-2">Select which description to use on the resume, or create alternate versions</p>
         </div>
         <input type="hidden" id="alt-exp-id" value="">
         <div class="p-6 overflow-y-auto flex-1">
+            <div id="description-selector" class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <label class="block text-sm font-medium text-blue-800 mb-2"><i class="fas fa-check-circle mr-1"></i>Active Description for Resume</label>
+                <select id="active-desc-select" onchange="selectDescription()" class="w-full p-2 border rounded-lg bg-white">
+                    <option value="main">Main Description</option>
+                </select>
+            </div>
             <div class="flex space-x-3 mb-4">
                 <button type="button" onclick="showAddAltDescForm()" class="flex-1 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
                     <i class="fas fa-plus mr-1"></i> Add Manually
@@ -1513,8 +1524,12 @@ async function addToProjects(expId) {
     }
 }
 
+let currentExpSelectedId = null;
+
 function showAltDescModal(expId) {
     document.getElementById('alt-exp-id').value = expId;
+    const exp = projectExperiences.find(e => e.id == expId);
+    currentExpSelectedId = exp ? exp.selected_alt_description_id : null;
     loadAltDescriptions(expId);
     document.getElementById('alt-desc-modal').classList.remove('hidden');
 }
@@ -1522,6 +1537,32 @@ function showAltDescModal(expId) {
 function closeAltDescModal() {
     document.getElementById('alt-desc-modal').classList.add('hidden');
     hideAddAltDescForm();
+    location.reload();
+}
+
+async function selectDescription() {
+    const expId = document.getElementById('alt-exp-id').value;
+    const select = document.getElementById('active-desc-select');
+    const value = select.value;
+    
+    try {
+        const response = await fetch(`/api/experience/${expId}/select-description`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ alt_description_id: value === 'main' ? null : parseInt(value) })
+        });
+        const result = await response.json();
+        if (result.success) {
+            currentExpSelectedId = result.selected_id;
+            const exp = projectExperiences.find(e => e.id == expId);
+            if (exp) exp.selected_alt_description_id = result.selected_id;
+            loadAltDescriptions(expId);
+        } else {
+            alert(result.error || 'Error selecting description');
+        }
+    } catch (error) {
+        alert('Error selecting description');
+    }
 }
 
 function showAddAltDescForm() {
@@ -1564,11 +1605,19 @@ async function saveNewAltDesc() {
 async function loadAltDescriptions(expId) {
     const list = document.getElementById('alt-descriptions-list');
     const noMsg = document.getElementById('no-alt-desc-msg');
+    const select = document.getElementById('active-desc-select');
     list.innerHTML = '<p class="text-gray-500 text-center py-4">Loading...</p>';
     
     try {
         const response = await fetch(`/api/experience/${expId}/alternate-descriptions`);
         const descriptions = await response.json();
+        
+        select.innerHTML = '<option value="main"' + (currentExpSelectedId === null ? ' selected' : '') + '>Main Description</option>';
+        descriptions.forEach(d => {
+            const label = d.label ? d.label.replace(/</g, '&lt;').replace(/>/g, '&gt;') : 'Untitled';
+            const selected = currentExpSelectedId == d.id ? ' selected' : '';
+            select.innerHTML += `<option value="${d.id}"${selected}>${label}</option>`;
+        });
         
         if (descriptions.length === 0) {
             list.innerHTML = '';
@@ -1578,11 +1627,13 @@ async function loadAltDescriptions(expId) {
             list.innerHTML = descriptions.map(d => {
                 const labelHtml = d.label ? d.label.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;') : '';
                 const descHtml = d.description ? d.description.replace(/</g, '&lt;').replace(/>/g, '&gt;') : '';
+                const isSelected = currentExpSelectedId == d.id;
                 return `
-                <div class="border rounded-lg p-4" id="alt-${d.id}" data-label="${labelHtml}" data-desc="${descHtml.replace(/"/g, '&quot;')}">
+                <div class="border rounded-lg p-4 ${isSelected ? 'border-green-500 bg-green-50' : ''}" id="alt-${d.id}" data-label="${labelHtml}" data-desc="${descHtml.replace(/"/g, '&quot;')}">
                     <div class="flex justify-between items-start mb-2">
                         <div class="flex-1 mr-2">
-                            <input type="text" id="alt-label-${d.id}" value="${labelHtml}" class="w-full font-medium text-gray-800 border rounded px-2 py-1 focus:border-blue-500 outline-none" readonly>
+                            <input type="text" id="alt-label-${d.id}" value="${labelHtml}" class="w-full font-medium text-gray-800 border rounded px-2 py-1 focus:border-blue-500 outline-none ${isSelected ? 'bg-green-50' : ''}" readonly>
+                            ${isSelected ? '<span class="text-xs text-green-600 font-medium"><i class="fas fa-check-circle mr-1"></i>Active</span>' : ''}
                         </div>
                         <div class="flex space-x-1">
                             <button onclick="toggleEditAltDesc(${d.id})" class="text-blue-600 hover:text-blue-800 text-sm px-2 py-1" title="Edit" id="edit-btn-${d.id}">

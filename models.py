@@ -121,6 +121,7 @@ class EmployeeProjectExperience(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False)
     linked_project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=True)
+    selected_alt_description_id = db.Column(db.Integer, db.ForeignKey('experience_alternate_descriptions.id'), nullable=True)
     project_title = db.Column(db.String(500), nullable=False)
     location = db.Column(db.String(255))
     owner_name = db.Column(db.String(255))
@@ -136,6 +137,21 @@ class EmployeeProjectExperience(db.Model):
     
     employee = db.relationship('Employee', backref=db.backref('project_experiences', lazy=True, cascade='all, delete-orphan'))
     linked_project = db.relationship('Project', backref=db.backref('personnel_writeups', lazy=True))
+    selected_alt_description = db.relationship('ExperienceAlternateDescription', foreign_keys=[selected_alt_description_id], post_update=True)
+    
+    @property
+    def active_description(self):
+        """Returns the selected alternate description if set, otherwise the main brief_description"""
+        if self.selected_alt_description_id and self.selected_alt_description:
+            return self.selected_alt_description.description
+        return self.brief_description
+    
+    @property
+    def active_description_label(self):
+        """Returns the label of the active description"""
+        if self.selected_alt_description_id and self.selected_alt_description:
+            return self.selected_alt_description.label
+        return "Main Description"
 
 
 class ExperienceAlternateDescription(db.Model):
@@ -149,7 +165,7 @@ class ExperienceAlternateDescription(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    experience = db.relationship('EmployeeProjectExperience', backref=db.backref('alternate_descriptions', lazy=True, cascade='all, delete-orphan'))
+    experience = db.relationship('EmployeeProjectExperience', foreign_keys=[experience_id], backref=db.backref('alternate_descriptions', lazy=True, cascade='all, delete-orphan'))
 
 
 class Project(db.Model):
