@@ -101,9 +101,14 @@
         <div class="bg-white rounded-lg shadow p-6">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-xl font-semibold text-gray-800">Alternate Bios</h2>
-                <button onclick="showAddAltBioModal()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition text-sm">
-                    <i class="fas fa-plus mr-1"></i> Add Alt Bio
-                </button>
+                <div class="flex space-x-2">
+                    <button onclick="showAIGenerateBioModal()" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition text-sm">
+                        <i class="fas fa-magic mr-1"></i> AI Generate
+                    </button>
+                    <button onclick="showAddAltBioModal()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition text-sm">
+                        <i class="fas fa-plus mr-1"></i> Add Alt Bio
+                    </button>
+                </div>
             </div>
             <p class="text-sm text-gray-500 mb-4">Additional bio versions for different contexts or proposals</p>
             <div id="alt-bios-list" class="space-y-4">
@@ -541,9 +546,64 @@
     </div>
 </div>
 
+<div id="ai-generate-bio-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+        <div class="p-6 border-b">
+            <div class="flex justify-between items-center">
+                <h3 class="text-xl font-semibold"><i class="fas fa-magic text-purple-600 mr-2"></i>AI Generate Bio</h3>
+                <button onclick="closeAIGenerateBioModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <p class="text-sm text-gray-500 mt-2">Select projects and provide direction to generate a tailored professional bio</p>
+        </div>
+        <div class="p-6 overflow-y-auto flex-1">
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Label for this bio *</label>
+                <input type="text" id="ai-bio-label" class="w-full p-2 border rounded-lg" placeholder="e.g., Bridge Focus, Transportation Specialist">
+            </div>
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Select Projects to Highlight</label>
+                <p class="text-xs text-gray-500 mb-3">Choose projects that should be emphasized in this bio version</p>
+                <div id="ai-project-selection" class="border rounded-lg max-h-48 overflow-y-auto p-2 space-y-2">
+                    <p class="text-gray-400 text-sm">Loading projects...</p>
+                </div>
+                <button type="button" onclick="toggleAllProjects()" class="text-sm text-blue-600 hover:text-blue-800 mt-2">
+                    <i class="fas fa-check-double mr-1"></i> Toggle All
+                </button>
+            </div>
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Direction / Instructions</label>
+                <p class="text-xs text-gray-500 mb-2">Guide the AI on style, focus, or specific points to emphasize</p>
+                <textarea id="ai-bio-direction" rows="4" class="w-full p-2 border rounded-lg" placeholder="Example: Focus on bridge inspection expertise. Emphasize cable-stayed bridge experience. Write in third person. Keep it concise but highlight key accomplishments."></textarea>
+            </div>
+            <div id="ai-bio-preview" class="hidden mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Generated Bio Preview</label>
+                <div class="border rounded-lg p-4 bg-gray-50">
+                    <textarea id="ai-bio-result" rows="6" class="w-full p-2 border rounded-lg bg-white"></textarea>
+                </div>
+            </div>
+        </div>
+        <div class="p-6 border-t bg-gray-50">
+            <div class="flex space-x-3">
+                <button type="button" id="generate-bio-btn" onclick="generateAIBio()" class="flex-1 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition">
+                    <i class="fas fa-magic mr-2"></i> Generate Bio
+                </button>
+                <button type="button" id="save-ai-bio-btn" onclick="saveAIGeneratedBio()" class="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition hidden">
+                    <i class="fas fa-save mr-2"></i> Save Bio
+                </button>
+                <button type="button" onclick="closeAIGenerateBioModal()" class="px-4 py-2 border rounded-lg hover:bg-gray-100 transition">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 const allEmployees = {{ employees|tojson|safe if employees else '[]' }};
 const employeeId = {{ employee.id }};
+const projectExperiences = {{ project_experiences|tojson|safe if project_experiences else '[]' }};
 
 // Marketing photo picker
 async function openMarketingPicker() {
@@ -777,6 +837,122 @@ function showEditAltBioModal(id, label, bio) {
 
 function closeAltBioModal() {
     document.getElementById('alt-bio-modal').classList.add('hidden');
+}
+
+function showAIGenerateBioModal() {
+    const modal = document.getElementById('ai-generate-bio-modal');
+    const projectContainer = document.getElementById('ai-project-selection');
+    
+    document.getElementById('ai-bio-label').value = '';
+    document.getElementById('ai-bio-direction').value = '';
+    document.getElementById('ai-bio-result').value = '';
+    document.getElementById('ai-bio-preview').classList.add('hidden');
+    document.getElementById('save-ai-bio-btn').classList.add('hidden');
+    document.getElementById('generate-bio-btn').classList.remove('hidden');
+    
+    if (projectExperiences && projectExperiences.length > 0) {
+        projectContainer.innerHTML = projectExperiences.map(p => `
+            <label class="flex items-start p-2 rounded hover:bg-gray-50 cursor-pointer">
+                <input type="checkbox" class="ai-project-cb mt-1 mr-3" value="${p.id}" data-title="${p.project_title || ''}" data-role="${p.role_performed || ''}" data-description="${(p.brief_description || '').substring(0, 200)}">
+                <div class="flex-1">
+                    <span class="font-medium text-sm">${p.project_title || 'Untitled Project'}</span>
+                    ${p.role_performed ? `<span class="text-xs text-gray-500 ml-2">(${p.role_performed})</span>` : ''}
+                    ${p.year_completed ? `<span class="text-xs text-gray-400 ml-1">- ${p.year_completed}</span>` : ''}
+                </div>
+            </label>
+        `).join('');
+    } else {
+        projectContainer.innerHTML = '<p class="text-gray-500 text-sm py-2">No project experience found. Add projects first.</p>';
+    }
+    
+    modal.classList.remove('hidden');
+}
+
+function closeAIGenerateBioModal() {
+    document.getElementById('ai-generate-bio-modal').classList.add('hidden');
+}
+
+function toggleAllProjects() {
+    const checkboxes = document.querySelectorAll('.ai-project-cb');
+    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+    checkboxes.forEach(cb => cb.checked = !allChecked);
+}
+
+async function generateAIBio() {
+    const label = document.getElementById('ai-bio-label').value.trim();
+    if (!label) {
+        alert('Please enter a label for this bio');
+        return;
+    }
+    
+    const selectedProjects = [];
+    document.querySelectorAll('.ai-project-cb:checked').forEach(cb => {
+        selectedProjects.push({
+            id: parseInt(cb.value),
+            title: cb.dataset.title,
+            role: cb.dataset.role,
+            description: cb.dataset.description
+        });
+    });
+    
+    const direction = document.getElementById('ai-bio-direction').value.trim();
+    
+    const btn = document.getElementById('generate-bio-btn');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Generating...';
+    btn.disabled = true;
+    
+    try {
+        const response = await fetch(`/employees/${employeeId}/generate-bio`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                project_ids: selectedProjects.map(p => p.id),
+                direction: direction
+            })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            document.getElementById('ai-bio-result').value = result.bio;
+            document.getElementById('ai-bio-preview').classList.remove('hidden');
+            document.getElementById('save-ai-bio-btn').classList.remove('hidden');
+        } else {
+            alert('Error generating bio: ' + (result.error || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+
+async function saveAIGeneratedBio() {
+    const label = document.getElementById('ai-bio-label').value.trim();
+    const bio = document.getElementById('ai-bio-result').value.trim();
+    
+    if (!label || !bio) {
+        alert('Please generate a bio first');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/employees/${employeeId}/alternate-bios`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ label, bio })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            window.location.reload();
+        } else {
+            alert('Error saving bio');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
 }
 
 document.getElementById('alt-bio-form').addEventListener('submit', async (e) => {

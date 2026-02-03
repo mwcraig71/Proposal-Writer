@@ -1150,3 +1150,79 @@ Format this as a clear, actionable outline that can guide the writing of cover l
     )
     
     return response.text or ""
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=30),
+    retry=retry_if_exception(is_rate_limit_error),
+    reraise=True
+)
+def generate_employee_bio(employee_info: dict, selected_projects: list, direction: str = "") -> str:
+    """Generate a professional bio for an employee based on their info, selected projects, and user direction.
+    
+    Args:
+        employee_info: Dict with employee details (name, title, role, years_experience, education, registrations, current_bio)
+        selected_projects: List of project dicts with (project_title, role_performed, year_completed, location, owner_name, brief_description)
+        direction: User-provided instructions for the AI on style/focus
+    
+    Returns:
+        Generated bio text
+    """
+    
+    projects_text = ""
+    if selected_projects:
+        projects_text = "PROJECTS TO EMPHASIZE:\n"
+        for i, p in enumerate(selected_projects, 1):
+            projects_text += f"""
+Project {i}: {p.get('project_title', 'Unknown')}
+- Role: {p.get('role_performed', 'N/A')}
+- Year: {p.get('year_completed', 'N/A')}
+- Location: {p.get('location', 'N/A')}
+- Owner: {p.get('owner_name', 'N/A')}
+- Description: {p.get('brief_description', 'N/A')}
+"""
+    
+    current_bio_section = ""
+    if employee_info.get('current_bio'):
+        current_bio_section = f"\nCURRENT BIO (use as reference for style/content):\n{employee_info['current_bio']}\n"
+    
+    prompt = f"""You are an expert professional biography writer specializing in engineering and construction industry professionals. Generate a compelling, polished professional bio for SF330 federal forms and proposal submissions.
+
+EMPLOYEE INFORMATION:
+- Name: {employee_info.get('name', 'Unknown')}
+- Title: {employee_info.get('title', 'N/A')}
+- Role/Discipline: {employee_info.get('role', 'N/A')}
+- Total Years Experience: {employee_info.get('years_experience_total', 'N/A')}
+- Years with Current Firm: {employee_info.get('years_experience_firm', 'N/A')}
+- Education: {employee_info.get('education', 'N/A')}
+- Registrations/Licenses: {employee_info.get('registrations', 'N/A')}
+{current_bio_section}
+{projects_text}
+
+{f"USER DIRECTION/INSTRUCTIONS: {direction}" if direction else ""}
+
+WRITING GUIDELINES:
+1. Write in third person (e.g., "Michael Craig, P.E. has over 26 years...")
+2. Start with the person's name, credentials, and total years of experience
+3. Highlight specialized expertise and areas of focus
+4. Reference specific project types, accomplishments, and technical skills
+5. If projects are provided, weave relevant project experience into the narrative
+6. Include quantifiable achievements when possible (number of bridges inspected, structures load-rated, etc.)
+7. Maintain a professional but engaging tone suitable for federal proposals
+8. Keep the bio to 1-2 paragraphs (150-250 words) unless directed otherwise
+9. End with key differentiators or advanced capabilities
+
+EXAMPLE STYLE:
+"Michael Craig, P.E. has over 26 years of experience in the engineering industry, with a specialized focus on the inspection, evaluation, and management of signature cable-stayed bridges. He has inspected or supervised the inspection of over 10,000 bridges and load-rated more than 3,000 structures.
+
+Michael is widely recognized for his expertise in complex cable-stayed structures, having served as Project Manager and Engineer-of-Record for major spans across the United States. His experience includes writing comprehensive Operation & Maintenance (O&M) manuals, designing vibration damping retrofits, and implementing advanced NDT techniques such as Long-Range Ultrasonic Testing (LRUT) and force excitation testing. He integrates advanced access methods—including SPRAT rope access and UAS technology—to ensure precise assessments of pylon anchorages and cable free-lengths."
+
+Generate ONLY the bio text, no additional commentary or formatting."""
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt
+    )
+    
+    return response.text.strip() if response.text else ""

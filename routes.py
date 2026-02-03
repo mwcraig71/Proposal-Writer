@@ -716,6 +716,53 @@ def delete_alternate_bio(id, bio_id):
     return jsonify({'success': True})
 
 
+@app.route('/employees/<int:id>/generate-bio', methods=['POST'])
+@login_required
+def generate_bio_with_ai(id):
+    """Generate an alternate bio using AI based on selected projects and user direction"""
+    from gemini_service import generate_employee_bio
+    
+    employee = Employee.query.get_or_404(id)
+    data = request.json
+    
+    project_ids = data.get('project_ids', [])
+    direction = data.get('direction', '')
+    
+    selected_projects = []
+    if project_ids:
+        experiences = EmployeeProjectExperience.query.filter(
+            EmployeeProjectExperience.id.in_(project_ids),
+            EmployeeProjectExperience.employee_id == id
+        ).all()
+        
+        for exp in experiences:
+            selected_projects.append({
+                'project_title': exp.project_title,
+                'role_performed': exp.role_performed,
+                'year_completed': exp.year_completed,
+                'location': exp.location,
+                'owner_name': exp.owner_name,
+                'brief_description': exp.brief_description
+            })
+    
+    employee_info = {
+        'name': employee.name,
+        'title': employee.title,
+        'role': employee.role,
+        'years_experience_total': employee.years_experience_total,
+        'years_experience_firm': employee.years_experience_firm,
+        'education': employee.education,
+        'registrations': employee.registrations,
+        'current_bio': employee.bio
+    }
+    
+    try:
+        generated_bio = generate_employee_bio(employee_info, selected_projects, direction)
+        return jsonify({'success': True, 'bio': generated_bio})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
 @app.route('/employees/<int:id>/experience/<int:exp_id>/toggle-sf330', methods=['POST'])
 def toggle_sf330_include(id, exp_id):
     """Toggle SF330 inclusion flag for a project experience"""
