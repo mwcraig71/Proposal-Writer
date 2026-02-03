@@ -31,6 +31,9 @@ def login_required(f):
     def decorated_function(*args, **kwargs):
         app_password = os.environ.get('APP_PASSWORD')
         if app_password and not session.get('authenticated'):
+            # Check if this is an API/AJAX request
+            if request.path.startswith('/api/') or request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+                return jsonify({'success': False, 'error': 'Authentication required. Please refresh the page and log in.'}), 401
             return redirect(url_for('login', next=request.url))
         return f(*args, **kwargs)
     return decorated_function
