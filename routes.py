@@ -1691,6 +1691,75 @@ def download_project(id):
         
         filename = f"SF330_Section_F_{make_safe_filename(project.title, 'Project')}.docx"
         
+    elif format_type == 'company':
+        # Use company template with placeholder replacement
+        doc = None
+        try:
+            client = get_storage_client()
+            template_bytes = client.download_as_bytes('templates/company_template_custom.docx')
+            if template_bytes:
+                doc = Document(io.BytesIO(template_bytes))
+        except:
+            pass
+        
+        # Fall back to default company template
+        if doc is None:
+            doc = create_default_company_template()
+        
+        # Build key personnel string
+        key_personnel_str = ''
+        if team_links:
+            team_members = []
+            for link in team_links:
+                emp = Employee.query.get(link.employee_id)
+                if emp:
+                    role = f" ({link.role_on_project})" if link.role_on_project else ""
+                    team_members.append(f"{emp.name}{role}")
+            key_personnel_str = ', '.join(team_members) if team_members else 'Not specified'
+        
+        # Define all placeholder replacements
+        placeholders = {
+            '{{PROJECT_TITLE}}': project.title or '',
+            '{{PROJECT_LOCATION}}': project.location or '',
+            '{{PROJECT_COST}}': project.project_cost or '',
+            '{{BRIEF_DESCRIPTION}}': project.brief_description or '',
+            '{{DELIVERY_METHOD}}': project.project_delivery_method or '',
+            '{{YEAR_COMPLETED_PROFESSIONAL}}': project.year_completed_professional or '',
+            '{{YEAR_COMPLETED_CONSTRUCTION}}': project.year_completed_construction or '',
+            '{{OWNER_NAME}}': project.owner_name or '',
+            '{{OWNER_CONTACT}}': project.owner_contact_name or '',
+            '{{OWNER_PHONE}}': project.owner_contact_phone or '',
+            '{{OWNER_EMAIL}}': project.owner_contact_email or '',
+            '{{FIRM_NAME}}': firm.name if firm else '',
+            '{{FIRM_CITY}}': firm.city if firm else '',
+            '{{FIRM_STATE}}': firm.state if firm else '',
+            '{{KEY_PERSONNEL}}': key_personnel_str,
+        }
+        
+        # Replace placeholders in paragraphs
+        for para in doc.paragraphs:
+            for placeholder, value in placeholders.items():
+                if placeholder in para.text:
+                    for run in para.runs:
+                        if placeholder in run.text:
+                            run.text = run.text.replace(placeholder, value)
+        
+        # Replace placeholders in tables
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for para in cell.paragraphs:
+                        for placeholder, value in placeholders.items():
+                            if placeholder in para.text:
+                                for run in para.runs:
+                                    if placeholder in run.text:
+                                        run.text = run.text.replace(placeholder, value)
+                                # Also check cell text directly (fallback)
+                                if placeholder in cell.text and placeholder not in ''.join(r.text for r in para.runs):
+                                    cell.text = cell.text.replace(placeholder, value)
+        
+        filename = f"Company_{make_safe_filename(project.title, 'Project')}.docx"
+        
     else:
         # Create plain Word document
         doc = Document()
@@ -3592,6 +3661,7 @@ def settings():
     
     # Check if a custom template exists in object storage
     has_custom_template = False
+    has_company_template = False
     try:
         client = get_storage_client()
         obj = client.download_as_bytes('templates/sf330_section_f_custom.docx')
@@ -3599,7 +3669,15 @@ def settings():
     except:
         pass
     
-    return render_template('settings.html', ai_style=ai_style, ai_tone=ai_tone, has_custom_template=has_custom_template)
+    try:
+        client = get_storage_client()
+        obj = client.download_as_bytes('templates/company_template_custom.docx')
+        has_company_template = obj is not None
+    except:
+        pass
+    
+    return render_template('settings.html', ai_style=ai_style, ai_tone=ai_tone, 
+                           has_custom_template=has_custom_template, has_company_template=has_company_template)
 
 
 @app.route('/settings', methods=['POST'])
@@ -3689,6 +3767,163 @@ def reset_template():
         client = get_storage_client()
         client.delete('templates/sf330_section_f_custom.docx')
         flash('Template reset to default successfully!', 'success')
+    except Exception as e:
+        flash(f'Error resetting template: {str(e)}', 'error')
+    
+    return redirect(url_for('settings'))
+
+
+def create_default_company_template():
+    """Create a default company template with placeholders"""
+    from docx import Document
+    from docx.shared import Inches, Pt
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    
+    doc = Document()
+    
+    # Title
+    title = doc.add_heading('{{PROJECT_TITLE}}', 0)
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    
+    # Location
+    loc_para = doc.add_paragraph()
+    loc_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    loc_para.add_run('{{PROJECT_LOCATION}}').italic = True
+    
+    doc.add_paragraph()
+    
+    # Project Information Section
+    doc.add_heading('Project Information', level=1)
+    
+    info_table = doc.add_table(rows=7, cols=2)
+    info_table.style = 'Table Grid'
+    
+    info_rows = [
+        ('Project Cost:', '{{PROJECT_COST}}'),
+        ('Year Completed (Professional):', '{{YEAR_COMPLETED_PROFESSIONAL}}'),
+        ('Year Completed (Construction):', '{{YEAR_COMPLETED_CONSTRUCTION}}'),
+        ('Delivery Method:', '{{DELIVERY_METHOD}}'),
+        ('Firm:', '{{FIRM_NAME}}'),
+        ('Firm Location:', '{{FIRM_CITY}}, {{FIRM_STATE}}'),
+        ('Key Personnel:', '{{KEY_PERSONNEL}}'),
+    ]
+    
+    for i, (label, value) in enumerate(info_rows):
+        row = info_table.rows[i]
+        row.cells[0].paragraphs[0].add_run(label).bold = True
+        row.cells[1].text = value
+    
+    doc.add_paragraph()
+    
+    # Owner Information Section
+    doc.add_heading('Owner/Client Information', level=1)
+    
+    owner_table = doc.add_table(rows=4, cols=2)
+    owner_table.style = 'Table Grid'
+    
+    owner_rows = [
+        ('Owner/Client:', '{{OWNER_NAME}}'),
+        ('Contact Name:', '{{OWNER_CONTACT}}'),
+        ('Phone:', '{{OWNER_PHONE}}'),
+        ('Email:', '{{OWNER_EMAIL}}'),
+    ]
+    
+    for i, (label, value) in enumerate(owner_rows):
+        row = owner_table.rows[i]
+        row.cells[0].paragraphs[0].add_run(label).bold = True
+        row.cells[1].text = value
+    
+    doc.add_paragraph()
+    
+    # Description Section
+    doc.add_heading('Project Description', level=1)
+    doc.add_paragraph('{{BRIEF_DESCRIPTION}}')
+    
+    doc.add_paragraph()
+    
+    # Photos placeholder
+    photos_para = doc.add_paragraph()
+    photos_para.add_run('[Project photos will be inserted here if available]').italic = True
+    photos_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    
+    return doc
+
+
+@app.route('/settings/company-template/export')
+def export_company_template():
+    """Download the company template"""
+    
+    # First check if there's a custom company template in object storage
+    try:
+        client = get_storage_client()
+        template_bytes = client.download_as_bytes('templates/company_template_custom.docx')
+        if template_bytes:
+            return send_file(
+                io.BytesIO(template_bytes),
+                as_attachment=True,
+                download_name='Company_Project_Template.docx',
+                mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            )
+    except:
+        pass
+    
+    # Create default template
+    doc = create_default_company_template()
+    
+    buffer = io.BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name='Company_Project_Template.docx',
+        mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    )
+
+
+@app.route('/settings/company-template/import', methods=['POST'])
+def import_company_template():
+    """Upload a custom company template"""
+    if 'template' not in request.files:
+        flash('No file uploaded', 'error')
+        return redirect(url_for('settings'))
+    
+    file = request.files['template']
+    if file.filename == '':
+        flash('No file selected', 'error')
+        return redirect(url_for('settings'))
+    
+    if not file.filename.lower().endswith('.docx'):
+        flash('Please upload a .docx file', 'error')
+        return redirect(url_for('settings'))
+    
+    try:
+        # Read the file content
+        file_content = file.read()
+        
+        # Validate it's a valid Word document
+        from docx import Document
+        doc = Document(io.BytesIO(file_content))
+        
+        # Store in object storage
+        client = get_storage_client()
+        client.upload_from_bytes('templates/company_template_custom.docx', file_content)
+        
+        flash('Custom company template uploaded successfully!', 'success')
+    except Exception as e:
+        flash(f'Error uploading template: {str(e)}', 'error')
+    
+    return redirect(url_for('settings'))
+
+
+@app.route('/settings/company-template/reset', methods=['POST'])
+def reset_company_template():
+    """Remove custom company template and reset to default"""
+    try:
+        client = get_storage_client()
+        client.delete('templates/company_template_custom.docx')
+        flash('Company template reset to default successfully!', 'success')
     except Exception as e:
         flash(f'Error resetting template: {str(e)}', 'error')
     

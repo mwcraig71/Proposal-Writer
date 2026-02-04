@@ -9,14 +9,18 @@
     </a>
     <div class="flex flex-wrap items-center justify-between gap-4">
         <h1 class="text-3xl font-bold text-gray-800">{{ project.title }}</h1>
-        <div class="flex gap-2">
+        <div class="flex gap-2 flex-wrap">
             <a href="/projects/{{ project.id }}/download?format=template" 
                class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition flex items-center gap-2">
-                <i class="fas fa-file-word"></i> Download SF330 Section F
+                <i class="fas fa-file-word"></i> SF330 Section F
+            </a>
+            <a href="/projects/{{ project.id }}/download?format=company" 
+               class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition flex items-center gap-2">
+                <i class="fas fa-building"></i> Company Template
             </a>
             <a href="/projects/{{ project.id }}/download?format=plain" 
                class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center gap-2">
-                <i class="fas fa-download"></i> Download Plain Word
+                <i class="fas fa-download"></i> Plain Word
             </a>
         </div>
     </div>
