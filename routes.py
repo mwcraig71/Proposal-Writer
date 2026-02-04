@@ -1482,6 +1482,222 @@ def delete_project(id):
     return jsonify({'success': True})
 
 
+@app.route('/projects/<int:id>/download')
+def download_project(id):
+    """Download project as Word document - either SF330 Section F template or plain format"""
+    from docx import Document
+    from docx.shared import Inches, Pt
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    import io
+    
+    project = Project.query.get_or_404(id)
+    format_type = request.args.get('format', 'plain')
+    
+    # Get firm information for the project
+    firm = Firm.query.get(project.firm_id) if project.firm_id else None
+    
+    # Get team members linked to this project
+    team_links = EmployeeProjectLink.query.filter_by(project_id=id).all()
+    
+    if format_type == 'template':
+        # Create SF330 Section F formatted document
+        doc = Document()
+        
+        # Section F Header
+        header_para = doc.add_paragraph()
+        header_run = header_para.add_run('F. Example projects which best illustrate proposed team\'s qualifications for this contract:')
+        header_run.bold = True
+        header_para.add_run(' (Present as many projects as requested by the agency, or 10 projects, if not specified. Complete one Section F for each project.)')
+        
+        doc.add_paragraph()
+        
+        # Field 20: Example project key number
+        p20 = doc.add_paragraph()
+        p20.add_run('20. Example project key number: ').bold = True
+        p20.add_run(str(project.id))
+        
+        doc.add_paragraph()
+        
+        # Field 21: Title and location
+        p21_header = doc.add_paragraph()
+        p21_header.add_run('21. Title and location: ').bold = True
+        p21_header.add_run('(City and State)')
+        
+        # Create a simple table for title/location and year completed
+        table = doc.add_table(rows=2, cols=2)
+        table.style = 'Table Grid'
+        
+        # Row 1: Title and Year headers
+        title_cell = table.rows[0].cells[0]
+        title_cell.text = project.title or ''
+        
+        year_cell = table.rows[0].cells[1]
+        year_para = year_cell.paragraphs[0]
+        year_para.add_run('22. Year completed').bold = True
+        
+        # Row 2: Location and years
+        loc_cell = table.rows[1].cells[0]
+        loc_cell.text = project.location or ''
+        
+        years_cell = table.rows[1].cells[1]
+        years_para = years_cell.paragraphs[0]
+        years_para.add_run('Professional services: ').bold = True
+        years_para.add_run(project.year_completed_professional or 'N/A')
+        years_cell.add_paragraph()
+        years_para2 = years_cell.paragraphs[1]
+        years_para2.add_run('Construction: ').bold = True
+        years_para2.add_run(project.year_completed_construction or 'N/A')
+        
+        doc.add_paragraph()
+        
+        # Field 23: Project owner's information
+        p23 = doc.add_paragraph()
+        p23.add_run('23. Project owner\'s information:').bold = True
+        
+        p23a = doc.add_paragraph()
+        p23a.add_run('A. Project owner: ').bold = True
+        p23a.add_run(project.owner_name or '')
+        
+        p23b = doc.add_paragraph()
+        p23b.add_run('B. Point of contact name: ').bold = True
+        p23b.add_run(project.owner_contact_name or '')
+        
+        p23c = doc.add_paragraph()
+        p23c.add_run('C. Point of contact telephone number: ').bold = True
+        p23c.add_run(project.owner_contact_phone or '')
+        
+        doc.add_paragraph()
+        
+        # Field 24: Brief description
+        p24 = doc.add_paragraph()
+        p24.add_run('24. Brief description of project and relevance to this contract ').bold = True
+        p24.add_run('(Include scope, size, and cost)')
+        
+        desc_para = doc.add_paragraph()
+        desc_para.add_run(project.brief_description or '')
+        
+        if project.project_cost:
+            cost_para = doc.add_paragraph()
+            cost_para.add_run('Project Cost: ').bold = True
+            cost_para.add_run(project.project_cost)
+        
+        doc.add_paragraph()
+        
+        # Field 25: Firms involved
+        p25 = doc.add_paragraph()
+        p25.add_run('25. Firms from Section C involved with this project:').bold = True
+        
+        # Create table for firms
+        firms_table = doc.add_table(rows=1, cols=3)
+        firms_table.style = 'Table Grid'
+        
+        # Header row
+        hdr_cells = firms_table.rows[0].cells
+        hdr_cells[0].paragraphs[0].add_run('(1) Firm Name').bold = True
+        hdr_cells[1].paragraphs[0].add_run('(2) Firm Location (City and State)').bold = True
+        hdr_cells[2].paragraphs[0].add_run('(3) Role').bold = True
+        
+        # Add firm info
+        if firm:
+            row_cells = firms_table.add_row().cells
+            row_cells[0].text = firm.name or ''
+            row_cells[1].text = f"{firm.city or ''}, {firm.state or ''}"
+            row_cells[2].text = 'Prime' if not project.is_with_other_firm else 'Subconsultant'
+        
+        if project.is_with_other_firm and project.other_firm_name:
+            row_cells = firms_table.add_row().cells
+            row_cells[0].text = project.other_firm_name
+            row_cells[1].text = ''
+            row_cells[2].text = 'Prime' if project.is_with_other_firm else ''
+        
+        filename = f"SF330_Section_F_{project.title.replace(' ', '_')[:30]}.docx"
+        
+    else:
+        # Create plain Word document
+        doc = Document()
+        
+        # Title
+        title_para = doc.add_heading(project.title or 'Untitled Project', 0)
+        
+        # Basic Info Section
+        doc.add_heading('Project Information', level=1)
+        
+        info_table = doc.add_table(rows=0, cols=2)
+        info_table.style = 'Table Grid'
+        
+        def add_info_row(label, value):
+            row = info_table.add_row()
+            row.cells[0].paragraphs[0].add_run(label).bold = True
+            row.cells[1].text = str(value) if value else ''
+        
+        add_info_row('Location', project.location)
+        add_info_row('Project Cost', project.project_cost)
+        add_info_row('Year Completed (Professional)', project.year_completed_professional)
+        add_info_row('Year Completed (Construction)', project.year_completed_construction)
+        add_info_row('Delivery Method', project.delivery_method)
+        
+        if firm:
+            add_info_row('Firm', firm.name)
+        
+        if project.is_with_other_firm:
+            add_info_row('Other Firm', project.other_firm_name)
+        
+        doc.add_paragraph()
+        
+        # Owner Information
+        doc.add_heading('Owner Information', level=1)
+        
+        owner_table = doc.add_table(rows=0, cols=2)
+        owner_table.style = 'Table Grid'
+        
+        def add_owner_row(label, value):
+            row = owner_table.add_row()
+            row.cells[0].paragraphs[0].add_run(label).bold = True
+            row.cells[1].text = str(value) if value else ''
+        
+        add_owner_row('Owner Name', project.owner_name)
+        add_owner_row('Contact Name', project.owner_contact_name)
+        add_owner_row('Contact Phone', project.owner_contact_phone)
+        add_owner_row('Contact Email', project.owner_contact_email)
+        
+        doc.add_paragraph()
+        
+        # Description
+        doc.add_heading('Project Description', level=1)
+        doc.add_paragraph(project.brief_description or 'No description provided.')
+        
+        # Team Members
+        if team_links:
+            doc.add_heading('Team Members', level=1)
+            team_table = doc.add_table(rows=1, cols=2)
+            team_table.style = 'Table Grid'
+            
+            hdr = team_table.rows[0].cells
+            hdr[0].paragraphs[0].add_run('Name').bold = True
+            hdr[1].paragraphs[0].add_run('Role').bold = True
+            
+            for link in team_links:
+                emp = Employee.query.get(link.employee_id)
+                if emp:
+                    row = team_table.add_row()
+                    row.cells[0].text = emp.name or ''
+                    row.cells[1].text = link.role_on_project or ''
+        
+        filename = f"Project_{project.title.replace(' ', '_')[:30]}.docx"
+    
+    # Save to BytesIO and return
+    buffer = io.BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name=filename,
+        mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    )
+
+
 @app.route('/api/personnel-writeups/<int:pw_id>', methods=['PUT'])
 @login_required
 def update_personnel_writeup(pw_id):

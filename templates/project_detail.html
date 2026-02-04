@@ -7,7 +7,19 @@
     <a href="/projects" class="text-blue-600 hover:underline mb-4 inline-block">
         <i class="fas fa-arrow-left mr-2"></i> Back to Projects
     </a>
-    <h1 class="text-3xl font-bold text-gray-800">{{ project.title }}</h1>
+    <div class="flex flex-wrap items-center justify-between gap-4">
+        <h1 class="text-3xl font-bold text-gray-800">{{ project.title }}</h1>
+        <div class="flex gap-2">
+            <a href="/projects/{{ project.id }}/download?format=template" 
+               class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition flex items-center gap-2">
+                <i class="fas fa-file-word"></i> Download SF330 Section F
+            </a>
+            <a href="/projects/{{ project.id }}/download?format=plain" 
+               class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center gap-2">
+                <i class="fas fa-download"></i> Download Plain Word
+            </a>
+        </div>
+    </div>
 </div>
 
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
