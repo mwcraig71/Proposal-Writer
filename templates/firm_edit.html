@@ -210,6 +210,22 @@
             <div id="firm-photos-grid" class="grid grid-cols-2 gap-3">
             </div>
         </div>
+        
+        <div class="bg-white rounded-lg shadow p-6 mt-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold text-gray-800">
+                    <i class="fas fa-file-alt text-orange-600 mr-2"></i> Documents
+                </h2>
+                <label class="cursor-pointer text-blue-600 hover:text-blue-800">
+                    <i class="fas fa-plus"></i> Upload
+                    <input type="file" id="document-input" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv" class="hidden" onchange="uploadDocument(this)">
+                </label>
+            </div>
+            <p class="text-sm text-gray-500 mb-4">Upload PDFs, Word docs, Excel files for this firm</p>
+            
+            <div id="firm-documents-list" class="space-y-2">
+            </div>
+        </div>
     </div>
 </div>
 
@@ -419,9 +435,101 @@ async function setPrimaryPhoto(photoId) {
     }
 }
 
+function getDocumentIcon(docType) {
+    const icons = {
+        'pdf': 'fas fa-file-pdf text-red-500',
+        'word': 'fas fa-file-word text-blue-500',
+        'excel': 'fas fa-file-excel text-green-500',
+        'powerpoint': 'fas fa-file-powerpoint text-orange-500',
+        'other': 'fas fa-file text-gray-500'
+    };
+    return icons[docType] || icons['other'];
+}
+
+function formatFileSize(bytes) {
+    if (!bytes) return '';
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + sizes[i];
+}
+
+async function loadDocuments() {
+    const container = document.getElementById('firm-documents-list');
+    try {
+        const response = await fetch(`/api/firms/${firmId}/documents`);
+        const docs = await response.json();
+        
+        if (docs.length === 0) {
+            container.innerHTML = '<p class="text-gray-500 text-sm">No documents yet. Upload PDFs, Word, or Excel files.</p>';
+            return;
+        }
+        
+        container.innerHTML = docs.map(doc => `
+            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div class="flex items-center space-x-3">
+                    <i class="${getDocumentIcon(doc.document_type)} text-xl"></i>
+                    <div>
+                        <a href="${doc.url}" class="font-medium text-blue-600 hover:underline">${doc.filename}</a>
+                        <p class="text-xs text-gray-500">${formatFileSize(doc.file_size)}${doc.description ? ' - ' + doc.description : ''}</p>
+                    </div>
+                </div>
+                <button onclick="deleteDocument(${doc.id})" class="text-red-500 hover:text-red-700 p-1" title="Delete">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `).join('');
+    } catch (error) {
+        container.innerHTML = '<p class="text-red-500 text-sm">Error loading documents</p>';
+    }
+}
+
+async function uploadDocument(input) {
+    if (!input.files || !input.files[0]) return;
+    
+    const file = input.files[0];
+    const description = prompt('Enter a description for this document (optional):') || '';
+    
+    const formData = new FormData();
+    formData.append('document', file);
+    formData.append('description', description);
+    
+    try {
+        const response = await fetch(`/firms/${firmId}/documents`, {
+            method: 'POST',
+            body: formData
+        });
+        const result = await response.json();
+        if (result.success) {
+            loadDocuments();
+        } else {
+            alert(result.error || 'Error uploading document');
+        }
+    } catch (error) {
+        alert('Error uploading document');
+    }
+    input.value = '';
+}
+
+async function deleteDocument(docId) {
+    if (!confirm('Delete this document?')) return;
+    
+    try {
+        const response = await fetch(`/firms/${firmId}/documents/${docId}`, {method: 'DELETE'});
+        const result = await response.json();
+        if (result.success) {
+            loadDocuments();
+        } else {
+            alert(result.error || 'Error deleting document');
+        }
+    } catch (error) {
+        alert('Error deleting document');
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     loadAlternateBios();
     loadFirmPhotos();
+    loadDocuments();
 });
 </script>
 {% endblock %}
