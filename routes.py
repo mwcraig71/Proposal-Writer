@@ -1550,22 +1550,73 @@ def download_project(id):
                                             run.text = run.text.replace(old_text, new_text)
             
             # Find and replace the long description (Block 24)
-            # This is the main description paragraph that needs replacement
-            description_marker = 'As a prime provider, Strinteg is performing'
-            new_description = project.brief_description or ''
-            if project.project_cost:
-                new_description += f"\n\nProject Cost: {project.project_cost}"
+            # Look for any paragraph containing template description text
+            description_markers = [
+                'As a prime provider, Strinteg is performing',
+                'non-redundant steel tension member',
+                'The project consists of inspecting'
+            ]
             
-            for para in doc.paragraphs:
-                if description_marker in para.text:
-                    # Clear the paragraph and add new description
-                    for run in para.runs:
-                        run.text = ''
-                    if para.runs:
-                        para.runs[0].text = new_description
+            # Find all paragraphs that are part of the template description and clear them
+            description_paras_to_clear = []
+            found_description_start = False
+            for i, para in enumerate(doc.paragraphs):
+                para_text = para.text.strip()
+                # Check if this is the start of the description section
+                is_marker_para = False
+                for marker in description_markers:
+                    if marker in para_text:
+                        found_description_start = True
+                        description_paras_to_clear.append(i)
+                        is_marker_para = True
+                        break
+                # If we've found the description and this paragraph looks like continuation
+                if not is_marker_para and found_description_start and para_text and not para_text.startswith('25.'):
+                    if 'Firms from Section C' in para_text or para_text.startswith('a,'):
+                        break
+                    description_paras_to_clear.append(i)
+            
+            # Clear the template description paragraphs
+            for idx in description_paras_to_clear:
+                for run in doc.paragraphs[idx].runs:
+                    run.text = ''
+            
+            # Add the project description to the first cleared paragraph
+            if description_paras_to_clear:
+                first_desc_para = doc.paragraphs[description_paras_to_clear[0]]
+                if first_desc_para.runs:
+                    first_desc_para.runs[0].text = project.brief_description or 'No description provided.'
+                else:
+                    first_desc_para.add_run(project.brief_description or 'No description provided.')
+                
+                # Add project cost after description if available
+                if project.project_cost and len(description_paras_to_clear) > 1:
+                    cost_para = doc.paragraphs[description_paras_to_clear[1]]
+                    if cost_para.runs:
+                        run = cost_para.runs[0]
+                        run.text = f"Project Cost: {project.project_cost}"
+                        run.bold = True
                     else:
-                        para.add_run(new_description)
-                    break
+                        run = cost_para.add_run(f"Project Cost: {project.project_cost}")
+                        run.bold = True
+                
+                # Add team members list after cost
+                if team_links and len(description_paras_to_clear) > 2:
+                    team_para = doc.paragraphs[description_paras_to_clear[2]]
+                    team_text = "Key Personnel: "
+                    team_members = []
+                    for link in team_links:
+                        emp = Employee.query.get(link.employee_id)
+                        if emp:
+                            role = f" ({link.role_on_project})" if link.role_on_project else ""
+                            team_members.append(f"{emp.name}{role}")
+                    team_text += ", ".join(team_members) if team_members else "Not specified"
+                    
+                    if team_para.runs:
+                        run = team_para.runs[0]
+                        run.text = team_text
+                    else:
+                        team_para.add_run(team_text)
         else:
             # Fallback: Create SF330-style document from scratch if template not found
             doc = Document()
@@ -1596,7 +1647,20 @@ def download_project(id):
             doc.add_paragraph(project.brief_description or '')
             
             if project.project_cost:
-                doc.add_paragraph(f"Project Cost: {project.project_cost}")
+                cost_p = doc.add_paragraph()
+                cost_p.add_run(f"Project Cost: {project.project_cost}").bold = True
+            
+            # Add team members
+            if team_links:
+                team_p = doc.add_paragraph()
+                team_p.add_run("Key Personnel: ").bold = True
+                team_members = []
+                for link in team_links:
+                    emp = Employee.query.get(link.employee_id)
+                    if emp:
+                        role = f" ({link.role_on_project})" if link.role_on_project else ""
+                        team_members.append(f"{emp.name}{role}")
+                team_p.add_run(", ".join(team_members) if team_members else "Not specified")
             
             p25 = doc.add_paragraph()
             p25.add_run('25. Firms involved: ').bold = True
