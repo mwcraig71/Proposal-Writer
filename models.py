@@ -189,12 +189,15 @@ class Project(db.Model):
     relevance_writeup = db.Column(db.Text)
     is_with_other_firm = db.Column(db.Boolean, default=False)
     other_firm_name = db.Column(db.String(255))
+    project_type = db.Column(db.String(50), default='contract')
+    parent_contract_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     employee_links = db.relationship('EmployeeProjectLink', backref='project', lazy=True)
     firm_involvements = db.relationship('ProjectFirmInvolvement', backref='project', lazy=True)
     firm = db.relationship('Firm', backref=db.backref('projects', lazy=True))
+    task_orders = db.relationship('Project', backref=db.backref('parent_contract', remote_side='Project.id'), lazy=True, foreign_keys='Project.parent_contract_id')
 
 
 class ProjectAlternateDescription(db.Model):
