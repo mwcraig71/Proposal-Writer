@@ -1406,10 +1406,14 @@ def project_detail(id):
     marketing_photos = [p for p in all_marketing if project_tag.lower() in (p.tags or '').lower()]
     
     firms = Firm.query.order_by(Firm.name).all()
+    contract_projects = Project.query.filter(
+        Project.project_type != 'task_order',
+        Project.id != project.id
+    ).order_by(Project.title).all()
     return render_template('project_detail.html', project=project, employee_links=employee_links, 
                            all_employees=all_employees, marketing_photos=marketing_photos,
                            personnel_writeups=personnel_writeups, personnel_writeups_json=personnel_writeups_json,
-                           firms=firms)
+                           firms=firms, contract_projects=contract_projects)
 
 
 @app.route('/projects/<int:id>', methods=['PUT'])
