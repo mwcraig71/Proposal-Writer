@@ -1764,6 +1764,53 @@ def download_project(id):
         
         filename = f"Project_{make_safe_filename(project.title, 'Download')}.docx"
     
+    # Add project photos if available
+    project_photos = ProjectPhoto.query.filter_by(project_id=id).all()
+    if project_photos:
+        from docx.shared import Inches, Pt
+        from docx.enum.text import WD_ALIGN_PARAGRAPH
+        from docx.oxml.ns import qn
+        from docx.oxml import OxmlElement
+        from PIL import Image
+        
+        storage_client = get_storage_client()
+        if storage_client:
+            for photo in project_photos:
+                try:
+                    # Download photo from object storage
+                    photo_data = storage_client.download_as_bytes(photo.storage_path)
+                    if photo_data:
+                        photo_stream = io.BytesIO(photo_data)
+                        
+                        # Get original image dimensions to scale proportionally
+                        img = Image.open(photo_stream)
+                        orig_width, orig_height = img.size
+                        photo_stream.seek(0)
+                        
+                        # Calculate scaled dimensions (max height 2 inches)
+                        max_height_inches = 2.0
+                        aspect_ratio = orig_width / orig_height
+                        height_inches = min(max_height_inches, orig_height / 96.0)  # Assume 96 DPI
+                        width_inches = height_inches * aspect_ratio
+                        
+                        # Add a paragraph for the image, right-aligned
+                        img_para = doc.add_paragraph()
+                        img_para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+                        
+                        # Add the image
+                        run = img_para.add_run()
+                        picture = run.add_picture(photo_stream, height=Inches(height_inches))
+                        
+                        # Add caption if available
+                        if photo.caption:
+                            caption_para = doc.add_paragraph()
+                            caption_para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+                            caption_run = caption_para.add_run(photo.caption)
+                            caption_run.italic = True
+                            caption_run.font.size = Pt(9)
+                except Exception as e:
+                    print(f"Error adding photo {photo.filename}: {e}")
+    
     # Save to BytesIO and return
     buffer = io.BytesIO()
     doc.save(buffer)

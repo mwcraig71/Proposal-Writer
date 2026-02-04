@@ -11,7 +11,7 @@ AI_INTEGRATIONS_GEMINI_API_KEY = "_DUMMY_API_KEY_"
 
 [nix]
 channel = "stable-25_05"
-packages = ["file"]
+packages = ["file", "freetype", "lcms2", "libimagequant", "libjpeg", "libtiff", "libwebp", "libxcrypt", "openjpeg", "tcl", "tk", "zlib"]
 
 [workflows]
 runButton = "Project"
