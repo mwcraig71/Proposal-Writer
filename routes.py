@@ -1607,12 +1607,18 @@ def download_project(id):
                         if not first_desc_para_found:
                             if para.runs:
                                 para.runs[0].text = new_description
+                                para.runs[0].bold = False  # Remove bold from description
                             else:
-                                para.add_run(new_description)
+                                run = para.add_run(new_description)
+                                run.bold = False
+                            # Left align the paragraph
+                            from docx.enum.text import WD_ALIGN_PARAGRAPH
+                            para.alignment = WD_ALIGN_PARAGRAPH.LEFT
                             first_desc_para_found = True
                         break
             
             # Also check table cells for description text
+            from docx.enum.text import WD_ALIGN_PARAGRAPH
             for table in doc.tables:
                 for row in table.rows:
                     for cell in row.cells:
@@ -1625,8 +1631,12 @@ def download_project(id):
                                     if not first_desc_para_found:
                                         if para.runs:
                                             para.runs[0].text = new_description
+                                            para.runs[0].bold = False  # Remove bold from description
                                         else:
-                                            para.add_run(new_description)
+                                            run = para.add_run(new_description)
+                                            run.bold = False
+                                        # Left align the paragraph
+                                        para.alignment = WD_ALIGN_PARAGRAPH.LEFT
                                         first_desc_para_found = True
                                     break
         else:
