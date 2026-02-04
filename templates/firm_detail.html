@@ -67,33 +67,6 @@
     </div>
     {% endif %}
     
-    {% if firm.documents %}
-    <div class="mt-6 border-t pt-6">
-        <h3 class="text-lg font-semibold text-gray-800 mb-3"><i class="fas fa-file-alt text-blue-600 mr-2"></i>Documents</h3>
-        <div class="space-y-2">
-            {% for doc in firm.documents %}
-            <a href="/documents/firm/{{ doc.id }}" class="flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
-                {% if doc.document_type == 'pdf' %}
-                <i class="fas fa-file-pdf text-red-500 text-xl mr-3"></i>
-                {% elif doc.document_type == 'word' %}
-                <i class="fas fa-file-word text-blue-500 text-xl mr-3"></i>
-                {% elif doc.document_type == 'excel' %}
-                <i class="fas fa-file-excel text-green-500 text-xl mr-3"></i>
-                {% else %}
-                <i class="fas fa-file text-gray-500 text-xl mr-3"></i>
-                {% endif %}
-                <div>
-                    <span class="font-medium text-blue-600">{{ doc.filename }}</span>
-                    {% if doc.description %}
-                    <p class="text-xs text-gray-500">{{ doc.description }}</p>
-                    {% endif %}
-                </div>
-            </a>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
-    
     {% if firm.bio %}
     <div class="mt-6 border-t pt-6">
         <h3 class="text-lg font-semibold text-gray-800 mb-3">Firm Bio</h3>
