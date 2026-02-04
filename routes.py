@@ -1511,11 +1511,23 @@ def download_project(id):
         return safe if safe else f"{prefix}_{id}"
     
     if format_type == 'template':
-        # Load the TXDOT SF330 Section F template
-        template_path = 'attached_assets/330_Section_F_Standards_TXDOT_Complex_1770229590122.docx'
+        # First try to load custom template from object storage
+        doc = None
+        try:
+            client = get_object_storage_client()
+            template_bytes = client.download_as_bytes('templates/sf330_section_f_custom.docx')
+            if template_bytes:
+                doc = Document(io.BytesIO(template_bytes))
+        except:
+            pass
         
-        if os.path.exists(template_path):
-            doc = Document(template_path)
+        # Fall back to default TXDOT template
+        if doc is None:
+            template_path = 'attached_assets/330_Section_F_Standards_TXDOT_Complex_1770229590122.docx'
+            if os.path.exists(template_path):
+                doc = Document(template_path)
+        
+        if doc is not None:
             
             # Define replacements - mapping bold placeholder text to project values
             replacements = {
@@ -1618,7 +1630,7 @@ def download_project(id):
                                         first_desc_para_found = True
                                     break
         else:
-            # Fallback: Create SF330-style document from scratch if template not found
+            # Fallback: Create SF330-style document from scratch if no template found
             doc = Document()
             
             header_para = doc.add_paragraph()
@@ -3510,7 +3522,17 @@ def api_ai_combine():
 def settings():
     ai_style = AISettings.get_value('ai_writing_style', '')
     ai_tone = AISettings.get_value('ai_writing_tone', '')
-    return render_template('settings.html', ai_style=ai_style, ai_tone=ai_tone)
+    
+    # Check if a custom template exists in object storage
+    has_custom_template = False
+    try:
+        client = get_object_storage_client()
+        obj = client.download_as_bytes('templates/sf330_section_f_custom.docx')
+        has_custom_template = obj is not None
+    except:
+        pass
+    
+    return render_template('settings.html', ai_style=ai_style, ai_tone=ai_tone, has_custom_template=has_custom_template)
 
 
 @app.route('/settings', methods=['POST'])
@@ -3522,6 +3544,87 @@ def save_settings():
     AISettings.set_value('ai_writing_tone', ai_tone)
     
     flash('AI settings saved successfully!', 'success')
+    return redirect(url_for('settings'))
+
+
+@app.route('/settings/template/export')
+def export_template():
+    """Download the blank SF330 Section F template"""
+    import os
+    
+    # First check if there's a custom template in object storage
+    try:
+        client = get_object_storage_client()
+        template_bytes = client.download_as_bytes('templates/sf330_section_f_custom.docx')
+        if template_bytes:
+            return send_file(
+                io.BytesIO(template_bytes),
+                as_attachment=True,
+                download_name='SF330_Section_F_Template.docx',
+                mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            )
+    except:
+        pass
+    
+    # Fall back to the default template file
+    template_path = 'attached_assets/330_Section_F_Standards_TXDOT_Complex_1770229590122.docx'
+    if os.path.exists(template_path):
+        return send_file(
+            template_path,
+            as_attachment=True,
+            download_name='SF330_Section_F_Template.docx',
+            mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        )
+    else:
+        flash('Template file not found', 'error')
+        return redirect(url_for('settings'))
+
+
+@app.route('/settings/template/import', methods=['POST'])
+def import_template():
+    """Upload a custom SF330 Section F template"""
+    if 'template' not in request.files:
+        flash('No file uploaded', 'error')
+        return redirect(url_for('settings'))
+    
+    file = request.files['template']
+    if file.filename == '':
+        flash('No file selected', 'error')
+        return redirect(url_for('settings'))
+    
+    if not file.filename.lower().endswith('.docx'):
+        flash('Please upload a .docx file', 'error')
+        return redirect(url_for('settings'))
+    
+    try:
+        # Read the file content
+        file_content = file.read()
+        
+        # Validate it's a valid Word document
+        from docx import Document
+        doc = Document(io.BytesIO(file_content))
+        
+        # Store in object storage
+        client = get_object_storage_client()
+        client.upload_from_bytes('templates/sf330_section_f_custom.docx', file_content)
+        
+        flash('Custom template uploaded successfully! It will be used for all future project downloads.', 'success')
+    except Exception as e:
+        flash(f'Error uploading template: {str(e)}', 'error')
+    
+    return redirect(url_for('settings'))
+
+
+@app.route('/settings/template/reset', methods=['POST'])
+def reset_template():
+    """Remove custom template and reset to default"""
+    try:
+        client = get_object_storage_client()
+        client.delete('templates/sf330_section_f_custom.docx')
+        flash('Template reset to default successfully!', 'success')
+    except Exception as e:
+        flash(f'Error resetting template: {str(e)}', 'error')
+    
     return redirect(url_for('settings'))
 
 
