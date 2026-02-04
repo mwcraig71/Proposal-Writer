@@ -1558,7 +1558,12 @@ def download_project(id):
                 'Traditional access equipment',
                 'Conservatively, work through this contract',
                 'Strinteg was recently re-selected',
-                'Contact Cap:'
+                'Contact Cap:',
+                '400+ bridges',
+                '1,050+ fracture critical elements',
+                '480+ box and plate caps',
+                '83 fracture critical members',
+                '470+ fracture critical girder spans'
             ]
             
             # Build new description content
