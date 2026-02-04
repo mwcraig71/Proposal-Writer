@@ -1488,7 +1488,10 @@ def download_project(id):
     from docx import Document
     from docx.shared import Inches, Pt
     from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from werkzeug.utils import secure_filename
     import io
+    import os
+    import re
     
     project = Project.query.get_or_404(id)
     format_type = request.args.get('format', 'plain')
@@ -1499,118 +1502,108 @@ def download_project(id):
     # Get team members linked to this project
     team_links = EmployeeProjectLink.query.filter_by(project_id=id).all()
     
+    # Helper function to sanitize filename
+    def make_safe_filename(name, prefix="Project"):
+        if not name:
+            return f"{prefix}_{id}"
+        # Remove unsafe characters and limit length
+        safe = secure_filename(name[:50])
+        return safe if safe else f"{prefix}_{id}"
+    
     if format_type == 'template':
-        # Create SF330 Section F formatted document
-        doc = Document()
+        # Load the TXDOT SF330 Section F template
+        template_path = 'attached_assets/330_Section_F_Standards_TXDOT_Complex_1770229590122.docx'
         
-        # Section F Header
-        header_para = doc.add_paragraph()
-        header_run = header_para.add_run('F. Example projects which best illustrate proposed team\'s qualifications for this contract:')
-        header_run.bold = True
-        header_para.add_run(' (Present as many projects as requested by the agency, or 10 projects, if not specified. Complete one Section F for each project.)')
+        if os.path.exists(template_path):
+            doc = Document(template_path)
+            
+            # Define replacements - mapping bold placeholder text to project values
+            replacements = {
+                'TxDOT Statewide Complex Bridge Inspections (2021 – Ongoing)': project.title or '',
+                'Statewide, Texas': project.location or '',
+                '2021-Ongoing': project.year_completed_professional or 'N/A',
+                'NA': project.year_completed_construction or 'N/A',
+                'TXDOT': project.owner_name or '',
+                'Justin Wilson, PE': project.owner_contact_name or '',
+                '512-348-5747': project.owner_contact_phone or '',
+                'Strinteg Corporation': firm.name if firm else '',
+                'Valley View, OH': f"{firm.city or ''}, {firm.state or ''}" if firm else '',
+            }
+            
+            # Replace text in paragraphs
+            for para in doc.paragraphs:
+                for old_text, new_text in replacements.items():
+                    if old_text in para.text:
+                        for run in para.runs:
+                            if old_text in run.text:
+                                run.text = run.text.replace(old_text, new_text)
+            
+            # Replace text in tables
+            for table in doc.tables:
+                for row in table.rows:
+                    for cell in row.cells:
+                        for para in cell.paragraphs:
+                            for old_text, new_text in replacements.items():
+                                if old_text in para.text:
+                                    for run in para.runs:
+                                        if old_text in run.text:
+                                            run.text = run.text.replace(old_text, new_text)
+            
+            # Find and replace the long description (Block 24)
+            # This is the main description paragraph that needs replacement
+            description_marker = 'As a prime provider, Strinteg is performing'
+            new_description = project.brief_description or ''
+            if project.project_cost:
+                new_description += f"\n\nProject Cost: {project.project_cost}"
+            
+            for para in doc.paragraphs:
+                if description_marker in para.text:
+                    # Clear the paragraph and add new description
+                    for run in para.runs:
+                        run.text = ''
+                    if para.runs:
+                        para.runs[0].text = new_description
+                    else:
+                        para.add_run(new_description)
+                    break
+        else:
+            # Fallback: Create SF330-style document from scratch if template not found
+            doc = Document()
+            
+            header_para = doc.add_paragraph()
+            header_run = header_para.add_run('F. Example projects which best illustrate proposed team\'s qualifications for this contract:')
+            header_run.bold = True
+            
+            doc.add_paragraph()
+            p20 = doc.add_paragraph()
+            p20.add_run('20. Example project key number: ').bold = True
+            p20.add_run(str(project.id))
+            
+            p21 = doc.add_paragraph()
+            p21.add_run('21. Title and location: ').bold = True
+            p21.add_run(f"{project.title or ''} - {project.location or ''}")
+            
+            p22 = doc.add_paragraph()
+            p22.add_run('22. Year completed - Professional services: ').bold = True
+            p22.add_run(project.year_completed_professional or 'N/A')
+            
+            p23 = doc.add_paragraph()
+            p23.add_run('23. Project owner: ').bold = True
+            p23.add_run(f"{project.owner_name or ''} | Contact: {project.owner_contact_name or ''} | Phone: {project.owner_contact_phone or ''}")
+            
+            p24 = doc.add_paragraph()
+            p24.add_run('24. Brief description: ').bold = True
+            doc.add_paragraph(project.brief_description or '')
+            
+            if project.project_cost:
+                doc.add_paragraph(f"Project Cost: {project.project_cost}")
+            
+            p25 = doc.add_paragraph()
+            p25.add_run('25. Firms involved: ').bold = True
+            if firm:
+                doc.add_paragraph(f"{firm.name} - {firm.city or ''}, {firm.state or ''} - Prime")
         
-        doc.add_paragraph()
-        
-        # Field 20: Example project key number
-        p20 = doc.add_paragraph()
-        p20.add_run('20. Example project key number: ').bold = True
-        p20.add_run(str(project.id))
-        
-        doc.add_paragraph()
-        
-        # Field 21: Title and location
-        p21_header = doc.add_paragraph()
-        p21_header.add_run('21. Title and location: ').bold = True
-        p21_header.add_run('(City and State)')
-        
-        # Create a simple table for title/location and year completed
-        table = doc.add_table(rows=2, cols=2)
-        table.style = 'Table Grid'
-        
-        # Row 1: Title and Year headers
-        title_cell = table.rows[0].cells[0]
-        title_cell.text = project.title or ''
-        
-        year_cell = table.rows[0].cells[1]
-        year_para = year_cell.paragraphs[0]
-        year_para.add_run('22. Year completed').bold = True
-        
-        # Row 2: Location and years
-        loc_cell = table.rows[1].cells[0]
-        loc_cell.text = project.location or ''
-        
-        years_cell = table.rows[1].cells[1]
-        years_para = years_cell.paragraphs[0]
-        years_para.add_run('Professional services: ').bold = True
-        years_para.add_run(project.year_completed_professional or 'N/A')
-        years_cell.add_paragraph()
-        years_para2 = years_cell.paragraphs[1]
-        years_para2.add_run('Construction: ').bold = True
-        years_para2.add_run(project.year_completed_construction or 'N/A')
-        
-        doc.add_paragraph()
-        
-        # Field 23: Project owner's information
-        p23 = doc.add_paragraph()
-        p23.add_run('23. Project owner\'s information:').bold = True
-        
-        p23a = doc.add_paragraph()
-        p23a.add_run('A. Project owner: ').bold = True
-        p23a.add_run(project.owner_name or '')
-        
-        p23b = doc.add_paragraph()
-        p23b.add_run('B. Point of contact name: ').bold = True
-        p23b.add_run(project.owner_contact_name or '')
-        
-        p23c = doc.add_paragraph()
-        p23c.add_run('C. Point of contact telephone number: ').bold = True
-        p23c.add_run(project.owner_contact_phone or '')
-        
-        doc.add_paragraph()
-        
-        # Field 24: Brief description
-        p24 = doc.add_paragraph()
-        p24.add_run('24. Brief description of project and relevance to this contract ').bold = True
-        p24.add_run('(Include scope, size, and cost)')
-        
-        desc_para = doc.add_paragraph()
-        desc_para.add_run(project.brief_description or '')
-        
-        if project.project_cost:
-            cost_para = doc.add_paragraph()
-            cost_para.add_run('Project Cost: ').bold = True
-            cost_para.add_run(project.project_cost)
-        
-        doc.add_paragraph()
-        
-        # Field 25: Firms involved
-        p25 = doc.add_paragraph()
-        p25.add_run('25. Firms from Section C involved with this project:').bold = True
-        
-        # Create table for firms
-        firms_table = doc.add_table(rows=1, cols=3)
-        firms_table.style = 'Table Grid'
-        
-        # Header row
-        hdr_cells = firms_table.rows[0].cells
-        hdr_cells[0].paragraphs[0].add_run('(1) Firm Name').bold = True
-        hdr_cells[1].paragraphs[0].add_run('(2) Firm Location (City and State)').bold = True
-        hdr_cells[2].paragraphs[0].add_run('(3) Role').bold = True
-        
-        # Add firm info
-        if firm:
-            row_cells = firms_table.add_row().cells
-            row_cells[0].text = firm.name or ''
-            row_cells[1].text = f"{firm.city or ''}, {firm.state or ''}"
-            row_cells[2].text = 'Prime' if not project.is_with_other_firm else 'Subconsultant'
-        
-        if project.is_with_other_firm and project.other_firm_name:
-            row_cells = firms_table.add_row().cells
-            row_cells[0].text = project.other_firm_name
-            row_cells[1].text = ''
-            row_cells[2].text = 'Prime' if project.is_with_other_firm else ''
-        
-        filename = f"SF330_Section_F_{project.title.replace(' ', '_')[:30]}.docx"
+        filename = f"SF330_Section_F_{make_safe_filename(project.title, 'Project')}.docx"
         
     else:
         # Create plain Word document
@@ -1634,7 +1627,7 @@ def download_project(id):
         add_info_row('Project Cost', project.project_cost)
         add_info_row('Year Completed (Professional)', project.year_completed_professional)
         add_info_row('Year Completed (Construction)', project.year_completed_construction)
-        add_info_row('Delivery Method', project.delivery_method)
+        add_info_row('Delivery Method', project.project_delivery_method)
         
         if firm:
             add_info_row('Firm', firm.name)
@@ -1683,7 +1676,7 @@ def download_project(id):
                     row.cells[0].text = emp.name or ''
                     row.cells[1].text = link.role_on_project or ''
         
-        filename = f"Project_{project.title.replace(' ', '_')[:30]}.docx"
+        filename = f"Project_{make_safe_filename(project.title, 'Download')}.docx"
     
     # Save to BytesIO and return
     buffer = io.BytesIO()
