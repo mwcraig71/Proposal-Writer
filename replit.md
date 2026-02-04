@@ -25,7 +25,7 @@ The core application is built with Python Flask, employing SQLAlchemy ORM for da
 
 ### Feature Specifications
 - **Document Upload & AI Parsing:** Handles various document types for data extraction.
-- **Data Management:** Comprehensive CRUD for all entities (Firms, Employees, Projects, etc.). Projects are organized by firm with color-coded tabs for easy navigation.
+- **Data Management:** Comprehensive CRUD for all entities (Firms, Employees, Projects, etc.). Projects are organized by firm with color-coded tabs for easy navigation. Firms support document storage (PDF, Word, Excel files) and Google Drive folder linking.
 - **Proposal Builder:** Multi-step wizard for SF330 creation with advanced selection and customization options.
 - **Section G Matrix Auto-generation:** Automatically creates personnel-project participation grids.
 - **PDF/Word Generation:** Fills SF330 templates with proposal-specific data.
