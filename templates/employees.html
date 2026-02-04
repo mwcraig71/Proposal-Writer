@@ -44,53 +44,207 @@
 </div>
 
 {% if employees %}
-<div class="bg-white rounded-lg shadow overflow-hidden overflow-x-auto">
-    <table class="w-full table-fixed">
-        <thead class="bg-gray-50">
-            <tr>
-                <th class="w-10 px-4 py-3 text-left">
-                    <input type="checkbox" id="selectAll" onchange="toggleSelectAll()" class="w-4 h-4 text-blue-600 rounded">
-                </th>
-                <th class="w-36 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                <th class="w-24 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Experience</th>
-                <th class="w-20 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-            </tr>
-        </thead>
-        <tbody class="divide-y divide-gray-200">
-            {% for employee in employees %}
-            <tr class="hover:bg-gray-50">
-                <td class="px-4 py-4">
-                    <input type="checkbox" class="employee-checkbox w-4 h-4 text-blue-600 rounded" value="{{ employee.id }}" onchange="updateMergeButton()">
-                </td>
-                <td class="px-4 py-4">
-                    <div class="font-medium text-gray-900 truncate" title="{{ employee.display_name }}">{{ employee.display_name }}</div>
-                </td>
-                <td class="px-4 py-4 text-gray-600">
-                    <div class="truncate" title="{{ employee.title or '-' }}">{{ employee.title or '-' }}</div>
-                </td>
-                <td class="px-4 py-4 text-gray-600">
-                    <div class="truncate" title="{{ employee.role or '-' }}">{{ employee.role or '-' }}</div>
-                </td>
-                <td class="px-4 py-4 whitespace-nowrap text-gray-600">
-                    {{ employee.years_experience_total or '-' }} yrs
-                </td>
-                <td class="px-4 py-4 whitespace-nowrap">
-                    <div class="flex gap-3">
-                        <a href="/employees/{{ employee.id }}" class="text-blue-600 hover:text-blue-800" title="Edit">
-                            <i class="fas fa-edit"></i>
-                        </a>
-                        <button onclick="deleteEmployee({{ employee.id }}, '{{ employee.display_name | e }}')" class="text-red-600 hover:text-red-800" title="Delete">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<!-- Firm Tabs -->
+<div class="mb-4">
+    <div class="flex flex-wrap gap-2 border-b border-gray-200 pb-2">
+        <button onclick="showFirmTab('all')" id="tab-all" class="px-4 py-2 rounded-t-lg font-medium transition bg-gray-600 text-white">
+            All Personnel <span class="ml-1 px-2 py-0.5 rounded-full text-xs bg-white text-gray-700">{{ employees|length }}</span>
+        </button>
+        {% for fd in firm_data %}
+        <button onclick="showFirmTab('{{ fd.firm.id }}')" id="tab-{{ fd.firm.id }}" class="px-4 py-2 rounded-t-lg font-medium transition {{ fd.color.tab_inactive }} hover:opacity-80">
+            {{ fd.firm.name }} <span class="ml-1 px-2 py-0.5 rounded-full text-xs {{ fd.color.badge }}">{{ fd.employees|length }}</span>
+        </button>
+        {% endfor %}
+        {% if unassigned_employees %}
+        <button onclick="showFirmTab('unassigned')" id="tab-unassigned" class="px-4 py-2 rounded-t-lg font-medium transition bg-gray-100 text-gray-700 hover:bg-gray-200">
+            Unassigned <span class="ml-1 px-2 py-0.5 rounded-full text-xs bg-gray-200 text-gray-700">{{ unassigned_employees|length }}</span>
+        </button>
+        {% endif %}
+    </div>
 </div>
+
+<!-- All Personnel Tab -->
+<div id="panel-all" class="firm-panel">
+    <div class="bg-white rounded-lg shadow overflow-hidden overflow-x-auto">
+        <table class="w-full table-fixed">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="w-10 px-4 py-3 text-left">
+                        <input type="checkbox" class="select-all-checkbox w-4 h-4 text-blue-600 rounded" data-panel="all" onchange="toggleSelectAllInPanel('all')">
+                    </th>
+                    <th class="w-36 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                    <th class="w-28 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Firm</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                    <th class="w-24 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Experience</th>
+                    <th class="w-20 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+                {% for employee in employees %}
+                {% set firm_color = None %}
+                {% for fd in firm_data %}
+                    {% if fd.firm.id == employee.firm_id %}
+                        {% set firm_color = fd.color %}
+                    {% endif %}
+                {% endfor %}
+                <tr class="hover:bg-gray-50 {% if firm_color %}{{ firm_color.bg }}{% endif %}">
+                    <td class="px-4 py-4">
+                        <input type="checkbox" class="employee-checkbox w-4 h-4 text-blue-600 rounded" value="{{ employee.id }}" data-panel="all" onchange="updateMergeButton()">
+                    </td>
+                    <td class="px-4 py-4">
+                        <div class="font-medium text-gray-900 truncate" title="{{ employee.display_name }}">{{ employee.display_name }}</div>
+                    </td>
+                    <td class="px-4 py-4">
+                        {% if employee.firm_id %}
+                        {% for fd in firm_data %}
+                            {% if fd.firm.id == employee.firm_id %}
+                        <span class="text-xs px-2 py-1 rounded-full {{ fd.color.badge }}">{{ fd.firm.name }}</span>
+                            {% endif %}
+                        {% endfor %}
+                        {% else %}
+                        <span class="text-xs text-gray-400">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-4 text-gray-600">
+                        <div class="truncate" title="{{ employee.title or '-' }}">{{ employee.title or '-' }}</div>
+                    </td>
+                    <td class="px-4 py-4 text-gray-600">
+                        <div class="truncate" title="{{ employee.role or '-' }}">{{ employee.role or '-' }}</div>
+                    </td>
+                    <td class="px-4 py-4 whitespace-nowrap text-gray-600">
+                        {{ employee.years_experience_total or '-' }} yrs
+                    </td>
+                    <td class="px-4 py-4 whitespace-nowrap">
+                        <div class="flex gap-3">
+                            <a href="/employees/{{ employee.id }}" class="text-blue-600 hover:text-blue-800" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <button onclick="deleteEmployee({{ employee.id }}, '{{ employee.display_name | e }}')" class="text-red-600 hover:text-red-800" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Firm-specific Panels -->
+{% for fd in firm_data %}
+<div id="panel-{{ fd.firm.id }}" class="firm-panel hidden">
+    <div class="bg-white rounded-lg shadow overflow-hidden overflow-x-auto border-l-4 {{ fd.color.border }}">
+        {% if fd.employees %}
+        <table class="w-full table-fixed">
+            <thead class="{{ fd.color.bg }}">
+                <tr>
+                    <th class="w-10 px-4 py-3 text-left">
+                        <input type="checkbox" class="select-all-checkbox w-4 h-4 text-blue-600 rounded" data-panel="{{ fd.firm.id }}" onchange="toggleSelectAllInPanel('{{ fd.firm.id }}')">
+                    </th>
+                    <th class="w-36 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                    <th class="w-24 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Experience</th>
+                    <th class="w-20 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+                {% for employee in fd.employees %}
+                <tr class="hover:bg-gray-50 {{ fd.color.bg }}">
+                    <td class="px-4 py-4">
+                        <input type="checkbox" class="employee-checkbox w-4 h-4 text-blue-600 rounded" value="{{ employee.id }}" data-panel="{{ fd.firm.id }}" onchange="updateMergeButton()">
+                    </td>
+                    <td class="px-4 py-4">
+                        <div class="font-medium text-gray-900 truncate" title="{{ employee.display_name }}">{{ employee.display_name }}</div>
+                    </td>
+                    <td class="px-4 py-4 text-gray-600">
+                        <div class="truncate" title="{{ employee.title or '-' }}">{{ employee.title or '-' }}</div>
+                    </td>
+                    <td class="px-4 py-4 text-gray-600">
+                        <div class="truncate" title="{{ employee.role or '-' }}">{{ employee.role or '-' }}</div>
+                    </td>
+                    <td class="px-4 py-4 whitespace-nowrap text-gray-600">
+                        {{ employee.years_experience_total or '-' }} yrs
+                    </td>
+                    <td class="px-4 py-4 whitespace-nowrap">
+                        <div class="flex gap-3">
+                            <a href="/employees/{{ employee.id }}" class="text-blue-600 hover:text-blue-800" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <button onclick="deleteEmployee({{ employee.id }}, '{{ employee.display_name | e }}')" class="text-red-600 hover:text-red-800" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="p-8 text-center text-gray-500">
+            <i class="fas fa-users text-4xl mb-2"></i>
+            <p>No personnel assigned to this firm yet.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endfor %}
+
+<!-- Unassigned Personnel Panel -->
+{% if unassigned_employees %}
+<div id="panel-unassigned" class="firm-panel hidden">
+    <div class="bg-white rounded-lg shadow overflow-hidden overflow-x-auto border-l-4 border-gray-300">
+        <table class="w-full table-fixed">
+            <thead class="bg-gray-100">
+                <tr>
+                    <th class="w-10 px-4 py-3 text-left">
+                        <input type="checkbox" class="select-all-checkbox w-4 h-4 text-blue-600 rounded" data-panel="unassigned" onchange="toggleSelectAllInPanel('unassigned')">
+                    </th>
+                    <th class="w-36 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                    <th class="w-24 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Experience</th>
+                    <th class="w-20 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+                {% for employee in unassigned_employees %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-4">
+                        <input type="checkbox" class="employee-checkbox w-4 h-4 text-blue-600 rounded" value="{{ employee.id }}" data-panel="unassigned" onchange="updateMergeButton()">
+                    </td>
+                    <td class="px-4 py-4">
+                        <div class="font-medium text-gray-900 truncate" title="{{ employee.display_name }}">{{ employee.display_name }}</div>
+                    </td>
+                    <td class="px-4 py-4 text-gray-600">
+                        <div class="truncate" title="{{ employee.title or '-' }}">{{ employee.title or '-' }}</div>
+                    </td>
+                    <td class="px-4 py-4 text-gray-600">
+                        <div class="truncate" title="{{ employee.role or '-' }}">{{ employee.role or '-' }}</div>
+                    </td>
+                    <td class="px-4 py-4 whitespace-nowrap text-gray-600">
+                        {{ employee.years_experience_total or '-' }} yrs
+                    </td>
+                    <td class="px-4 py-4 whitespace-nowrap">
+                        <div class="flex gap-3">
+                            <a href="/employees/{{ employee.id }}" class="text-blue-600 hover:text-blue-800" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <button onclick="deleteEmployee({{ employee.id }}, '{{ employee.display_name | e }}')" class="text-red-600 hover:text-red-800" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
 {% else %}
 <div class="bg-white rounded-lg shadow p-12 text-center">
     <i class="fas fa-users text-gray-300 text-6xl mb-4"></i>
@@ -276,6 +430,59 @@
 let scrapedPersonnel = [];
 let allProjects = [];
 let selectedResponseLength = 'short';
+let currentFirmTab = localStorage.getItem('personnelFirmTab') || 'all';
+
+function showFirmTab(firmId) {
+    document.querySelectorAll('.firm-panel').forEach(p => p.classList.add('hidden'));
+    document.querySelectorAll('[id^="tab-"]').forEach(t => {
+        t.classList.remove('bg-gray-600', 'text-white', 'bg-blue-600', 'bg-green-600', 'bg-purple-600', 'bg-orange-600', 'bg-pink-600', 'bg-teal-600');
+        if (t.id === 'tab-all') {
+            t.classList.add('bg-gray-100', 'text-gray-700');
+        } else if (t.id === 'tab-unassigned') {
+            t.classList.add('bg-gray-100', 'text-gray-700');
+        }
+    });
+    
+    const panel = document.getElementById('panel-' + firmId);
+    if (panel) panel.classList.remove('hidden');
+    
+    const tab = document.getElementById('tab-' + firmId);
+    if (tab) {
+        tab.classList.remove('bg-gray-100', 'text-gray-700');
+        if (firmId === 'all') {
+            tab.classList.add('bg-gray-600', 'text-white');
+        } else if (firmId === 'unassigned') {
+            tab.classList.add('bg-gray-600', 'text-white');
+        } else {
+            const colorClasses = tab.className.match(/(bg-\w+-100)/);
+            if (colorClasses) {
+                const color = colorClasses[1].replace('-100', '-600');
+                tab.classList.remove(colorClasses[1]);
+                tab.classList.add(color, 'text-white');
+            }
+        }
+    }
+    
+    currentFirmTab = firmId;
+    localStorage.setItem('personnelFirmTab', firmId);
+    
+    clearSelection();
+}
+
+function toggleSelectAllInPanel(panelId) {
+    const panel = document.getElementById('panel-' + panelId);
+    const selectAllCheckbox = panel.querySelector('.select-all-checkbox');
+    const checkboxes = panel.querySelectorAll('.employee-checkbox');
+    checkboxes.forEach(cb => cb.checked = selectAllCheckbox.checked);
+    updateMergeButton();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const savedTab = localStorage.getItem('personnelFirmTab');
+    if (savedTab && document.getElementById('tab-' + savedTab)) {
+        showFirmTab(savedTab);
+    }
+});
 
 function getSelectedEmployeeIds() {
     return Array.from(document.querySelectorAll('.employee-checkbox:checked')).map(cb => cb.value);
@@ -303,7 +510,7 @@ function updateBulkToolbar() {
 
 function clearSelection() {
     document.querySelectorAll('.employee-checkbox').forEach(cb => cb.checked = false);
-    document.getElementById('selectAll').checked = false;
+    document.querySelectorAll('.select-all-checkbox').forEach(cb => cb.checked = false);
     updateBulkToolbar();
 }
 

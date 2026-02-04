@@ -389,7 +389,41 @@ def save_parsed_data():
 @app.route('/employees')
 def employees():
     employees = Employee.query.order_by(Employee.name).all()
-    return render_template('employees.html', employees=employees)
+    firms = Firm.query.order_by(Firm.name).all()
+    
+    # Group employees by firm
+    employees_by_firm = {}
+    unassigned_employees = []
+    for employee in employees:
+        if employee.firm_id:
+            if employee.firm_id not in employees_by_firm:
+                employees_by_firm[employee.firm_id] = []
+            employees_by_firm[employee.firm_id].append(employee)
+        else:
+            unassigned_employees.append(employee)
+    
+    # Define colors for each firm (cycle through if more firms than colors)
+    firm_colors = [
+        {'bg': 'bg-blue-50', 'border': 'border-blue-200', 'tab': 'bg-blue-600', 'tab_inactive': 'bg-blue-100 text-blue-700', 'badge': 'bg-blue-100 text-blue-800'},
+        {'bg': 'bg-green-50', 'border': 'border-green-200', 'tab': 'bg-green-600', 'tab_inactive': 'bg-green-100 text-green-700', 'badge': 'bg-green-100 text-green-800'},
+        {'bg': 'bg-purple-50', 'border': 'border-purple-200', 'tab': 'bg-purple-600', 'tab_inactive': 'bg-purple-100 text-purple-700', 'badge': 'bg-purple-100 text-purple-800'},
+        {'bg': 'bg-orange-50', 'border': 'border-orange-200', 'tab': 'bg-orange-600', 'tab_inactive': 'bg-orange-100 text-orange-700', 'badge': 'bg-orange-100 text-orange-800'},
+        {'bg': 'bg-pink-50', 'border': 'border-pink-200', 'tab': 'bg-pink-600', 'tab_inactive': 'bg-pink-100 text-pink-700', 'badge': 'bg-pink-100 text-pink-800'},
+        {'bg': 'bg-teal-50', 'border': 'border-teal-200', 'tab': 'bg-teal-600', 'tab_inactive': 'bg-teal-100 text-teal-700', 'badge': 'bg-teal-100 text-teal-800'},
+    ]
+    
+    # Build firm data with colors
+    firm_data = []
+    for i, firm in enumerate(firms):
+        color = firm_colors[i % len(firm_colors)]
+        firm_data.append({
+            'firm': firm,
+            'employees': employees_by_firm.get(firm.id, []),
+            'color': color
+        })
+    
+    return render_template('employees.html', employees=employees, firms=firms, firm_data=firm_data, 
+                          unassigned_employees=unassigned_employees, firm_colors=firm_colors)
 
 
 @app.route('/employees/scrape-website', methods=['POST'])
