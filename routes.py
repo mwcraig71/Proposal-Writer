@@ -1765,11 +1765,11 @@ def download_project(id):
         filename = f"Project_{make_safe_filename(project.title, 'Download')}.docx"
     
     # Add project photos if available
-    project_photos = ProjectPhoto.query.filter_by(project_id=id).all()
+    project_photos = ProjectPhoto.query.filter_by(project_id=project.id).all()
     if project_photos:
-        from docx.shared import Inches, Pt
+        from docx.shared import Inches, Pt, Emu
         from docx.enum.text import WD_ALIGN_PARAGRAPH
-        from docx.oxml.ns import qn
+        from docx.oxml.ns import qn, nsmap
         from docx.oxml import OxmlElement
         from PIL import Image
         
@@ -1782,24 +1782,34 @@ def download_project(id):
                     if photo_data:
                         photo_stream = io.BytesIO(photo_data)
                         
-                        # Get original image dimensions to scale proportionally
-                        img = Image.open(photo_stream)
-                        orig_width, orig_height = img.size
-                        photo_stream.seek(0)
+                        # Validate it's an image and get dimensions
+                        try:
+                            img = Image.open(photo_stream)
+                            orig_width, orig_height = img.size
+                            photo_stream.seek(0)
+                        except Exception:
+                            print(f"Skipping non-image file: {photo.filename}")
+                            continue
                         
-                        # Calculate scaled dimensions (max height 2 inches)
+                        # Calculate scaled dimensions - max height 2 inches, preserve aspect ratio
                         max_height_inches = 2.0
                         aspect_ratio = orig_width / orig_height
-                        height_inches = min(max_height_inches, orig_height / 96.0)  # Assume 96 DPI
+                        # Use 2 inches as max height regardless of original size
+                        height_inches = max_height_inches
                         width_inches = height_inches * aspect_ratio
+                        
+                        # Cap width at 4 inches to prevent overflow
+                        if width_inches > 4.0:
+                            width_inches = 4.0
+                            height_inches = width_inches / aspect_ratio
                         
                         # Add a paragraph for the image, right-aligned
                         img_para = doc.add_paragraph()
                         img_para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
                         
-                        # Add the image
+                        # Add the image with explicit sizing
                         run = img_para.add_run()
-                        picture = run.add_picture(photo_stream, height=Inches(height_inches))
+                        picture = run.add_picture(photo_stream, width=Inches(width_inches), height=Inches(height_inches))
                         
                         # Add caption if available
                         if photo.caption:
