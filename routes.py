@@ -1736,27 +1736,39 @@ def download_project(id):
             '{{KEY_PERSONNEL}}': key_personnel_str,
         }
         
-        # Replace placeholders in paragraphs
-        for para in doc.paragraphs:
+        # Helper function to replace placeholders in a paragraph (handles split runs)
+        def replace_placeholders_in_para(para, placeholders):
             for placeholder, value in placeholders.items():
                 if placeholder in para.text:
+                    # First try to replace within individual runs
+                    replaced = False
                     for run in para.runs:
                         if placeholder in run.text:
                             run.text = run.text.replace(placeholder, value)
+                            replaced = True
+                    # If placeholder wasn't found in individual runs, it may be split across runs
+                    # Rebuild paragraph text and replace
+                    if not replaced and para.runs:
+                        full_text = para.text
+                        new_text = full_text.replace(placeholder, value)
+                        if full_text != new_text:
+                            # Clear all runs except first, put all text in first run
+                            for i, run in enumerate(para.runs):
+                                if i == 0:
+                                    run.text = new_text
+                                else:
+                                    run.text = ''
+        
+        # Replace placeholders in paragraphs
+        for para in doc.paragraphs:
+            replace_placeholders_in_para(para, placeholders)
         
         # Replace placeholders in tables
         for table in doc.tables:
             for row in table.rows:
                 for cell in row.cells:
                     for para in cell.paragraphs:
-                        for placeholder, value in placeholders.items():
-                            if placeholder in para.text:
-                                for run in para.runs:
-                                    if placeholder in run.text:
-                                        run.text = run.text.replace(placeholder, value)
-                                # Also check cell text directly (fallback)
-                                if placeholder in cell.text and placeholder not in ''.join(r.text for r in para.runs):
-                                    cell.text = cell.text.replace(placeholder, value)
+                        replace_placeholders_in_para(para, placeholders)
         
         filename = f"Company_{make_safe_filename(project.title, 'Project')}.docx"
         

@@ -179,7 +179,7 @@
         
         <p class="text-gray-600 mb-6">
             Create your own company-branded project template with placeholders. Export the template, 
-            customize it with your branding, then import it back. Use <code class="bg-gray-100 px-1 rounded">{{PLACEHOLDER_NAME}}</code> syntax for data fields.
+            customize it with your branding, then import it back. Use <code class="bg-gray-100 px-1 rounded">{% raw %}{{PLACEHOLDER_NAME}}{% endraw %}</code> syntax for data fields.
         </p>
         
         <div class="grid md:grid-cols-2 gap-6">
@@ -235,6 +235,7 @@
                 Available Placeholders
             </h3>
             <div class="grid md:grid-cols-2 gap-4 text-sm text-indigo-700">
+                {% raw %}
                 <ul class="space-y-1">
                     <li><code class="bg-white px-1 rounded">{{PROJECT_TITLE}}</code> - Project name</li>
                     <li><code class="bg-white px-1 rounded">{{PROJECT_LOCATION}}</code> - Location</li>
@@ -254,6 +255,7 @@
                     <li><code class="bg-white px-1 rounded">{{FIRM_STATE}}</code> - Firm state</li>
                     <li><code class="bg-white px-1 rounded">{{KEY_PERSONNEL}}</code> - Team list</li>
                 </ul>
+                {% endraw %}
             </div>
         </div>
     </div>
