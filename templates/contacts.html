@@ -14,35 +14,43 @@
 </div>
 
 {% if contacts %}
-<div class="bg-white rounded-lg shadow overflow-hidden">
-    <table class="min-w-full divide-y divide-gray-200">
+<div class="bg-white rounded-lg shadow overflow-hidden overflow-x-auto">
+    <table class="w-full table-fixed divide-y divide-gray-200">
         <thead class="bg-gray-50">
             <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Agency</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Phone</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th class="w-36 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                <th class="w-56 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Agency</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
+                <th class="w-28 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Phone</th>
+                <th class="w-44 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                <th class="w-20 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
             </tr>
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
             {% for contact in contacts %}
             <tr class="hover:bg-gray-50">
-                <td class="px-6 py-4 whitespace-nowrap">
-                    <a href="/contacts/{{ contact.id }}" class="text-blue-600 hover:underline font-medium">{{ contact.name }}</a>
+                <td class="px-4 py-4">
+                    <a href="/contacts/{{ contact.id }}" class="text-blue-600 hover:underline font-medium truncate block" title="{{ contact.name }}">{{ contact.name }}</a>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ contact.agency or '-' }}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ contact.role or '-' }}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ contact.phone or '-' }}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ contact.email or '-' }}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-right">
-                    <a href="/contacts/{{ contact.id }}" class="text-blue-600 hover:text-blue-800 mr-3">
-                        <i class="fas fa-edit"></i>
-                    </a>
-                    <button onclick="deleteContact({{ contact.id }})" class="text-red-600 hover:text-red-800">
-                        <i class="fas fa-trash"></i>
-                    </button>
+                <td class="px-4 py-4 text-gray-600">
+                    <div class="truncate" title="{{ contact.agency or '' }}">{{ contact.agency or '-' }}</div>
+                </td>
+                <td class="px-4 py-4 text-gray-600">
+                    <div class="truncate" title="{{ contact.role or '' }}">{{ contact.role or '-' }}</div>
+                </td>
+                <td class="px-4 py-4 text-gray-600">{{ contact.phone or '-' }}</td>
+                <td class="px-4 py-4 text-gray-600">
+                    <div class="truncate" title="{{ contact.email or '' }}">{{ contact.email or '-' }}</div>
+                </td>
+                <td class="px-4 py-4">
+                    <div class="flex gap-3">
+                        <a href="/contacts/{{ contact.id }}" class="text-blue-600 hover:text-blue-800" title="Edit">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        <button onclick="deleteContact({{ contact.id }})" class="text-red-600 hover:text-red-800" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
                 </td>
             </tr>
             {% endfor %}
