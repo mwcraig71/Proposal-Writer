@@ -25,13 +25,28 @@
                 </div>
                 <div class="md:col-span-2">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Firm</label>
-                    <select name="firm_id" class="w-full p-2 border rounded-lg">
+                    <select name="firm_id" id="firm_id" class="w-full p-2 border rounded-lg" onchange="updateContractProjects()">
                         <option value="">-- No Firm Assigned --</option>
                         {% for firm in firms %}
                         <option value="{{ firm.id }}">{{ firm.name }}</option>
                         {% endfor %}
                     </select>
                     <p class="text-xs text-gray-500 mt-1">Assign this project to a specific firm for organization</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Project Type</label>
+                    <select name="project_type" id="project_type" class="w-full p-2 border rounded-lg" onchange="toggleParentContract()">
+                        <option value="contract">Contract Project</option>
+                        <option value="task_order">Task Order Project</option>
+                    </select>
+                    <p class="text-xs text-gray-500 mt-1">Contract projects are master-level; Task Orders are linked to a Contract</p>
+                </div>
+                <div id="parent_contract_container" class="hidden">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Parent Contract Project</label>
+                    <select name="parent_contract_id" id="parent_contract_id" class="w-full p-2 border rounded-lg">
+                        <option value="">-- Select Parent Contract --</option>
+                    </select>
+                    <p class="text-xs text-gray-500 mt-1">Select the Contract this Task Order belongs to</p>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Location</label>
@@ -110,4 +125,42 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const allContractProjects = [
+    {% for p in contract_projects %}
+    {id: {{ p.id }}, title: "{{ p.title | replace('"', '\\"') }}", firm_id: {{ p.firm_id or 'null' }}},
+    {% endfor %}
+];
+
+function toggleParentContract() {
+    const projectType = document.getElementById('project_type').value;
+    const container = document.getElementById('parent_contract_container');
+    if (projectType === 'task_order') {
+        container.classList.remove('hidden');
+        updateContractProjects();
+    } else {
+        container.classList.add('hidden');
+    }
+}
+
+function updateContractProjects() {
+    const firmId = document.getElementById('firm_id').value;
+    const select = document.getElementById('parent_contract_id');
+    select.innerHTML = '<option value="">-- Select Parent Contract --</option>';
+    
+    const filtered = firmId 
+        ? allContractProjects.filter(p => p.firm_id == firmId)
+        : allContractProjects;
+    
+    filtered.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.title;
+        select.appendChild(opt);
+    });
+}
+</script>
 {% endblock %}

@@ -79,19 +79,30 @@
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-200">
-                {% for project in projects %}
+                {% for item in hierarchical_projects %}
+                {% set project = item.project %}
                 {% set firm_color = None %}
                 {% for fd in firm_data %}
                     {% if fd.firm.id == project.firm_id %}
                         {% set firm_color = fd.color %}
                     {% endif %}
                 {% endfor %}
-                <tr class="hover:bg-gray-50 {% if firm_color %}{{ firm_color.bg }}{% endif %}">
+                <tr class="hover:bg-gray-50 {% if firm_color %}{{ firm_color.bg }}{% endif %} {% if item.is_task_order %}border-l-4 border-amber-400{% endif %}">
                     <td class="px-4 py-4">
                         <input type="checkbox" class="project-checkbox w-4 h-4 text-blue-600 rounded" value="{{ project.id }}" data-panel="all" onchange="updateMergeButton()">
                     </td>
                     <td class="px-6 py-4">
-                        <div class="font-medium text-gray-900 truncate" title="{{ project.title }}">{{ project.title }}</div>
+                        <div class="flex items-center {% if item.indent > 0 %}pl-6{% endif %}">
+                            {% if item.is_task_order %}
+                            <i class="fas fa-level-up-alt fa-rotate-90 text-amber-500 mr-2 text-xs"></i>
+                            {% else %}
+                            <i class="fas fa-file-contract text-blue-500 mr-2 text-xs"></i>
+                            {% endif %}
+                            <span class="font-medium text-gray-900 truncate" title="{{ project.title }}">{{ project.title }}</span>
+                        </div>
+                        {% if item.is_task_order %}
+                        <span class="ml-6 text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">Task Order</span>
+                        {% endif %}
                     </td>
                     <td class="px-6 py-4">
                         {% if project.firm %}
@@ -140,13 +151,24 @@
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-200">
-                {% for project in fd.projects %}
-                <tr class="hover:bg-gray-50 {{ fd.color.bg }}">
+                {% for item in fd.hierarchical_projects %}
+                {% set project = item.project %}
+                <tr class="hover:bg-gray-50 {{ fd.color.bg }} {% if item.is_task_order %}border-l-4 border-amber-400{% endif %}">
                     <td class="px-4 py-4">
                         <input type="checkbox" class="project-checkbox w-4 h-4 text-blue-600 rounded" value="{{ project.id }}" data-panel="{{ fd.firm.id }}" onchange="updateMergeButton()">
                     </td>
                     <td class="px-6 py-4">
-                        <div class="font-medium text-gray-900 truncate" title="{{ project.title }}">{{ project.title }}</div>
+                        <div class="flex items-center {% if item.indent > 0 %}pl-6{% endif %}">
+                            {% if item.is_task_order %}
+                            <i class="fas fa-level-up-alt fa-rotate-90 text-amber-500 mr-2 text-xs"></i>
+                            {% else %}
+                            <i class="fas fa-file-contract text-blue-500 mr-2 text-xs"></i>
+                            {% endif %}
+                            <span class="font-medium text-gray-900 truncate" title="{{ project.title }}">{{ project.title }}</span>
+                        </div>
+                        {% if item.is_task_order %}
+                        <span class="ml-6 text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">Task Order</span>
+                        {% endif %}
                     </td>
                     <td class="px-6 py-4 text-gray-600 truncate" title="{{ project.location or '' }}">{{ project.location or '-' }}</td>
                     <td class="px-6 py-4 text-gray-600 truncate" title="{{ project.owner_name or '' }}">{{ project.owner_name or '-' }}</td>
@@ -196,13 +218,24 @@
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-200">
-                {% for project in unassigned_projects %}
-                <tr class="hover:bg-gray-50">
+                {% for item in unassigned_hierarchical %}
+                {% set project = item.project %}
+                <tr class="hover:bg-gray-50 {% if item.is_task_order %}border-l-4 border-amber-400{% endif %}">
                     <td class="px-4 py-4">
                         <input type="checkbox" class="project-checkbox w-4 h-4 text-blue-600 rounded" value="{{ project.id }}" data-panel="unassigned" onchange="updateMergeButton()">
                     </td>
                     <td class="px-6 py-4">
-                        <div class="font-medium text-gray-900 truncate" title="{{ project.title }}">{{ project.title }}</div>
+                        <div class="flex items-center {% if item.indent > 0 %}pl-6{% endif %}">
+                            {% if item.is_task_order %}
+                            <i class="fas fa-level-up-alt fa-rotate-90 text-amber-500 mr-2 text-xs"></i>
+                            {% else %}
+                            <i class="fas fa-file-contract text-blue-500 mr-2 text-xs"></i>
+                            {% endif %}
+                            <span class="font-medium text-gray-900 truncate" title="{{ project.title }}">{{ project.title }}</span>
+                        </div>
+                        {% if item.is_task_order %}
+                        <span class="ml-6 text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">Task Order</span>
+                        {% endif %}
                     </td>
                     <td class="px-6 py-4 text-gray-600 truncate" title="{{ project.location or '' }}">{{ project.location or '-' }}</td>
                     <td class="px-6 py-4 text-gray-600 truncate" title="{{ project.owner_name or '' }}">{{ project.owner_name or '-' }}</td>

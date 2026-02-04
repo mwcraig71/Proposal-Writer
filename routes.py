@@ -1267,15 +1267,44 @@ def merge_employees():
     return jsonify({'success': True, 'redirect': f'/employees/{primary_id}'})
 
 
+def organize_projects_hierarchically(project_list):
+    """Organize projects so contract projects come first with their task orders nested below"""
+    contracts = [p for p in project_list if p.project_type != 'task_order']
+    task_orders = [p for p in project_list if p.project_type == 'task_order']
+    
+    task_orders_by_parent = {}
+    orphan_task_orders = []
+    for to in task_orders:
+        if to.parent_contract_id:
+            if to.parent_contract_id not in task_orders_by_parent:
+                task_orders_by_parent[to.parent_contract_id] = []
+            task_orders_by_parent[to.parent_contract_id].append(to)
+        else:
+            orphan_task_orders.append(to)
+    
+    result = []
+    for contract in sorted(contracts, key=lambda x: x.title):
+        result.append({'project': contract, 'is_task_order': False, 'indent': 0})
+        for to in sorted(task_orders_by_parent.get(contract.id, []), key=lambda x: x.title):
+            result.append({'project': to, 'is_task_order': True, 'indent': 1})
+    
+    for to in sorted(orphan_task_orders, key=lambda x: x.title):
+        result.append({'project': to, 'is_task_order': True, 'indent': 0})
+    
+    return result
+
+
 @app.route('/projects')
 def projects():
-    projects = Project.query.order_by(Project.title).all()
+    all_projects = Project.query.order_by(Project.title).all()
     firms = Firm.query.order_by(Firm.name).all()
+    
+    hierarchical_projects = organize_projects_hierarchically(all_projects)
     
     # Group projects by firm
     projects_by_firm = {}
     unassigned_projects = []
-    for project in projects:
+    for project in all_projects:
         if project.firm_id:
             if project.firm_id not in projects_by_firm:
                 projects_by_firm[project.firm_id] = []
@@ -1293,18 +1322,25 @@ def projects():
         {'bg': 'bg-teal-50', 'border': 'border-teal-200', 'tab': 'bg-teal-600', 'tab_inactive': 'bg-teal-100 text-teal-700', 'badge': 'bg-teal-100 text-teal-800'},
     ]
     
-    # Build firm data with colors
+    # Build firm data with colors and hierarchical projects
     firm_data = []
     for i, firm in enumerate(firms):
         color = firm_colors[i % len(firm_colors)]
+        firm_projects = projects_by_firm.get(firm.id, [])
+        firm_hierarchical = organize_projects_hierarchically(firm_projects)
         firm_data.append({
             'firm': firm,
-            'projects': projects_by_firm.get(firm.id, []),
+            'projects': firm_projects,
+            'hierarchical_projects': firm_hierarchical,
             'color': color
         })
     
-    return render_template('projects.html', projects=projects, firms=firms, firm_data=firm_data, 
-                          unassigned_projects=unassigned_projects, firm_colors=firm_colors)
+    unassigned_hierarchical = organize_projects_hierarchically(unassigned_projects)
+    
+    return render_template('projects.html', projects=all_projects, hierarchical_projects=hierarchical_projects,
+                          firms=firms, firm_data=firm_data, 
+                          unassigned_projects=unassigned_projects, unassigned_hierarchical=unassigned_hierarchical,
+                          firm_colors=firm_colors)
 
 
 @app.route('/projects/add', methods=['GET', 'POST'])
@@ -1312,6 +1348,7 @@ def add_project():
     if request.method == 'POST':
         data = request.form
         firm_id = data.get('firm_id')
+        parent_contract_id = data.get('parent_contract_id')
         project = Project(
             title=data.get('title', ''),
             location=data.get('location'),
@@ -1324,14 +1361,17 @@ def add_project():
             project_delivery_method=data.get('project_delivery_method'),
             brief_description=data.get('brief_description'),
             relevance_writeup=data.get('relevance_writeup'),
-            firm_id=int(firm_id) if firm_id else None
+            firm_id=int(firm_id) if firm_id else None,
+            project_type=data.get('project_type', 'contract'),
+            parent_contract_id=int(parent_contract_id) if parent_contract_id else None
         )
         db.session.add(project)
         db.session.commit()
         return redirect(f'/projects/{project.id}')
     
     firms = Firm.query.order_by(Firm.name).all()
-    return render_template('project_add.html', firms=firms)
+    contract_projects = Project.query.filter_by(project_type='contract').order_by(Project.title).all()
+    return render_template('project_add.html', firms=firms, contract_projects=contract_projects)
 
 
 @app.route('/projects/<int:id>')
@@ -1390,6 +1430,12 @@ def update_project(id):
     project.relevance_writeup = data.get('relevance_writeup', project.relevance_writeup)
     project.is_with_other_firm = data.get('is_with_other_firm') in [True, 'true', 'True', '1', 1]
     project.other_firm_name = data.get('other_firm_name', project.other_firm_name) if project.is_with_other_firm else None
+    
+    if 'project_type' in data:
+        project.project_type = data.get('project_type', 'contract')
+    if 'parent_contract_id' in data:
+        parent_id = data.get('parent_contract_id')
+        project.parent_contract_id = int(parent_id) if parent_id else None
     
     # Handle firm_id assignment
     if 'firm_id' in data:
