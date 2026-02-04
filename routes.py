@@ -3324,6 +3324,61 @@ def delete_contact(id):
     return redirect(url_for('contacts'))
 
 
+@app.route('/contacts/merge', methods=['GET'])
+def merge_contacts_page():
+    ids = request.args.get('ids', '')
+    id_list = [int(x) for x in ids.split(',') if x.isdigit()]
+    if len(id_list) < 2:
+        return redirect('/contacts')
+    
+    contacts = ClientContact.query.filter(ClientContact.id.in_(id_list)).all()
+    if len(contacts) < 2:
+        return redirect('/contacts')
+    
+    contacts_data = [{
+        'id': c.id,
+        'name': c.name,
+        'agency': c.agency,
+        'role': c.role,
+        'phone': c.phone,
+        'email': c.email,
+        'physical_street': c.physical_street,
+        'physical_city': c.physical_city,
+        'physical_state': c.physical_state,
+        'physical_zip': c.physical_zip,
+        'mailing_street': c.mailing_street,
+        'mailing_city': c.mailing_city,
+        'mailing_state': c.mailing_state,
+        'mailing_zip': c.mailing_zip
+    } for c in contacts]
+    
+    return render_template('contact_merge.html', contacts=contacts, contacts_json=contacts_data)
+
+
+@app.route('/contacts/merge', methods=['POST'])
+def merge_contacts():
+    data = request.json
+    primary_id = data.get('primary_id')
+    merge_ids = data.get('merge_ids', [])
+    merged_data = data.get('merged_data', {})
+    
+    primary = ClientContact.query.get_or_404(primary_id)
+    
+    for key, value in merged_data.items():
+        if hasattr(primary, key):
+            setattr(primary, key, value if value else None)
+    
+    for merge_id in merge_ids:
+        if merge_id == primary_id:
+            continue
+        merge_contact = ClientContact.query.get(merge_id)
+        if merge_contact:
+            db.session.delete(merge_contact)
+    
+    db.session.commit()
+    return jsonify({'success': True, 'redirect': f'/contacts/{primary_id}'})
+
+
 @app.route('/api/contacts/search')
 def search_contacts():
     query = request.args.get('q', '')
