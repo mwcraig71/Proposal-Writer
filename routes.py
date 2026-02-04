@@ -1514,7 +1514,7 @@ def download_project(id):
         # First try to load custom template from object storage
         doc = None
         try:
-            client = get_object_storage_client()
+            client = get_storage_client()
             template_bytes = client.download_as_bytes('templates/sf330_section_f_custom.docx')
             if template_bytes:
                 doc = Document(io.BytesIO(template_bytes))
@@ -3526,7 +3526,7 @@ def settings():
     # Check if a custom template exists in object storage
     has_custom_template = False
     try:
-        client = get_object_storage_client()
+        client = get_storage_client()
         obj = client.download_as_bytes('templates/sf330_section_f_custom.docx')
         has_custom_template = obj is not None
     except:
@@ -3554,7 +3554,7 @@ def export_template():
     
     # First check if there's a custom template in object storage
     try:
-        client = get_object_storage_client()
+        client = get_storage_client()
         template_bytes = client.download_as_bytes('templates/sf330_section_f_custom.docx')
         if template_bytes:
             return send_file(
@@ -3605,7 +3605,7 @@ def import_template():
         doc = Document(io.BytesIO(file_content))
         
         # Store in object storage
-        client = get_object_storage_client()
+        client = get_storage_client()
         client.upload_from_bytes('templates/sf330_section_f_custom.docx', file_content)
         
         flash('Custom template uploaded successfully! It will be used for all future project downloads.', 'success')
@@ -3619,7 +3619,7 @@ def import_template():
 def reset_template():
     """Remove custom template and reset to default"""
     try:
-        client = get_object_storage_client()
+        client = get_storage_client()
         client.delete('templates/sf330_section_f_custom.docx')
         flash('Template reset to default successfully!', 'success')
     except Exception as e:
