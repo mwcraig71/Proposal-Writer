@@ -1862,6 +1862,7 @@ def edit_firm(id):
         firm.point_of_contact_name = data.get('point_of_contact_name')
         firm.point_of_contact_title = data.get('point_of_contact_title')
         firm.bio = data.get('bio')
+        firm.google_drive_folder_url = data.get('google_drive_folder_url')
         
         from datetime import datetime
         stat_fields = [
@@ -4050,6 +4051,153 @@ def serve_firm_photo(photo_id):
     except Exception as e:
         print(f"Error serving firm photo: {e}")
         return "Photo not found", 404
+
+
+# Firm Documents Routes
+ALLOWED_DOCUMENT_EXTENSIONS = {'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'csv'}
+
+def allowed_document_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_DOCUMENT_EXTENSIONS
+
+def get_document_type(filename):
+    ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
+    if ext == 'pdf':
+        return 'pdf'
+    elif ext in ['doc', 'docx']:
+        return 'word'
+    elif ext in ['xls', 'xlsx', 'csv']:
+        return 'excel'
+    elif ext in ['ppt', 'pptx']:
+        return 'powerpoint'
+    else:
+        return 'other'
+
+
+@app.route('/firms/<int:id>/documents', methods=['POST'])
+@login_required
+def upload_firm_document(id):
+    """Upload a document for a firm"""
+    from models import FirmDocument
+    firm = Firm.query.get_or_404(id)
+    
+    if 'document' not in request.files:
+        return jsonify({'success': False, 'error': 'No document file provided'}), 400
+    
+    file = request.files['document']
+    if file.filename == '':
+        return jsonify({'success': False, 'error': 'No file selected'}), 400
+    
+    if not allowed_document_file(file.filename):
+        return jsonify({'success': False, 'error': 'Invalid file type. Allowed: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT, CSV'}), 400
+    
+    client = get_storage_client()
+    if not client:
+        return jsonify({'success': False, 'error': 'Object storage not configured'}), 500
+    
+    ext = file.filename.rsplit('.', 1)[1].lower()
+    unique_id = str(uuid.uuid4())
+    storage_path = f"firms/{id}/documents/{unique_id}.{ext}"
+    
+    try:
+        file_data = file.read()
+        client.upload_from_bytes(storage_path, file_data)
+        
+        doc = FirmDocument(
+            firm_id=id,
+            filename=secure_filename(file.filename),
+            storage_path=storage_path,
+            description=request.form.get('description', ''),
+            file_size=len(file_data),
+            content_type=file.content_type,
+            document_type=get_document_type(file.filename)
+        )
+        db.session.add(doc)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'document': {
+                'id': doc.id,
+                'filename': doc.filename,
+                'description': doc.description,
+                'document_type': doc.document_type,
+                'file_size': doc.file_size
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/firms/<int:id>/documents/<int:doc_id>', methods=['DELETE'])
+@login_required
+def delete_firm_document(id, doc_id):
+    """Delete a firm document"""
+    from models import FirmDocument
+    doc = FirmDocument.query.filter_by(id=doc_id, firm_id=id).first_or_404()
+    
+    client = get_storage_client()
+    if client:
+        try:
+            client.delete(doc.storage_path)
+        except Exception as e:
+            print(f"Error deleting document from storage: {e}")
+    
+    db.session.delete(doc)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/firms/<int:id>/documents/<int:doc_id>/description', methods=['PUT'])
+@login_required
+def update_firm_document_description(id, doc_id):
+    """Update a firm document description"""
+    from models import FirmDocument
+    doc = FirmDocument.query.filter_by(id=doc_id, firm_id=id).first_or_404()
+    data = request.json
+    doc.description = data.get('description', '')
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/api/firms/<int:id>/documents')
+@login_required
+def get_firm_documents(id):
+    """Get all documents for a firm"""
+    from models import FirmDocument
+    docs = FirmDocument.query.filter_by(firm_id=id).order_by(FirmDocument.created_at.desc()).all()
+    return jsonify([{
+        'id': d.id,
+        'filename': d.filename,
+        'url': f'/documents/firm/{d.id}',
+        'description': d.description,
+        'document_type': d.document_type,
+        'file_size': d.file_size,
+        'created_at': d.created_at.isoformat() if d.created_at else None
+    } for d in docs])
+
+
+@app.route('/documents/firm/<int:doc_id>')
+@login_required
+def serve_firm_document(doc_id):
+    """Serve a firm document from object storage"""
+    from models import FirmDocument
+    doc = FirmDocument.query.get_or_404(doc_id)
+    
+    client = get_storage_client()
+    if not client:
+        return "Storage not configured", 500
+    
+    try:
+        data = client.download_as_bytes(doc.storage_path)
+        return send_file(
+            io.BytesIO(data),
+            mimetype=doc.content_type or 'application/octet-stream',
+            download_name=doc.filename,
+            as_attachment=True
+        )
+    except Exception as e:
+        print(f"Error serving firm document: {e}")
+        return "Document not found", 404
 
 
 # Marketing Photos Routes

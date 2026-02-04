@@ -109,6 +109,15 @@
                 </div>
                 
                 <div class="border-t pt-4 mt-4">
+                    <h3 class="font-medium text-gray-700 mb-3"><i class="fab fa-google-drive text-blue-600 mr-2"></i>Google Drive Integration</h3>
+                    <p class="text-sm text-gray-500 mb-2">Link a Google Drive folder to access firm documents</p>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Google Drive Folder URL</label>
+                        <input type="url" name="google_drive_folder_url" value="{{ firm.google_drive_folder_url or '' }}" class="w-full p-2 border rounded-lg" placeholder="https://drive.google.com/drive/folders/...">
+                    </div>
+                </div>
+                
+                <div class="border-t pt-4 mt-4">
                     <h3 class="font-medium text-gray-700 mb-3">Firm Bio / Writeup</h3>
                     <p class="text-sm text-gray-500 mb-2">Company description for proposals</p>
                     <textarea name="bio" rows="6" class="w-full p-2 border rounded-lg" placeholder="Describe your firm's capabilities, history, and expertise...">{{ firm.bio or '' }}</textarea>

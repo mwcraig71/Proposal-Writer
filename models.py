@@ -46,6 +46,7 @@ class Firm(db.Model):
     bio = db.Column(db.Text)
     is_branch = db.Column(db.Boolean, default=False)
     parent_firm_id = db.Column(db.Integer, db.ForeignKey('firms.id'), nullable=True)
+    google_drive_folder_url = db.Column(db.String(500))
     
     stat_bridges_inspected = db.Column(db.Integer)
     stat_bridges_inspected_updated = db.Column(db.DateTime)
@@ -438,6 +439,23 @@ class FirmPhoto(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     firm = db.relationship('Firm', backref=db.backref('photos', lazy=True, cascade='all, delete-orphan'))
+
+
+class FirmDocument(db.Model):
+    """Stores document references for firms - PDFs, Word docs, Excel files in object storage"""
+    __tablename__ = 'firm_documents'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    firm_id = db.Column(db.Integer, db.ForeignKey('firms.id'), nullable=False)
+    filename = db.Column(db.String(500), nullable=False)
+    storage_path = db.Column(db.String(500), nullable=False)
+    description = db.Column(db.String(500))
+    file_size = db.Column(db.Integer)
+    content_type = db.Column(db.String(100))
+    document_type = db.Column(db.String(50))  # 'pdf', 'word', 'excel', 'other'
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    firm = db.relationship('Firm', backref=db.backref('documents', lazy=True, cascade='all, delete-orphan'))
 
 
 class ProposalSelectedFirmPhoto(db.Model):
