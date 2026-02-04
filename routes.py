@@ -1550,73 +1550,68 @@ def download_project(id):
                                             run.text = run.text.replace(old_text, new_text)
             
             # Find and replace the long description (Block 24)
-            # Look for any paragraph containing template description text
+            # The description text may span multiple paragraphs - we need to find and replace all of it
             description_markers = [
-                'As a prime provider, Strinteg is performing',
+                'As a prime provider, Strinteg',
                 'non-redundant steel tension member',
-                'The project consists of inspecting'
+                'The project consists of inspecting',
+                'Traditional access equipment',
+                'Conservatively, work through this contract',
+                'Strinteg was recently re-selected',
+                'Contact Cap:'
             ]
             
-            # Find all paragraphs that are part of the template description and clear them
-            description_paras_to_clear = []
-            found_description_start = False
-            for i, para in enumerate(doc.paragraphs):
+            # Build new description content
+            new_description = project.brief_description or 'No description provided.'
+            if project.project_cost:
+                new_description += f"\n\nProject Cost: {project.project_cost}"
+            
+            # Add team members
+            if team_links:
+                team_members = []
+                for link in team_links:
+                    emp = Employee.query.get(link.employee_id)
+                    if emp:
+                        role = f" ({link.role_on_project})" if link.role_on_project else ""
+                        team_members.append(f"{emp.name}{role}")
+                if team_members:
+                    new_description += f"\n\nKey Personnel: {', '.join(team_members)}"
+            
+            # Clear all paragraphs that contain template description text
+            first_desc_para_found = False
+            for para in doc.paragraphs:
                 para_text = para.text.strip()
-                # Check if this is the start of the description section
-                is_marker_para = False
                 for marker in description_markers:
                     if marker in para_text:
-                        found_description_start = True
-                        description_paras_to_clear.append(i)
-                        is_marker_para = True
+                        # Clear all runs in this paragraph
+                        for run in para.runs:
+                            run.text = ''
+                        # For the first match, add the new description
+                        if not first_desc_para_found:
+                            if para.runs:
+                                para.runs[0].text = new_description
+                            else:
+                                para.add_run(new_description)
+                            first_desc_para_found = True
                         break
-                # If we've found the description and this paragraph looks like continuation
-                if not is_marker_para and found_description_start and para_text and not para_text.startswith('25.'):
-                    if 'Firms from Section C' in para_text or para_text.startswith('a,'):
-                        break
-                    description_paras_to_clear.append(i)
             
-            # Clear the template description paragraphs
-            for idx in description_paras_to_clear:
-                for run in doc.paragraphs[idx].runs:
-                    run.text = ''
-            
-            # Add the project description to the first cleared paragraph
-            if description_paras_to_clear:
-                first_desc_para = doc.paragraphs[description_paras_to_clear[0]]
-                if first_desc_para.runs:
-                    first_desc_para.runs[0].text = project.brief_description or 'No description provided.'
-                else:
-                    first_desc_para.add_run(project.brief_description or 'No description provided.')
-                
-                # Add project cost after description if available
-                if project.project_cost and len(description_paras_to_clear) > 1:
-                    cost_para = doc.paragraphs[description_paras_to_clear[1]]
-                    if cost_para.runs:
-                        run = cost_para.runs[0]
-                        run.text = f"Project Cost: {project.project_cost}"
-                        run.bold = True
-                    else:
-                        run = cost_para.add_run(f"Project Cost: {project.project_cost}")
-                        run.bold = True
-                
-                # Add team members list after cost
-                if team_links and len(description_paras_to_clear) > 2:
-                    team_para = doc.paragraphs[description_paras_to_clear[2]]
-                    team_text = "Key Personnel: "
-                    team_members = []
-                    for link in team_links:
-                        emp = Employee.query.get(link.employee_id)
-                        if emp:
-                            role = f" ({link.role_on_project})" if link.role_on_project else ""
-                            team_members.append(f"{emp.name}{role}")
-                    team_text += ", ".join(team_members) if team_members else "Not specified"
-                    
-                    if team_para.runs:
-                        run = team_para.runs[0]
-                        run.text = team_text
-                    else:
-                        team_para.add_run(team_text)
+            # Also check table cells for description text
+            for table in doc.tables:
+                for row in table.rows:
+                    for cell in row.cells:
+                        for para in cell.paragraphs:
+                            para_text = para.text.strip()
+                            for marker in description_markers:
+                                if marker in para_text:
+                                    for run in para.runs:
+                                        run.text = ''
+                                    if not first_desc_para_found:
+                                        if para.runs:
+                                            para.runs[0].text = new_description
+                                        else:
+                                            para.add_run(new_description)
+                                        first_desc_para_found = True
+                                    break
         else:
             # Fallback: Create SF330-style document from scratch if template not found
             doc = Document()
