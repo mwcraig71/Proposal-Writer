@@ -7116,8 +7116,8 @@ UEI: {firm.uei or 'N/A'}
                                 personnel_info += "\n"
                                 # Get employee's role on this project
                                 link = EmployeeProjectLink.query.filter_by(employee_id=emp.id, project_id=proj.id).first()
-                                if link and link.role:
-                                    personnel_info += f"    Role: {link.role}\n"
+                                if link and link.role_on_project:
+                                    personnel_info += f"    Role: {link.role_on_project}\n"
                                 if proj.brief_description:
                                     personnel_info += f"    {proj.brief_description[:300]}\n"
                     
