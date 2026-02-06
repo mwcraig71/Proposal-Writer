@@ -7368,6 +7368,162 @@ def delete_proposal_saved_response(proposal_id, response_id):
     return jsonify({'success': True, 'message': 'Response deleted'})
 
 
+@app.route('/api/proposals/<int:proposal_id>/download-text-as-word', methods=['POST'])
+def download_text_as_word(proposal_id):
+    """Download text content as a formatted Word document"""
+    from docx import Document
+    from docx.shared import Pt, Inches, RGBColor
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    import re as re_mod
+    
+    proposal = Proposal.query.get_or_404(proposal_id)
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({'success': False, 'error': 'Invalid request'}), 400
+    content = data.get('content', '').strip()
+    title = data.get('title', 'Document')
+    doc_type = data.get('type', 'general')
+    
+    if not content:
+        return jsonify({'success': False, 'error': 'No content provided'}), 400
+    
+    doc = Document()
+    
+    style = doc.styles['Normal']
+    font = style.font
+    font.name = 'Calibri'
+    font.size = Pt(11)
+    
+    sections = doc.sections
+    for section in sections:
+        section.top_margin = Inches(1)
+        section.bottom_margin = Inches(1)
+        section.left_margin = Inches(1)
+        section.right_margin = Inches(1)
+    
+    if doc_type == 'cover_letter':
+        title_para = doc.add_paragraph()
+        title_run = title_para.add_run(title)
+        title_run.bold = True
+        title_run.font.size = Pt(14)
+        title_run.font.color.rgb = RGBColor(0x1F, 0x2B, 0x77)
+        title_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        if proposal.name:
+            subtitle = doc.add_paragraph()
+            sub_run = subtitle.add_run(proposal.name)
+            sub_run.font.size = Pt(11)
+            sub_run.font.color.rgb = RGBColor(0x66, 0x66, 0x66)
+            subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        doc.add_paragraph('')
+    else:
+        title_para = doc.add_paragraph()
+        title_run = title_para.add_run(title)
+        title_run.bold = True
+        title_run.font.size = Pt(14)
+        title_run.font.color.rgb = RGBColor(0x1F, 0x2B, 0x77)
+        
+        if proposal.name:
+            subtitle = doc.add_paragraph()
+            sub_run = subtitle.add_run(f"Proposal: {proposal.name}")
+            sub_run.font.size = Pt(10)
+            sub_run.font.color.rgb = RGBColor(0x66, 0x66, 0x66)
+            sub_run.italic = True
+        
+        doc.add_paragraph('')
+    
+    lines = content.split('\n')
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        stripped = line.strip()
+        
+        if not stripped:
+            doc.add_paragraph('')
+            i += 1
+            continue
+        
+        is_heading = False
+        if stripped.startswith('# '):
+            p = doc.add_paragraph()
+            run = p.add_run(stripped[2:])
+            run.bold = True
+            run.font.size = Pt(16)
+            run.font.color.rgb = RGBColor(0x1F, 0x2B, 0x77)
+            is_heading = True
+        elif stripped.startswith('## '):
+            p = doc.add_paragraph()
+            run = p.add_run(stripped[3:])
+            run.bold = True
+            run.font.size = Pt(14)
+            run.font.color.rgb = RGBColor(0x2C, 0x3E, 0x8C)
+            is_heading = True
+        elif stripped.startswith('### '):
+            p = doc.add_paragraph()
+            run = p.add_run(stripped[4:])
+            run.bold = True
+            run.font.size = Pt(12)
+            run.font.color.rgb = RGBColor(0x33, 0x33, 0x33)
+            is_heading = True
+        elif stripped.startswith('**') and stripped.endswith('**') and len(stripped) > 4:
+            p = doc.add_paragraph()
+            run = p.add_run(stripped[2:-2])
+            run.bold = True
+            run.font.size = Pt(12)
+            is_heading = True
+        elif re_mod.match(r'^[-*]\s', stripped):
+            p = doc.add_paragraph(style='List Bullet')
+            text = re_mod.sub(r'^[-*]\s+', '', stripped)
+            _add_formatted_runs(p, text)
+        elif re_mod.match(r'^\d+[\.\)]\s', stripped):
+            p = doc.add_paragraph(style='List Number')
+            text = re_mod.sub(r'^\d+[\.\)]\s+', '', stripped)
+            _add_formatted_runs(p, text)
+        else:
+            p = doc.add_paragraph()
+            _add_formatted_runs(p, stripped)
+        
+        i += 1
+    
+    safe_title = ''.join(c for c in title if c.isalnum() or c in ' _-')[:50].strip()
+    filename = f"{safe_title.replace(' ', '_')}.docx"
+    
+    buffer = io.BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name=filename,
+        mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    )
+
+
+def _add_formatted_runs(paragraph, text):
+    """Add text to a paragraph with basic markdown formatting (bold, italic)."""
+    import re as re_mod
+    from docx.shared import Pt
+    
+    parts = re_mod.split(r'(\*\*\*.*?\*\*\*|\*\*.*?\*\*|\*.*?\*)', text)
+    for part in parts:
+        if not part:
+            continue
+        if part.startswith('***') and part.endswith('***'):
+            run = paragraph.add_run(part[3:-3])
+            run.bold = True
+            run.italic = True
+        elif part.startswith('**') and part.endswith('**'):
+            run = paragraph.add_run(part[2:-2])
+            run.bold = True
+        elif part.startswith('*') and part.endswith('*') and len(part) > 2:
+            run = paragraph.add_run(part[1:-1])
+            run.italic = True
+        else:
+            paragraph.add_run(part)
+
+
 # ========== RESPONSES ROUTES ==========
 
 @app.route('/responses')

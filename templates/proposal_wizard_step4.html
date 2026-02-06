@@ -239,15 +239,25 @@
     
     {% if proposal.cover_letter %}
     <div class="mt-6 border-t pt-4">
-        <h3 class="font-semibold text-gray-800 mb-2">Cover Letter</h3>
-        <div class="bg-gray-50 p-4 rounded-lg whitespace-pre-line text-sm">{{ proposal.cover_letter }}</div>
+        <div class="flex justify-between items-center mb-2">
+            <h3 class="font-semibold text-gray-800">Cover Letter</h3>
+            <button onclick="downloadAsWord('', 'Cover Letter', 'cover_letter', 'cover-letter-content')" class="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition">
+                <i class="fas fa-file-word mr-1"></i> Download Word
+            </button>
+        </div>
+        <div class="bg-gray-50 p-4 rounded-lg whitespace-pre-line text-sm" id="cover-letter-content">{{ proposal.cover_letter }}</div>
     </div>
     {% endif %}
     
     {% if proposal.written_sections %}
     <div class="mt-4 border-t pt-4">
-        <h3 class="font-semibold text-gray-800 mb-2">Written Sections</h3>
-        <div class="bg-gray-50 p-4 rounded-lg whitespace-pre-line text-sm">{{ proposal.written_sections }}</div>
+        <div class="flex justify-between items-center mb-2">
+            <h3 class="font-semibold text-gray-800">Written Sections</h3>
+            <button onclick="downloadAsWord('', 'Written Sections', 'general', 'written-sections-content')" class="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition">
+                <i class="fas fa-file-word mr-1"></i> Download Word
+            </button>
+        </div>
+        <div class="bg-gray-50 p-4 rounded-lg whitespace-pre-line text-sm" id="written-sections-content">{{ proposal.written_sections }}</div>
     </div>
     {% endif %}
 </div>
@@ -557,7 +567,7 @@ function addMessageToChat(role, content) {
     if (role === 'assistant') {
         const header = document.createElement('div');
         header.className = 'flex justify-between items-center mb-2 pb-2 border-b';
-        header.innerHTML = '<span class="text-xs text-gray-500"><i class="fas fa-robot mr-1"></i> AI Assistant</span><div class="flex gap-2"><button onclick="saveMessage(this)" class="text-xs text-green-600 hover:text-green-800"><i class="fas fa-save"></i> Save</button><button onclick="copyMessage(this)" class="text-xs text-blue-600 hover:text-blue-800"><i class="fas fa-copy"></i> Copy</button></div>';
+        header.innerHTML = '<span class="text-xs text-gray-500"><i class="fas fa-robot mr-1"></i> AI Assistant</span><div class="flex gap-2"><button onclick="downloadChatMessage(this)" class="text-xs text-purple-600 hover:text-purple-800" title="Download as Word"><i class="fas fa-file-word"></i></button><button onclick="saveMessage(this)" class="text-xs text-green-600 hover:text-green-800"><i class="fas fa-save"></i> Save</button><button onclick="copyMessage(this)" class="text-xs text-blue-600 hover:text-blue-800"><i class="fas fa-copy"></i> Copy</button></div>';
         bubble.appendChild(header);
     }
     
@@ -690,12 +700,13 @@ async function loadSavedResponses() {
                         <span class="text-xs text-gray-400 ml-2">${r.created_at}</span>
                     </div>
                     <div class="flex gap-2">
+                        <button onclick="downloadSavedResponse(this)" class="text-xs text-purple-600 hover:text-purple-800" title="Download as Word"><i class="fas fa-file-word"></i></button>
                         <button onclick="copySavedResponse(this)" class="text-xs text-blue-600 hover:text-blue-800"><i class="fas fa-copy"></i></button>
                         <button onclick="deleteSavedResponse(${r.id})" class="text-xs text-red-600 hover:text-red-800"><i class="fas fa-trash"></i></button>
                     </div>
                 </div>
                 ${r.prompt ? `<p class="text-xs text-gray-500 mb-1"><strong>Prompt:</strong> ${r.prompt.substring(0, 100)}${r.prompt.length > 100 ? '...' : ''}</p>` : ''}
-                <div class="text-sm text-gray-700 whitespace-pre-wrap max-h-32 overflow-y-auto">${r.response}</div>
+                <div class="text-sm text-gray-700 whitespace-pre-wrap max-h-32 overflow-y-auto saved-response-text">${r.response}</div>
             </div>
         `).join('');
     } catch (e) {
@@ -845,6 +856,61 @@ async function loadLinkedReferences() {
     } catch (e) {
         console.error('Error loading references:', e);
     }
+}
+
+async function downloadAsWord(content, title, docType, elementId) {
+    if (!content && elementId) {
+        const el = document.getElementById(elementId);
+        if (el) content = el.textContent || el.innerText;
+    }
+    if (!content || !content.trim()) {
+        alert('No content to download.');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/proposals/{{ proposal.id }}/download-text-as-word', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content: content, title: title || 'Document', type: docType || 'general' })
+        });
+        
+        if (!response.ok) {
+            alert('Error generating document');
+            return;
+        }
+        
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const contentDisp = response.headers.get('content-disposition');
+        let filename = title.replace(/\s+/g, '_') + '.docx';
+        if (contentDisp) {
+            const match = contentDisp.match(/filename=(.+)/);
+            if (match) filename = match[1].replace(/"/g, '');
+        }
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+function downloadChatMessage(btn) {
+    const bubble = btn.closest('.bg-white');
+    const text = bubble.querySelector('.whitespace-pre-wrap').textContent;
+    downloadAsWord(text, 'AI Response', 'general');
+}
+
+function downloadSavedResponse(btn) {
+    const container = btn.closest('[data-id]');
+    const label = container.querySelector('.font-medium')?.textContent || 'Saved Response';
+    const text = container.querySelector('.saved-response-text')?.textContent || '';
+    downloadAsWord(text, label, 'general');
 }
 
 async function unlinkReference(referenceId) {
