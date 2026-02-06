@@ -3723,11 +3723,13 @@ def create_default_sf330_template():
     
     p24 = doc.add_paragraph()
     p24.add_run('24. Brief description and specific role: ').bold = True
-    doc.add_paragraph('{{BRIEF_DESCRIPTION}}')
+    desc_para = doc.add_paragraph()
+    desc_para.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    desc_para.add_run('{{BRIEF_DESCRIPTION}}')
     
     cost_p = doc.add_paragraph()
-    cost_p.add_run('Project Cost: ').bold = True
-    cost_p.add_run('{{PROJECT_COST}}')
+    cost_p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    cost_p.add_run('Project Cost: {{PROJECT_COST}}')
     
     delivery_p = doc.add_paragraph()
     delivery_p.add_run('Delivery Method: ').bold = True
