@@ -137,17 +137,25 @@ uploadBtn.addEventListener('click', async () => {
     }
 });
 
+function escapeHtml(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
 function displayResults(data) {
     resultsSection.classList.remove('hidden');
     
     const typeColors = {
         'employee': 'bg-green-100 text-green-800',
         'project': 'bg-purple-100 text-purple-800',
+        'projects': 'bg-purple-100 text-purple-800',
         'firm': 'bg-blue-100 text-blue-800',
         'unknown': 'bg-gray-100 text-gray-800'
     };
     
-    docTypeBadge.className = `px-3 py-1 rounded-full text-sm font-medium ${typeColors[data.doc_type]}`;
+    docTypeBadge.className = `px-3 py-1 rounded-full text-sm font-medium ${typeColors[data.doc_type] || typeColors['unknown']}`;
     docTypeBadge.textContent = data.doc_type.charAt(0).toUpperCase() + data.doc_type.slice(1);
     
     parsedForm.innerHTML = '';
@@ -156,7 +164,7 @@ function displayResults(data) {
         parsedForm.innerHTML = `
             <div class="bg-yellow-50 p-4 rounded-lg">
                 <p class="text-yellow-800">Could not determine document type. Raw text preview:</p>
-                <pre class="mt-2 text-sm text-gray-600 whitespace-pre-wrap">${data.raw_text}</pre>
+                <pre class="mt-2 text-sm text-gray-600 whitespace-pre-wrap">${escapeHtml(data.raw_text)}</pre>
             </div>
         `;
         saveBtn.classList.add('hidden');
@@ -165,10 +173,22 @@ function displayResults(data) {
     
     saveBtn.classList.remove('hidden');
     
+    if (data.doc_type === 'project' && data.parsed_data.team_members && Array.isArray(data.parsed_data.team_members) && data.parsed_data.team_members.length > 0) {
+        let teamHtml = `<div class="mb-4"><label class="block text-sm font-medium text-gray-700 mb-1">Team Members</label>`;
+        teamHtml += `<div class="space-y-1 bg-gray-50 p-3 rounded-lg max-h-48 overflow-y-auto">`;
+        data.parsed_data.team_members.forEach(m => {
+            teamHtml += `<div class="flex justify-between text-sm bg-white p-2 rounded border">
+                <span class="font-medium">${escapeHtml(m.name || '')}</span>
+                <span class="text-gray-600">${escapeHtml(m.role_on_project || '')}</span>
+            </div>`;
+        });
+        teamHtml += `</div><p class="text-xs text-gray-500 mt-1">${data.parsed_data.team_members.length} team member(s) found</p></div>`;
+        parsedForm.innerHTML += teamHtml;
+    }
+    
     for (const [key, value] of Object.entries(data.parsed_data)) {
         if (key === 'team_members' && Array.isArray(value)) continue;
         
-        // Handle project_experience array specially
         if (key === 'project_experience' && Array.isArray(value)) {
             let expHtml = `<div><label class="block text-sm font-medium text-gray-700 mb-1">${formatLabel(key)}</label>`;
             expHtml += `<div class="space-y-2 bg-gray-50 p-3 rounded-lg max-h-64 overflow-y-auto">`;
@@ -179,9 +199,9 @@ function displayResults(data) {
                 const role = exp.role_performed || exp.role || '';
                 const desc = exp.brief_description || exp.description || '';
                 expHtml += `<div class="bg-white p-2 rounded border text-sm">
-                    <div class="font-medium">${title}${loc ? ', ' + loc : ''}${year ? ' (' + year + ')' : ''}</div>
-                    ${role ? '<div class="text-gray-600">Role: ' + role + '</div>' : ''}
-                    ${desc ? '<div class="text-gray-500 text-xs mt-1">' + desc.substring(0, 150) + (desc.length > 150 ? '...' : '') + '</div>' : ''}
+                    <div class="font-medium">${escapeHtml(title)}${loc ? ', ' + escapeHtml(loc) : ''}${year ? ' (' + escapeHtml(year) + ')' : ''}</div>
+                    ${role ? '<div class="text-gray-600">Role: ' + escapeHtml(role) + '</div>' : ''}
+                    ${desc ? '<div class="text-gray-500 text-xs mt-1">' + escapeHtml(desc.substring(0, 150)) + (desc.length > 150 ? '...' : '') + '</div>' : ''}
                 </div>`;
             });
             expHtml += `</div><p class="text-xs text-gray-500 mt-1">${value.length} project(s) will be saved to resume</p></div>`;
@@ -189,19 +209,34 @@ function displayResults(data) {
             continue;
         }
         
-        // Skip other arrays/objects
         if (Array.isArray(value) || (typeof value === 'object' && value !== null)) continue;
         
-        const isLong = typeof value === 'string' && value.length > 100;
-        parsedForm.innerHTML += `
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">${formatLabel(key)}</label>
-                ${isLong ? 
-                    `<textarea class="w-full p-2 border rounded-lg" rows="3" data-field="${key}">${value || ''}</textarea>` :
-                    `<input type="text" class="w-full p-2 border rounded-lg" data-field="${key}" value="${value || ''}">`
-                }
-            </div>
-        `;
+        const strVal = value != null ? String(value) : '';
+        const isLong = strVal.length > 100;
+        
+        const fieldDiv = document.createElement('div');
+        const label = document.createElement('label');
+        label.className = 'block text-sm font-medium text-gray-700 mb-1';
+        label.textContent = formatLabel(key);
+        fieldDiv.appendChild(label);
+        
+        if (isLong) {
+            const textarea = document.createElement('textarea');
+            textarea.className = 'w-full p-2 border rounded-lg';
+            textarea.rows = 3;
+            textarea.dataset.field = key;
+            textarea.textContent = strVal;
+            fieldDiv.appendChild(textarea);
+        } else {
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'w-full p-2 border rounded-lg';
+            input.dataset.field = key;
+            input.value = strVal;
+            fieldDiv.appendChild(input);
+        }
+        
+        parsedForm.appendChild(fieldDiv);
     }
 }
 
