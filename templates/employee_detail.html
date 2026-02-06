@@ -82,6 +82,14 @@
                     <label class="block text-sm font-medium text-gray-700 mb-1">Years with Firm</label>
                     <input type="number" name="years_experience_firm" value="{{ employee.years_experience_firm or '' }}" class="w-full p-2 border rounded-lg">
                 </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">City</label>
+                    <input type="text" name="city" value="{{ employee.city or '' }}" class="w-full p-2 border rounded-lg" placeholder="e.g., Columbia">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">State</label>
+                    <input type="text" name="state" value="{{ employee.state or '' }}" class="w-full p-2 border rounded-lg" placeholder="e.g., SC">
+                </div>
             </div>
             
             <div>

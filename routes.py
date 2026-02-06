@@ -668,10 +668,19 @@ def download_employee_resume(id):
             individual_project_placeholders[f'{{{{PROJECT_EXPERIENCE_{idx}_DESCRIPTION}}}}'] = exp.active_description or ''
         project_exp_str = '\n\n'.join(exp_lines)
     
+    employee_location_parts = [employee.city or '', employee.state or '']
+    employee_location = ', '.join(p for p in employee_location_parts if p)
+    
     placeholders = {
         '{{EMPLOYEE_NAME}}': employee.display_name or employee.name or '',
+        '{{EMPLOYEE_FIRST_NAME}}': employee.first_name or '',
+        '{{EMPLOYEE_MIDDLE_NAME}}': employee.middle_name or '',
+        '{{EMPLOYEE_LAST_NAME}}': employee.last_name or '',
         '{{EMPLOYEE_TITLE}}': employee.title or '',
         '{{EMPLOYEE_ROLE}}': employee.role or '',
+        '{{EMPLOYEE_CITY}}': employee.city or '',
+        '{{EMPLOYEE_STATE}}': employee.state or '',
+        '{{EMPLOYEE_LOCATION}}': employee_location,
         '{{FIRM_NAME}}': firm.name if firm else '',
         '{{FIRM_CITY}}': firm.city if firm else '',
         '{{FIRM_STATE}}': firm.state if firm else '',
@@ -811,10 +820,19 @@ def download_employee_sf330_resume(id):
             individual_project_placeholders[f'{{{{PROJECT_EXPERIENCE_{idx}_DESCRIPTION}}}}'] = exp.active_description or ''
         project_exp_str = '\n\n'.join(exp_lines)
     
+    employee_location_parts = [employee.city or '', employee.state or '']
+    employee_location = ', '.join(p for p in employee_location_parts if p)
+    
     placeholders = {
         '{{EMPLOYEE_NAME}}': employee.display_name or employee.name or '',
+        '{{EMPLOYEE_FIRST_NAME}}': employee.first_name or '',
+        '{{EMPLOYEE_MIDDLE_NAME}}': employee.middle_name or '',
+        '{{EMPLOYEE_LAST_NAME}}': employee.last_name or '',
         '{{EMPLOYEE_TITLE}}': employee.title or '',
         '{{EMPLOYEE_ROLE}}': employee.role or '',
+        '{{EMPLOYEE_CITY}}': employee.city or '',
+        '{{EMPLOYEE_STATE}}': employee.state or '',
+        '{{EMPLOYEE_LOCATION}}': employee_location,
         '{{FIRM_NAME}}': firm.name if firm else '',
         '{{FIRM_CITY}}': firm.city if firm else '',
         '{{FIRM_STATE}}': firm.state if firm else '',
@@ -928,6 +946,8 @@ def update_employee(id):
     employee.last_name = last_name.strip() if last_name.strip() else None
     employee.nickname = nickname.strip() if nickname and nickname.strip() else None
     employee.name = full_name if full_name else data.get('name', employee.name)
+    employee.city = data.get('city', employee.city) or None
+    employee.state = data.get('state', employee.state) or None
     employee.title = data.get('title', employee.title) or None
     employee.role = data.get('role', employee.role) or None
     employee.years_experience_total = to_int_or_none(data.get('years_experience_total', employee.years_experience_total))

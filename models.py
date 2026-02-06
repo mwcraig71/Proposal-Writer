@@ -87,6 +87,8 @@ class Employee(db.Model):
     registrations = db.Column(db.Text)
     training = db.Column(db.Text)
     other_qualifications = db.Column(db.Text)
+    city = db.Column(db.String(100))
+    state = db.Column(db.String(50))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
