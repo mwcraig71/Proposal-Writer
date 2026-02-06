@@ -1521,9 +1521,13 @@ def download_project(id):
         except:
             pass
         
-        # Fall back to default SF330 template with placeholders
+        # Fall back to attached SF330 template file
         if doc is None:
-            doc = create_default_sf330_template()
+            template_path = 'attached_assets/SF330_Section_F_Template_(1)-mwc_1770394097919.docx'
+            if os.path.exists(template_path):
+                doc = Document(template_path)
+            else:
+                doc = create_default_sf330_template()
         
         # Build key personnel string
         key_personnel_str = ''
@@ -1532,16 +1536,26 @@ def download_project(id):
             for link in team_links:
                 emp = Employee.query.get(link.employee_id)
                 if emp:
-                    role = f" ({link.role_on_project})" if link.role_on_project else ""
+                    role = f" - {link.role_on_project}" if link.role_on_project else ""
                     team_members.append(f"{emp.name}{role}")
-            key_personnel_str = ', '.join(team_members) if team_members else 'Not specified'
+            key_personnel_str = '\n'.join(team_members) if team_members else ''
+        
+        # Build the description block: description + cost + staff
+        description_parts = []
+        if project.brief_description:
+            description_parts.append(project.brief_description)
+        if project.project_cost:
+            description_parts.append(f"\nProject Cost: {project.project_cost}")
+        if key_personnel_str:
+            description_parts.append(f"\nKey Personnel:\n{key_personnel_str}")
+        full_description = '\n'.join(description_parts) if description_parts else ''
         
         # Define all placeholder replacements (same tags as company template)
         placeholders = {
             '{{PROJECT_TITLE}}': project.title or '',
             '{{PROJECT_LOCATION}}': project.location or '',
             '{{PROJECT_COST}}': project.project_cost or '',
-            '{{BRIEF_DESCRIPTION}}': project.brief_description or '',
+            '{{BRIEF_DESCRIPTION}}': full_description,
             '{{DELIVERY_METHOD}}': project.project_delivery_method or '',
             '{{YEAR_COMPLETED_PROFESSIONAL}}': project.year_completed_professional or '',
             '{{YEAR_COMPLETED_CONSTRUCTION}}': project.year_completed_construction or '',
@@ -1563,6 +1577,7 @@ def download_project(id):
                     for run in para.runs:
                         if placeholder in run.text:
                             run.text = run.text.replace(placeholder, value)
+                            run.bold = False
                             replaced = True
                     if not replaced and para.runs:
                         full_text = para.text
@@ -1571,8 +1586,11 @@ def download_project(id):
                             for i, run in enumerate(para.runs):
                                 if i == 0:
                                     run.text = new_text
+                                    run.bold = False
                                 else:
                                     run.text = ''
+                    from docx.enum.text import WD_ALIGN_PARAGRAPH
+                    para.alignment = WD_ALIGN_PARAGRAPH.LEFT
         
         # Replace placeholders in paragraphs
         for para in doc.paragraphs:
@@ -3618,7 +3636,18 @@ def export_template():
     except:
         pass
     
-    # Generate default SF330 template with placeholders
+    # Fall back to attached SF330 template file
+    import os
+    template_path = 'attached_assets/SF330_Section_F_Template_(1)-mwc_1770394097919.docx'
+    if os.path.exists(template_path):
+        return send_file(
+            template_path,
+            as_attachment=True,
+            download_name='SF330_Section_F_Template.docx',
+            mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        )
+    
+    # Last resort: generate default template programmatically
     doc = create_default_sf330_template()
     buffer = io.BytesIO()
     doc.save(buffer)
