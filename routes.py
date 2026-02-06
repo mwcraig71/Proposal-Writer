@@ -608,7 +608,9 @@ def employee_detail(id):
         'linked_project_id': exp.linked_project_id,
         'linked_project_title': exp.linked_project.title if exp.linked_project else None,
         'selected_alt_description_id': exp.selected_alt_description_id,
-        'resume_order': exp.resume_order
+        'resume_order': exp.resume_order,
+        'active_description_label': exp.active_description_label,
+        'alternate_descriptions': [{'id': ad.id, 'label': ad.label} for ad in exp.alternate_descriptions]
     } for exp in project_experiences]
     
     # Find marketing photos tagged with this employee's name
@@ -3408,8 +3410,15 @@ def generate_proposal_word(id):
             exp.title = e.project_title
             exp.location = e.location
             exp.year_completed = e.year_completed
-            exp.description = e.brief_description
+            exp.description = e.active_description or e.brief_description
             exp.role = e.role_performed
+            all_descs = []
+            if e.brief_description:
+                all_descs.append(('Main Description', e.brief_description))
+            for alt in e.alternate_descriptions:
+                if alt.description:
+                    all_descs.append((alt.label, alt.description))
+            exp.all_descriptions = all_descs
             exp_list.append(exp)
         
         doc_e = generate_section_e(emp, proposal, exp_list)
@@ -6621,12 +6630,19 @@ UEI: {firm.uei or 'N/A'}
                                 if proj.brief_description:
                                     personnel_info += f"    {proj.brief_description[:300]}\n"
                     
-                    # Also include general project experience from resume (EmployeeProjectExperience)
-                    experiences = EmployeeProjectExperience.query.filter_by(employee_id=emp.id).order_by(EmployeeProjectExperience.year_completed.desc()).limit(5).all()
+                    numbered_exps = EmployeeProjectExperience.query.filter_by(employee_id=emp.id).filter(
+                        EmployeeProjectExperience.resume_order.isnot(None)
+                    ).order_by(EmployeeProjectExperience.resume_order.asc()).all()
+                    experiences = numbered_exps if numbered_exps else EmployeeProjectExperience.query.filter_by(employee_id=emp.id).order_by(EmployeeProjectExperience.year_completed.desc()).limit(5).all()
                     if experiences:
                         personnel_info += "Additional Project Experience:\n"
                         for exp in experiences:
                             personnel_info += f"  * {exp.project_title} ({exp.year_completed or 'N/A'}) - {exp.role_performed or 'N/A'}\n"
+                            if exp.brief_description:
+                                personnel_info += f"    Main: {exp.brief_description[:300]}\n"
+                            for alt in exp.alternate_descriptions:
+                                if alt.description:
+                                    personnel_info += f"    [{alt.label}]: {alt.description[:300]}\n"
                     
                     personnel_info += "\n"
             sections['personnel'] = personnel_info
