@@ -7,7 +7,13 @@
     <a href="/employees" class="text-blue-600 hover:underline mb-4 inline-block">
         <i class="fas fa-arrow-left mr-2"></i> Back to Personnel
     </a>
-    <h1 class="text-3xl font-bold text-gray-800">{{ employee.name }}</h1>
+    <div class="flex items-center justify-between">
+        <h1 class="text-3xl font-bold text-gray-800">{{ employee.name }}</h1>
+        <a href="/employee/{{ employee.id }}/download" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
+            <i class="fas fa-file-word mr-2"></i>
+            Download Resume
+        </a>
+    </div>
 </div>
 
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">

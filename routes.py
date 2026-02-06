@@ -620,6 +620,102 @@ def employee_detail(id):
                            marketing_photos=marketing_photos, all_projects_json=all_projects_json)
 
 
+@app.route('/employee/<int:id>/download')
+def download_employee_resume(id):
+    """Download employee resume using template with placeholder replacement"""
+    employee = Employee.query.get_or_404(id)
+    firm = Firm.query.get(employee.firm_id) if employee.firm_id else None
+    
+    doc = None
+    try:
+        client = get_storage_client()
+        template_bytes = client.download_as_bytes('templates/resume_template_custom.docx')
+        if template_bytes:
+            from docx import Document
+            doc = Document(io.BytesIO(template_bytes))
+    except:
+        pass
+    
+    if doc is None:
+        doc = create_default_resume_template()
+    
+    project_exp_str = ''
+    experiences = EmployeeProjectExperience.query.filter_by(employee_id=id).order_by(EmployeeProjectExperience.year_completed.desc()).all()
+    if experiences:
+        exp_lines = []
+        for exp in experiences:
+            line = exp.project_title or 'Untitled'
+            if exp.role_performed:
+                line += f" - {exp.role_performed}"
+            if exp.location:
+                line += f" | {exp.location}"
+            if exp.year_completed:
+                line += f" ({exp.year_completed})"
+            if exp.active_description:
+                line += f"\n{exp.active_description}"
+            exp_lines.append(line)
+        project_exp_str = '\n\n'.join(exp_lines)
+    
+    placeholders = {
+        '{{EMPLOYEE_NAME}}': employee.display_name or employee.name or '',
+        '{{EMPLOYEE_TITLE}}': employee.title or '',
+        '{{EMPLOYEE_ROLE}}': employee.role or '',
+        '{{FIRM_NAME}}': firm.name if firm else '',
+        '{{FIRM_CITY}}': firm.city if firm else '',
+        '{{FIRM_STATE}}': firm.state if firm else '',
+        '{{YEARS_EXPERIENCE_TOTAL}}': str(employee.years_experience_total) if employee.years_experience_total else '',
+        '{{YEARS_EXPERIENCE_FIRM}}': str(employee.years_experience_firm) if employee.years_experience_firm else '',
+        '{{EDUCATION}}': employee.education or '',
+        '{{REGISTRATIONS}}': employee.registrations or '',
+        '{{BIO}}': employee.bio or '',
+        '{{TRAINING}}': employee.training or '',
+        '{{OTHER_QUALIFICATIONS}}': employee.other_qualifications or '',
+        '{{PROJECT_EXPERIENCE}}': project_exp_str,
+    }
+    
+    def replace_resume_placeholders_in_para(para, placeholders):
+        for placeholder, value in placeholders.items():
+            if placeholder in para.text:
+                replaced = False
+                for run in para.runs:
+                    if placeholder in run.text:
+                        run.text = run.text.replace(placeholder, value)
+                        replaced = True
+                if not replaced and para.runs:
+                    full_text = para.text
+                    new_text = full_text.replace(placeholder, value)
+                    if full_text != new_text:
+                        for i, run in enumerate(para.runs):
+                            if i == 0:
+                                run.text = new_text
+                            else:
+                                run.text = ''
+    
+    for para in doc.paragraphs:
+        replace_resume_placeholders_in_para(para, placeholders)
+    
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                for para in cell.paragraphs:
+                    replace_resume_placeholders_in_para(para, placeholders)
+    
+    safe_name = employee.display_name or employee.name or 'Employee'
+    safe_name = ''.join(c for c in safe_name if c.isalnum() or c in ' _-')[:50].strip()
+    filename = f"Resume_{safe_name.replace(' ', '_')}.docx"
+    
+    buffer = io.BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name=filename,
+        mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    )
+
+
 @app.route('/employees/<int:id>', methods=['PUT'])
 def update_employee(id):
     employee = Employee.query.get_or_404(id)
@@ -3590,8 +3686,17 @@ def settings():
     except:
         pass
     
+    has_resume_template = False
+    try:
+        client = get_storage_client()
+        obj = client.download_as_bytes('templates/resume_template_custom.docx')
+        has_resume_template = obj is not None
+    except:
+        pass
+    
     return render_template('settings.html', ai_style=ai_style, ai_tone=ai_tone, 
-                           has_custom_template=has_custom_template, has_company_template=has_company_template)
+                           has_custom_template=has_custom_template, has_company_template=has_company_template,
+                           has_resume_template=has_resume_template)
 
 
 @app.route('/settings', methods=['POST'])
@@ -3843,6 +3948,65 @@ def create_default_company_template():
     return doc
 
 
+def create_default_resume_template():
+    """Create a default resume template with placeholders"""
+    from docx import Document
+    from docx.shared import Inches, Pt
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    
+    doc = Document()
+    
+    header = doc.add_heading('{{EMPLOYEE_NAME}}', 0)
+    header.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    
+    subtitle = doc.add_paragraph()
+    subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = subtitle.add_run('{{EMPLOYEE_TITLE}}')
+    run.italic = True
+    
+    doc.add_paragraph()
+    
+    doc.add_heading('Personnel Information', level=1)
+    
+    info_table = doc.add_table(rows=5, cols=2)
+    info_table.style = 'Table Grid'
+    
+    info_rows = [
+        ('Role:', '{{EMPLOYEE_ROLE}}'),
+        ('Firm:', '{{FIRM_NAME}}'),
+        ('Years Experience (Total):', '{{YEARS_EXPERIENCE_TOTAL}}'),
+        ('Years Experience (Firm):', '{{YEARS_EXPERIENCE_FIRM}}'),
+        ('Firm Location:', '{{FIRM_CITY}}, {{FIRM_STATE}}'),
+    ]
+    
+    for i, (label, value) in enumerate(info_rows):
+        row = info_table.rows[i]
+        row.cells[0].paragraphs[0].add_run(label).bold = True
+        row.cells[1].text = value
+    
+    doc.add_paragraph()
+    
+    doc.add_heading('Education', level=1)
+    doc.add_paragraph('{{EDUCATION}}')
+    
+    doc.add_heading('Registrations / Certifications', level=1)
+    doc.add_paragraph('{{REGISTRATIONS}}')
+    
+    doc.add_heading('Professional Summary', level=1)
+    doc.add_paragraph('{{BIO}}')
+    
+    doc.add_heading('Training', level=1)
+    doc.add_paragraph('{{TRAINING}}')
+    
+    doc.add_heading('Other Qualifications', level=1)
+    doc.add_paragraph('{{OTHER_QUALIFICATIONS}}')
+    
+    doc.add_heading('Project Experience', level=1)
+    doc.add_paragraph('{{PROJECT_EXPERIENCE}}')
+    
+    return doc
+
+
 @app.route('/settings/company-template/export')
 def export_company_template():
     """Download the company template"""
@@ -3918,6 +4082,78 @@ def reset_company_template():
         client = get_storage_client()
         client.delete('templates/company_template_custom.docx')
         flash('Company template reset to default successfully!', 'success')
+    except Exception as e:
+        flash(f'Error resetting template: {str(e)}', 'error')
+    
+    return redirect(url_for('settings'))
+
+
+@app.route('/settings/resume-template/export')
+def export_resume_template():
+    """Download the resume template"""
+    try:
+        client = get_storage_client()
+        template_bytes = client.download_as_bytes('templates/resume_template_custom.docx')
+        if template_bytes:
+            return send_file(
+                io.BytesIO(template_bytes),
+                as_attachment=True,
+                download_name='Resume_Template.docx',
+                mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            )
+    except:
+        pass
+    
+    doc = create_default_resume_template()
+    buffer = io.BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name='Resume_Template.docx',
+        mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    )
+
+
+@app.route('/settings/resume-template/import', methods=['POST'])
+def import_resume_template():
+    """Upload a custom resume template"""
+    if 'template' not in request.files:
+        flash('No file uploaded', 'error')
+        return redirect(url_for('settings'))
+    
+    file = request.files['template']
+    if file.filename == '':
+        flash('No file selected', 'error')
+        return redirect(url_for('settings'))
+    
+    if not file.filename.lower().endswith('.docx'):
+        flash('Please upload a .docx file', 'error')
+        return redirect(url_for('settings'))
+    
+    try:
+        file_content = file.read()
+        from docx import Document
+        doc = Document(io.BytesIO(file_content))
+        
+        client = get_storage_client()
+        client.upload_from_bytes('templates/resume_template_custom.docx', file_content)
+        
+        flash('Custom resume template uploaded successfully!', 'success')
+    except Exception as e:
+        flash(f'Error uploading template: {str(e)}', 'error')
+    
+    return redirect(url_for('settings'))
+
+
+@app.route('/settings/resume-template/reset', methods=['POST'])
+def reset_resume_template():
+    """Remove custom resume template and reset to default"""
+    try:
+        client = get_storage_client()
+        client.delete('templates/resume_template_custom.docx')
+        flash('Resume template reset to default successfully!', 'success')
     except Exception as e:
         flash(f'Error resetting template: {str(e)}', 'error')
     
