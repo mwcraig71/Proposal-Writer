@@ -3210,12 +3210,16 @@ def proposal_step2(id):
     
     if request.method == 'GET':
         employees = Employee.query.order_by(Employee.name).all()
+        firms = Firm.query.order_by(Firm.name).all()
+        firm_map = {f.id: f.name for f in firms}
         selected_ids = [se.employee_id for se in proposal.selected_employees]
         selected_roles = {se.employee_id: se.role_in_contract for se in proposal.selected_employees}
         proposals_with_orgcharts = Proposal.query.filter(Proposal.org_chart_data.isnot(None)).order_by(Proposal.created_at.desc()).all()
         return render_template('proposal_wizard_step2.html', 
                              proposal=proposal, 
                              employees=employees,
+                             firms=firms,
+                             firm_map=firm_map,
                              selected_ids=selected_ids,
                              selected_roles=selected_roles,
                              proposals_with_orgcharts=proposals_with_orgcharts)

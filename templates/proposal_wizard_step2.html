@@ -32,7 +32,7 @@
 
 <div class="bg-white rounded-lg shadow p-6">
     <div class="mb-6">
-        <p class="text-gray-600">Select the key personnel to include in Section E of the SF330. You can also specify each person's role in this contract.</p>
+        <p class="text-gray-600">Select the key personnel to include in Section E of the SF330. You can specify multiple roles per person (comma-separated).</p>
     </div>
     
     <div class="mb-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
@@ -71,6 +71,33 @@
         </div>
     </div>
     
+    <div class="mb-4 flex flex-wrap items-center gap-3 p-3 bg-gray-50 rounded-lg border">
+        <div class="flex items-center gap-2">
+            <label class="text-sm font-medium text-gray-600"><i class="fas fa-filter mr-1"></i> Filter:</label>
+            <select id="filter-firm" class="p-2 border rounded-lg text-sm">
+                <option value="">All Firms</option>
+                {% for firm in firms %}
+                <option value="{{ firm.id }}">{{ firm.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="flex items-center gap-2">
+            <input type="text" id="filter-role" placeholder="Filter by role..." class="p-2 border rounded-lg text-sm w-48">
+        </div>
+        <div class="flex items-center gap-2">
+            <input type="text" id="filter-name" placeholder="Search by name..." class="p-2 border rounded-lg text-sm w-48">
+        </div>
+        <div class="flex items-center gap-2 ml-auto">
+            <label class="text-sm font-medium text-gray-600"><i class="fas fa-sort mr-1"></i> Sort:</label>
+            <select id="sort-by" class="p-2 border rounded-lg text-sm">
+                <option value="name">Name</option>
+                <option value="firm">Firm</option>
+                <option value="role">Company Role</option>
+                <option value="selected">Selected First</option>
+            </select>
+        </div>
+    </div>
+
     <datalist id="role-options">
         <option value="PM">
         <option value="DPM">
@@ -88,25 +115,48 @@
     </datalist>
     
     {% if employees %}
-    <div class="space-y-4 mb-6" id="personnel-list">
+    <div class="space-y-2 mb-6" id="personnel-list">
         {% for employee in employees %}
-        <div class="flex items-center p-4 border rounded-lg hover:bg-gray-50">
+        <div class="employee-row flex items-center p-4 border rounded-lg hover:bg-gray-50 transition"
+             data-emp-id="{{ employee.id }}"
+             data-firm-id="{{ employee.firm_id or '' }}"
+             data-firm-name="{{ firm_map.get(employee.firm_id, '') if employee.firm_id else '' }}"
+             data-company-role="{{ employee.role or employee.title or '' }}"
+             data-name="{{ employee.name }}">
             <input type="checkbox" id="emp-{{ employee.id }}" value="{{ employee.id }}" 
                    {% if employee.id in selected_ids %}checked{% endif %}
                    class="employee-checkbox w-5 h-5 text-blue-600 rounded mr-4">
-            <div class="flex-1">
+            <div class="flex-1 min-w-0">
                 <label for="emp-{{ employee.id }}" class="font-medium text-gray-800 cursor-pointer">{{ employee.name }}</label>
-                <p class="text-sm text-gray-500">{{ employee.role or employee.title or 'No role specified' }} | {{ employee.years_experience_total or '-' }} years exp.</p>
+                <p class="text-sm text-gray-500">
+                    {{ employee.role or employee.title or 'No role specified' }}
+                    {% if employee.firm_id and firm_map.get(employee.firm_id) %}
+                    <span class="text-gray-400">|</span>
+                    <span class="text-blue-600">{{ firm_map.get(employee.firm_id) }}</span>
+                    {% endif %}
+                    <span class="text-gray-400">|</span> {{ employee.years_experience_total or '-' }} yrs exp.
+                </p>
             </div>
-            <div class="w-64">
-                <input type="text" placeholder="Role in this contract" 
-                       data-emp-id="{{ employee.id }}" 
-                       class="role-input w-full p-2 border rounded text-sm"
-                       list="role-options"
-                       value="{{ selected_roles.get(employee.id, '') or '' }}">
+            <div class="w-72 flex-shrink-0">
+                <div class="relative">
+                    <input type="text" placeholder="Role(s) in this contract (comma-separated)" 
+                           data-emp-id="{{ employee.id }}" 
+                           class="role-input w-full p-2 border rounded text-sm pr-8"
+                           list="role-options"
+                           value="{{ selected_roles.get(employee.id, '') or '' }}"
+                           title="Enter multiple roles separated by commas">
+                    {% if selected_roles.get(employee.id, '') and ',' in (selected_roles.get(employee.id, '') or '') %}
+                    <span class="absolute right-2 top-1/2 -translate-y-1/2 bg-blue-100 text-blue-700 text-xs px-1.5 py-0.5 rounded-full">
+                        {{ (selected_roles.get(employee.id, '') or '').split(',')|length }}
+                    </span>
+                    {% endif %}
+                </div>
             </div>
         </div>
         {% endfor %}
+    </div>
+    <div id="no-results" class="text-center py-8 hidden">
+        <p class="text-gray-500">No personnel match the current filters.</p>
     </div>
     {% else %}
     <div class="text-center py-8">
@@ -118,15 +168,69 @@
         <a href="/proposals/new" class="px-6 py-3 border rounded-lg text-gray-700 hover:bg-gray-50 transition">
             <i class="fas fa-arrow-left mr-2"></i> Back
         </a>
-        <button id="next-btn" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
-            Next: Select Projects <i class="fas fa-arrow-right ml-2"></i>
-        </button>
+        <div class="flex items-center gap-3">
+            <span id="selected-count" class="text-sm text-gray-500"></span>
+            <button id="next-btn" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                Next: Select Projects <i class="fas fa-arrow-right ml-2"></i>
+            </button>
+        </div>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+function applyFiltersAndSort() {
+    const firmFilter = document.getElementById('filter-firm').value;
+    const roleFilter = document.getElementById('filter-role').value.toLowerCase().trim();
+    const nameFilter = document.getElementById('filter-name').value.toLowerCase().trim();
+    const sortBy = document.getElementById('sort-by').value;
+    
+    const rows = Array.from(document.querySelectorAll('.employee-row'));
+    let visibleCount = 0;
+    
+    rows.forEach(row => {
+        let show = true;
+        if (firmFilter && row.dataset.firmId !== firmFilter) show = false;
+        if (roleFilter && !(row.dataset.companyRole || '').toLowerCase().includes(roleFilter)) show = false;
+        if (nameFilter && !(row.dataset.name || '').toLowerCase().includes(nameFilter)) show = false;
+        
+        row.style.display = show ? '' : 'none';
+        if (show) visibleCount++;
+    });
+    
+    document.getElementById('no-results').classList.toggle('hidden', visibleCount > 0);
+    
+    const list = document.getElementById('personnel-list');
+    const sortedRows = rows.sort((a, b) => {
+        if (sortBy === 'firm') {
+            return (a.dataset.firmName || 'zzz').localeCompare(b.dataset.firmName || 'zzz');
+        } else if (sortBy === 'role') {
+            return (a.dataset.companyRole || 'zzz').localeCompare(b.dataset.companyRole || 'zzz');
+        } else if (sortBy === 'selected') {
+            const aChecked = a.querySelector('.employee-checkbox').checked ? 0 : 1;
+            const bChecked = b.querySelector('.employee-checkbox').checked ? 0 : 1;
+            if (aChecked !== bChecked) return aChecked - bChecked;
+            return a.dataset.name.localeCompare(b.dataset.name);
+        }
+        return a.dataset.name.localeCompare(b.dataset.name);
+    });
+    
+    sortedRows.forEach(row => list.appendChild(row));
+}
+
+function updateSelectedCount() {
+    const count = document.querySelectorAll('.employee-checkbox:checked').length;
+    document.getElementById('selected-count').textContent = count > 0 ? `${count} selected` : '';
+}
+
+document.getElementById('filter-firm').addEventListener('change', applyFiltersAndSort);
+document.getElementById('filter-role').addEventListener('input', applyFiltersAndSort);
+document.getElementById('filter-name').addEventListener('input', applyFiltersAndSort);
+document.getElementById('sort-by').addEventListener('change', applyFiltersAndSort);
+document.querySelectorAll('.employee-checkbox').forEach(cb => cb.addEventListener('change', updateSelectedCount));
+updateSelectedCount();
+
 async function importFromOrgChart(proposalId, buttonEl) {
     const originalHtml = buttonEl.innerHTML;
     buttonEl.disabled = true;
@@ -144,20 +248,32 @@ async function importFromOrgChart(proposalId, buttonEl) {
                 input.value = '';
             });
             
-            let imported = 0;
+            const rolesByEmployee = {};
             result.personnel.forEach(person => {
-                const checkbox = document.getElementById(`emp-${person.employee_id}`);
-                const roleInput = document.querySelector(`.role-input[data-emp-id="${person.employee_id}"]`);
+                const empId = person.employee_id;
+                if (!rolesByEmployee[empId]) {
+                    rolesByEmployee[empId] = [];
+                }
+                if (person.role && !rolesByEmployee[empId].includes(person.role)) {
+                    rolesByEmployee[empId].push(person.role);
+                }
+            });
+            
+            let imported = 0;
+            Object.entries(rolesByEmployee).forEach(([empId, roles]) => {
+                const checkbox = document.getElementById(`emp-${empId}`);
+                const roleInput = document.querySelector(`.role-input[data-emp-id="${empId}"]`);
                 
                 if (checkbox) {
                     checkbox.checked = true;
                     imported++;
                 }
-                if (roleInput && person.role) {
-                    roleInput.value = person.role;
+                if (roleInput && roles.length > 0) {
+                    roleInput.value = roles.join(', ');
                 }
             });
             
+            updateSelectedCount();
             alert(`Imported ${imported} personnel from org chart.`);
         } else if (result.personnel && result.personnel.length === 0) {
             alert('No personnel found in this org chart. Make sure you have assigned staff to roles in the org chart builder.');
