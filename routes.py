@@ -607,7 +607,8 @@ def employee_detail(id):
         'project_cost': exp.project_cost,
         'linked_project_id': exp.linked_project_id,
         'linked_project_title': exp.linked_project.title if exp.linked_project else None,
-        'selected_alt_description_id': exp.selected_alt_description_id
+        'selected_alt_description_id': exp.selected_alt_description_id,
+        'resume_order': exp.resume_order
     } for exp in project_experiences]
     
     # Find marketing photos tagged with this employee's name
@@ -640,10 +641,12 @@ def download_employee_resume(id):
         doc = create_default_resume_template()
     
     project_exp_str = ''
-    experiences = EmployeeProjectExperience.query.filter_by(employee_id=id).order_by(EmployeeProjectExperience.year_completed.desc()).all()
-    if experiences:
+    numbered_experiences = EmployeeProjectExperience.query.filter_by(employee_id=id).filter(
+        EmployeeProjectExperience.resume_order.isnot(None)
+    ).order_by(EmployeeProjectExperience.resume_order.asc()).all()
+    if numbered_experiences:
         exp_lines = []
-        for exp in experiences:
+        for exp in numbered_experiences:
             line = exp.project_title or 'Untitled'
             if exp.role_performed:
                 line += f" - {exp.role_performed}"
@@ -926,6 +929,37 @@ def toggle_sf330_include(id, exp_id):
     exp.sf330_include = not exp.sf330_include
     db.session.commit()
     return jsonify({'success': True, 'sf330_include': exp.sf330_include})
+
+
+@app.route('/employees/<int:id>/update-resume-orders', methods=['POST'])
+def update_resume_orders(id):
+    """Update resume_order for multiple project experiences"""
+    data = request.json
+    orders = data.get('orders', {})
+    try:
+        for exp_id_str, order_val in orders.items():
+            exp = EmployeeProjectExperience.query.filter_by(id=int(exp_id_str), employee_id=id).first()
+            if exp:
+                exp.resume_order = int(order_val) if order_val not in (None, '', 0) else None
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/employees/<int:id>/clear-resume-orders', methods=['POST'])
+def clear_resume_orders(id):
+    """Clear all resume_order values for an employee's project experiences"""
+    try:
+        exps = EmployeeProjectExperience.query.filter_by(employee_id=id).all()
+        for exp in exps:
+            exp.resume_order = None
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)})
 
 
 @app.route('/employees/<int:id>/get-experiences')
@@ -3350,7 +3384,9 @@ def generate_proposal_word(id):
         employee = pse.employee
         if not employee:
             continue
-        experiences = list(employee.project_experiences) if employee else []
+        numbered_exps = [e for e in (employee.project_experiences if employee else []) if e.resume_order is not None]
+        numbered_exps.sort(key=lambda e: e.resume_order or 0)
+        experiences = numbered_exps
         
         class EmpWrapper:
             pass

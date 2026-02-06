@@ -133,6 +133,7 @@ class EmployeeProjectExperience(db.Model):
     firm_name = db.Column(db.String(255))
     is_current_firm = db.Column(db.Boolean, default=False)
     sf330_include = db.Column(db.Boolean, default=False)
+    resume_order = db.Column(db.Integer, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
