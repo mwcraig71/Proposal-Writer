@@ -1521,173 +1521,69 @@ def download_project(id):
         except:
             pass
         
-        # Fall back to default TXDOT template
+        # Fall back to default SF330 template with placeholders
         if doc is None:
-            template_path = 'attached_assets/330_Section_F_Standards_TXDOT_Complex_1770229590122.docx'
-            if os.path.exists(template_path):
-                doc = Document(template_path)
+            doc = create_default_sf330_template()
         
-        if doc is not None:
-            
-            # Define replacements - mapping bold placeholder text to project values
-            replacements = {
-                'TxDOT Statewide Complex Bridge Inspections (2021 – Ongoing)': project.title or '',
-                'Statewide, Texas': project.location or '',
-                '2021-Ongoing': project.year_completed_professional or 'N/A',
-                'NA': project.year_completed_construction or 'N/A',
-                'TXDOT': project.owner_name or '',
-                'Justin Wilson, PE': project.owner_contact_name or '',
-                '512-348-5747': project.owner_contact_phone or '',
-                'Strinteg Corporation': firm.name if firm else '',
-                'Valley View, OH': f"{firm.city or ''}, {firm.state or ''}" if firm else '',
-            }
-            
-            # Replace text in paragraphs
-            for para in doc.paragraphs:
-                for old_text, new_text in replacements.items():
-                    if old_text in para.text:
-                        for run in para.runs:
-                            if old_text in run.text:
-                                run.text = run.text.replace(old_text, new_text)
-            
-            # Replace text in tables
-            for table in doc.tables:
-                for row in table.rows:
-                    for cell in row.cells:
-                        for para in cell.paragraphs:
-                            for old_text, new_text in replacements.items():
-                                if old_text in para.text:
-                                    for run in para.runs:
-                                        if old_text in run.text:
-                                            run.text = run.text.replace(old_text, new_text)
-            
-            # Find and replace the long description (Block 24)
-            # The description text may span multiple paragraphs - we need to find and replace all of it
-            description_markers = [
-                'As a prime provider, Strinteg',
-                'non-redundant steel tension member',
-                'The project consists of inspecting',
-                'Traditional access equipment',
-                'Conservatively, work through this contract',
-                'Strinteg was recently re-selected',
-                'Contact Cap:',
-                '400+ bridges',
-                '1,050+ fracture critical elements',
-                '480+ box and plate caps',
-                '83 fracture critical members',
-                '470+ fracture critical girder spans'
-            ]
-            
-            # Build new description content
-            new_description = project.brief_description or 'No description provided.'
-            if project.project_cost:
-                new_description += f"\n\nProject Cost: {project.project_cost}"
-            
-            # Add team members
-            if team_links:
-                team_members = []
-                for link in team_links:
-                    emp = Employee.query.get(link.employee_id)
-                    if emp:
-                        role = f" ({link.role_on_project})" if link.role_on_project else ""
-                        team_members.append(f"{emp.name}{role}")
-                if team_members:
-                    new_description += f"\n\nKey Personnel: {', '.join(team_members)}"
-            
-            # Clear all paragraphs that contain template description text
-            first_desc_para_found = False
-            for para in doc.paragraphs:
-                para_text = para.text.strip()
-                for marker in description_markers:
-                    if marker in para_text:
-                        # Clear all runs in this paragraph
-                        for run in para.runs:
-                            run.text = ''
-                        # For the first match, add the new description
-                        if not first_desc_para_found:
-                            if para.runs:
-                                para.runs[0].text = new_description
-                                para.runs[0].bold = False  # Remove bold from description
-                            else:
-                                run = para.add_run(new_description)
-                                run.bold = False
-                            # Left align the paragraph
-                            from docx.enum.text import WD_ALIGN_PARAGRAPH
-                            para.alignment = WD_ALIGN_PARAGRAPH.LEFT
-                            first_desc_para_found = True
-                        break
-            
-            # Also check table cells for description text
-            from docx.enum.text import WD_ALIGN_PARAGRAPH
-            for table in doc.tables:
-                for row in table.rows:
-                    for cell in row.cells:
-                        for para in cell.paragraphs:
-                            para_text = para.text.strip()
-                            for marker in description_markers:
-                                if marker in para_text:
-                                    for run in para.runs:
-                                        run.text = ''
-                                    if not first_desc_para_found:
-                                        if para.runs:
-                                            para.runs[0].text = new_description
-                                            para.runs[0].bold = False  # Remove bold from description
-                                        else:
-                                            run = para.add_run(new_description)
-                                            run.bold = False
-                                        # Left align the paragraph
-                                        para.alignment = WD_ALIGN_PARAGRAPH.LEFT
-                                        first_desc_para_found = True
-                                    break
-        else:
-            # Fallback: Create SF330-style document from scratch if no template found
-            doc = Document()
-            
-            header_para = doc.add_paragraph()
-            header_run = header_para.add_run('F. Example projects which best illustrate proposed team\'s qualifications for this contract:')
-            header_run.bold = True
-            
-            doc.add_paragraph()
-            p20 = doc.add_paragraph()
-            p20.add_run('20. Example project key number: ').bold = True
-            p20.add_run(str(project.id))
-            
-            p21 = doc.add_paragraph()
-            p21.add_run('21. Title and location: ').bold = True
-            p21.add_run(f"{project.title or ''} - {project.location or ''}")
-            
-            p22 = doc.add_paragraph()
-            p22.add_run('22. Year completed - Professional services: ').bold = True
-            p22.add_run(project.year_completed_professional or 'N/A')
-            
-            p23 = doc.add_paragraph()
-            p23.add_run('23. Project owner: ').bold = True
-            p23.add_run(f"{project.owner_name or ''} | Contact: {project.owner_contact_name or ''} | Phone: {project.owner_contact_phone or ''}")
-            
-            p24 = doc.add_paragraph()
-            p24.add_run('24. Brief description: ').bold = True
-            doc.add_paragraph(project.brief_description or '')
-            
-            if project.project_cost:
-                cost_p = doc.add_paragraph()
-                cost_p.add_run(f"Project Cost: {project.project_cost}").bold = True
-            
-            # Add team members
-            if team_links:
-                team_p = doc.add_paragraph()
-                team_p.add_run("Key Personnel: ").bold = True
-                team_members = []
-                for link in team_links:
-                    emp = Employee.query.get(link.employee_id)
-                    if emp:
-                        role = f" ({link.role_on_project})" if link.role_on_project else ""
-                        team_members.append(f"{emp.name}{role}")
-                team_p.add_run(", ".join(team_members) if team_members else "Not specified")
-            
-            p25 = doc.add_paragraph()
-            p25.add_run('25. Firms involved: ').bold = True
-            if firm:
-                doc.add_paragraph(f"{firm.name} - {firm.city or ''}, {firm.state or ''} - Prime")
+        # Build key personnel string
+        key_personnel_str = ''
+        if team_links:
+            team_members = []
+            for link in team_links:
+                emp = Employee.query.get(link.employee_id)
+                if emp:
+                    role = f" ({link.role_on_project})" if link.role_on_project else ""
+                    team_members.append(f"{emp.name}{role}")
+            key_personnel_str = ', '.join(team_members) if team_members else 'Not specified'
+        
+        # Define all placeholder replacements (same tags as company template)
+        placeholders = {
+            '{{PROJECT_TITLE}}': project.title or '',
+            '{{PROJECT_LOCATION}}': project.location or '',
+            '{{PROJECT_COST}}': project.project_cost or '',
+            '{{BRIEF_DESCRIPTION}}': project.brief_description or '',
+            '{{DELIVERY_METHOD}}': project.project_delivery_method or '',
+            '{{YEAR_COMPLETED_PROFESSIONAL}}': project.year_completed_professional or '',
+            '{{YEAR_COMPLETED_CONSTRUCTION}}': project.year_completed_construction or '',
+            '{{OWNER_NAME}}': project.owner_name or '',
+            '{{OWNER_CONTACT}}': project.owner_contact_name or '',
+            '{{OWNER_PHONE}}': project.owner_contact_phone or '',
+            '{{OWNER_EMAIL}}': project.owner_contact_email or '',
+            '{{FIRM_NAME}}': firm.name if firm else '',
+            '{{FIRM_CITY}}': firm.city if firm else '',
+            '{{FIRM_STATE}}': firm.state if firm else '',
+            '{{KEY_PERSONNEL}}': key_personnel_str,
+        }
+        
+        # Helper function to replace placeholders in a paragraph (handles split runs)
+        def replace_sf330_placeholders_in_para(para, placeholders):
+            for placeholder, value in placeholders.items():
+                if placeholder in para.text:
+                    replaced = False
+                    for run in para.runs:
+                        if placeholder in run.text:
+                            run.text = run.text.replace(placeholder, value)
+                            replaced = True
+                    if not replaced and para.runs:
+                        full_text = para.text
+                        new_text = full_text.replace(placeholder, value)
+                        if full_text != new_text:
+                            for i, run in enumerate(para.runs):
+                                if i == 0:
+                                    run.text = new_text
+                                else:
+                                    run.text = ''
+        
+        # Replace placeholders in paragraphs
+        for para in doc.paragraphs:
+            replace_sf330_placeholders_in_para(para, placeholders)
+        
+        # Replace placeholders in tables
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for para in cell.paragraphs:
+                        replace_sf330_placeholders_in_para(para, placeholders)
         
         filename = f"SF330_Section_F_{make_safe_filename(project.title, 'Project')}.docx"
         
@@ -3706,8 +3602,7 @@ def save_settings():
 
 @app.route('/settings/template/export')
 def export_template():
-    """Download the blank SF330 Section F template"""
-    import os
+    """Download the SF330 Section F template"""
     
     # First check if there's a custom template in object storage
     try:
@@ -3723,18 +3618,17 @@ def export_template():
     except:
         pass
     
-    # Fall back to the default template file
-    template_path = 'attached_assets/330_Section_F_Standards_TXDOT_Complex_1770229590122.docx'
-    if os.path.exists(template_path):
-        return send_file(
-            template_path,
-            as_attachment=True,
-            download_name='SF330_Section_F_Template.docx',
-            mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-        )
-    else:
-        flash('Template file not found', 'error')
-        return redirect(url_for('settings'))
+    # Generate default SF330 template with placeholders
+    doc = create_default_sf330_template()
+    buffer = io.BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name='SF330_Section_F_Template.docx',
+        mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    )
 
 
 @app.route('/settings/template/import', methods=['POST'])
@@ -3783,6 +3677,71 @@ def reset_template():
         flash(f'Error resetting template: {str(e)}', 'error')
     
     return redirect(url_for('settings'))
+
+
+def create_default_sf330_template():
+    """Create a default SF330 Section F template with placeholders"""
+    from docx import Document
+    from docx.shared import Inches, Pt
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    
+    doc = Document()
+    
+    header_para = doc.add_paragraph()
+    header_run = header_para.add_run('F. Example projects which best illustrate proposed team\'s qualifications for this contract:')
+    header_run.bold = True
+    
+    doc.add_paragraph()
+    
+    p21 = doc.add_paragraph()
+    p21.add_run('21. Title and location: ').bold = True
+    p21.add_run('{{PROJECT_TITLE}} - {{PROJECT_LOCATION}}')
+    
+    p22a = doc.add_paragraph()
+    p22a.add_run('22a. Year completed - Professional services: ').bold = True
+    p22a.add_run('{{YEAR_COMPLETED_PROFESSIONAL}}')
+    
+    p22b = doc.add_paragraph()
+    p22b.add_run('22b. Year completed - Construction: ').bold = True
+    p22b.add_run('{{YEAR_COMPLETED_CONSTRUCTION}}')
+    
+    p23a = doc.add_paragraph()
+    p23a.add_run('23a. Project owner: ').bold = True
+    p23a.add_run('{{OWNER_NAME}}')
+    
+    p23b = doc.add_paragraph()
+    p23b.add_run('23b. Point of contact name: ').bold = True
+    p23b.add_run('{{OWNER_CONTACT}}')
+    
+    p23c = doc.add_paragraph()
+    p23c.add_run('23c. Point of contact telephone number: ').bold = True
+    p23c.add_run('{{OWNER_PHONE}}')
+    
+    p23d = doc.add_paragraph()
+    p23d.add_run('23d. Point of contact email: ').bold = True
+    p23d.add_run('{{OWNER_EMAIL}}')
+    
+    p24 = doc.add_paragraph()
+    p24.add_run('24. Brief description and specific role: ').bold = True
+    doc.add_paragraph('{{BRIEF_DESCRIPTION}}')
+    
+    cost_p = doc.add_paragraph()
+    cost_p.add_run('Project Cost: ').bold = True
+    cost_p.add_run('{{PROJECT_COST}}')
+    
+    delivery_p = doc.add_paragraph()
+    delivery_p.add_run('Delivery Method: ').bold = True
+    delivery_p.add_run('{{DELIVERY_METHOD}}')
+    
+    team_p = doc.add_paragraph()
+    team_p.add_run('Key Personnel: ').bold = True
+    team_p.add_run('{{KEY_PERSONNEL}}')
+    
+    p25 = doc.add_paragraph()
+    p25.add_run('25. Firms involved: ').bold = True
+    p25.add_run('{{FIRM_NAME}} - {{FIRM_CITY}}, {{FIRM_STATE}} - Prime')
+    
+    return doc
 
 
 def create_default_company_template():

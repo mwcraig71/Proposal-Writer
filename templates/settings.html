@@ -107,7 +107,8 @@
         
         <p class="text-gray-600 mb-6">
             Customize the SF330 Section F template used when downloading projects. Export the current template, 
-            make adjustments in Word, and import your customized version.
+            make adjustments in Word, and import your customized version. Both SF330 and Company templates use the same 
+            {% raw %}<code class="bg-gray-100 px-1 rounded">{{PLACEHOLDER_NAME}}</code>{% endraw %} system for data fields.
         </p>
         
         <div class="grid md:grid-cols-2 gap-6">
@@ -163,11 +164,43 @@
                 Template Customization Tips
             </h3>
             <ul class="text-sm text-blue-700 space-y-1">
-                <li>Keep the placeholder text (project title, owner info, etc.) in the template - these get replaced with actual project data</li>
+                {% raw %}
+                <li>Use <code class="bg-white px-1 rounded">{{PLACEHOLDER_NAME}}</code> syntax for data fields that get replaced with actual project data</li>
+                {% endraw %}
                 <li>You can adjust formatting, fonts, spacing, and layout as needed</li>
-                <li>The system looks for specific text patterns to replace - avoid changing the placeholder content itself</li>
+                <li>Keep placeholders as plain text in Word - avoid applying different formatting to parts of a placeholder</li>
                 <li>Test your custom template by downloading a project after importing</li>
             </ul>
+        </div>
+        
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
+            <h3 class="font-medium text-blue-800 mb-2">
+                <i class="fas fa-code mr-1"></i>
+                Available Placeholders
+            </h3>
+            <div class="grid md:grid-cols-2 gap-4 text-sm text-blue-700">
+                {% raw %}
+                <ul class="space-y-1">
+                    <li><code class="bg-white px-1 rounded">{{PROJECT_TITLE}}</code> - Project name</li>
+                    <li><code class="bg-white px-1 rounded">{{PROJECT_LOCATION}}</code> - Location</li>
+                    <li><code class="bg-white px-1 rounded">{{PROJECT_COST}}</code> - Project cost</li>
+                    <li><code class="bg-white px-1 rounded">{{BRIEF_DESCRIPTION}}</code> - Description</li>
+                    <li><code class="bg-white px-1 rounded">{{DELIVERY_METHOD}}</code> - Delivery method</li>
+                    <li><code class="bg-white px-1 rounded">{{YEAR_COMPLETED_PROFESSIONAL}}</code></li>
+                    <li><code class="bg-white px-1 rounded">{{YEAR_COMPLETED_CONSTRUCTION}}</code></li>
+                </ul>
+                <ul class="space-y-1">
+                    <li><code class="bg-white px-1 rounded">{{OWNER_NAME}}</code> - Owner/client name</li>
+                    <li><code class="bg-white px-1 rounded">{{OWNER_CONTACT}}</code> - Contact name</li>
+                    <li><code class="bg-white px-1 rounded">{{OWNER_PHONE}}</code> - Contact phone</li>
+                    <li><code class="bg-white px-1 rounded">{{OWNER_EMAIL}}</code> - Contact email</li>
+                    <li><code class="bg-white px-1 rounded">{{FIRM_NAME}}</code> - Firm name</li>
+                    <li><code class="bg-white px-1 rounded">{{FIRM_CITY}}</code> - Firm city</li>
+                    <li><code class="bg-white px-1 rounded">{{FIRM_STATE}}</code> - Firm state</li>
+                    <li><code class="bg-white px-1 rounded">{{KEY_PERSONNEL}}</code> - Team list</li>
+                </ul>
+                {% endraw %}
+            </div>
         </div>
     </div>
     
