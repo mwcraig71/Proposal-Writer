@@ -646,9 +646,10 @@ def download_employee_resume(id):
     numbered_experiences = EmployeeProjectExperience.query.filter_by(employee_id=id).filter(
         EmployeeProjectExperience.resume_order.isnot(None)
     ).order_by(EmployeeProjectExperience.resume_order.asc()).all()
+    individual_project_placeholders = {}
     if numbered_experiences:
         exp_lines = []
-        for exp in numbered_experiences:
+        for idx, exp in enumerate(numbered_experiences, 1):
             line = exp.project_title or 'Untitled'
             if exp.role_performed:
                 line += f" - {exp.role_performed}"
@@ -659,6 +660,12 @@ def download_employee_resume(id):
             if exp.active_description:
                 line += f"\n{exp.active_description}"
             exp_lines.append(line)
+            individual_project_placeholders[f'{{{{PROJECT_EXPERIENCE_{idx}}}}}'] = line
+            individual_project_placeholders[f'{{{{PROJECT_EXPERIENCE_{idx}_TITLE}}}}'] = exp.project_title or ''
+            individual_project_placeholders[f'{{{{PROJECT_EXPERIENCE_{idx}_ROLE}}}}'] = exp.role_performed or ''
+            individual_project_placeholders[f'{{{{PROJECT_EXPERIENCE_{idx}_LOCATION}}}}'] = exp.location or ''
+            individual_project_placeholders[f'{{{{PROJECT_EXPERIENCE_{idx}_YEAR}}}}'] = exp.year_completed or ''
+            individual_project_placeholders[f'{{{{PROJECT_EXPERIENCE_{idx}_DESCRIPTION}}}}'] = exp.active_description or ''
         project_exp_str = '\n\n'.join(exp_lines)
     
     placeholders = {
@@ -677,6 +684,7 @@ def download_employee_resume(id):
         '{{OTHER_QUALIFICATIONS}}': employee.other_qualifications or '',
         '{{PROJECT_EXPERIENCE}}': project_exp_str,
     }
+    placeholders.update(individual_project_placeholders)
     
     def replace_resume_placeholders_in_para(para, placeholders):
         for placeholder, value in placeholders.items():
@@ -704,6 +712,33 @@ def download_employee_resume(id):
             for cell in row.cells:
                 for para in cell.paragraphs:
                     replace_resume_placeholders_in_para(para, placeholders)
+    
+    import re
+    project_exp_pattern = re.compile(r'\{\{PROJECT_EXPERIENCE_\d+(_[A-Z]+)?\}\}')
+    def collect_empty_project_paras(paragraphs):
+        to_remove = []
+        in_project_zone = False
+        for para in paragraphs:
+            text = para.text.strip()
+            if project_exp_pattern.search(text):
+                cleaned = project_exp_pattern.sub('', text).strip(' -()')
+                if not cleaned:
+                    to_remove.append(para)
+                    in_project_zone = True
+            elif not text and in_project_zone:
+                to_remove.append(para)
+            else:
+                in_project_zone = False
+        return to_remove
+    
+    paras_to_remove = collect_empty_project_paras(doc.paragraphs)
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                paras_to_remove.extend(collect_empty_project_paras(cell.paragraphs))
+    for para in paras_to_remove:
+        p_element = para._element
+        p_element.getparent().remove(p_element)
     
     safe_name = employee.display_name or employee.name or 'Employee'
     safe_name = ''.join(c for c in safe_name if c.isalnum() or c in ' _-')[:50].strip()
@@ -4047,7 +4082,11 @@ def create_default_resume_template():
     doc.add_paragraph('{{OTHER_QUALIFICATIONS}}')
     
     doc.add_heading('Project Experience', level=1)
-    doc.add_paragraph('{{PROJECT_EXPERIENCE}}')
+    for i in range(1, 11):
+        doc.add_paragraph(f'{{{{PROJECT_EXPERIENCE_{i}_TITLE}}}} - {{{{PROJECT_EXPERIENCE_{i}_ROLE}}}}')
+        doc.add_paragraph(f'{{{{PROJECT_EXPERIENCE_{i}_LOCATION}}}} ({{{{PROJECT_EXPERIENCE_{i}_YEAR}}}})')
+        doc.add_paragraph(f'{{{{PROJECT_EXPERIENCE_{i}_DESCRIPTION}}}}')
+        doc.add_paragraph('')
     
     return doc
 
