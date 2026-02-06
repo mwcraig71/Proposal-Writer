@@ -1566,6 +1566,7 @@ def download_project(id):
             '{{FIRM_NAME}}': firm.name if firm else '',
             '{{FIRM_CITY}}': firm.city if firm else '',
             '{{FIRM_STATE}}': firm.state if firm else '',
+            '{{FIRM_ROLE}}': 'Prime',
             '{{KEY_PERSONNEL}}': key_personnel_str,
         }
         
@@ -1577,7 +1578,6 @@ def download_project(id):
                     for run in para.runs:
                         if placeholder in run.text:
                             run.text = run.text.replace(placeholder, value)
-                            run.bold = False
                             replaced = True
                     if not replaced and para.runs:
                         full_text = para.text
@@ -1586,11 +1586,8 @@ def download_project(id):
                             for i, run in enumerate(para.runs):
                                 if i == 0:
                                     run.text = new_text
-                                    run.bold = False
                                 else:
                                     run.text = ''
-                    from docx.enum.text import WD_ALIGN_PARAGRAPH
-                    para.alignment = WD_ALIGN_PARAGRAPH.LEFT
         
         # Replace placeholders in paragraphs
         for para in doc.paragraphs:
@@ -1647,6 +1644,7 @@ def download_project(id):
             '{{FIRM_NAME}}': firm.name if firm else '',
             '{{FIRM_CITY}}': firm.city if firm else '',
             '{{FIRM_STATE}}': firm.state if firm else '',
+            '{{FIRM_ROLE}}': 'Prime',
             '{{KEY_PERSONNEL}}': key_personnel_str,
         }
         
@@ -3770,7 +3768,7 @@ def create_default_sf330_template():
     
     p25 = doc.add_paragraph()
     p25.add_run('25. Firms involved: ').bold = True
-    p25.add_run('{{FIRM_NAME}} - {{FIRM_CITY}}, {{FIRM_STATE}} - Prime')
+    p25.add_run('{{FIRM_NAME}} - {{FIRM_CITY}}, {{FIRM_STATE}} - {{FIRM_ROLE}}')
     
     return doc
 
