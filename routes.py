@@ -1540,22 +1540,12 @@ def download_project(id):
                     team_members.append(f"{emp.name}{role}")
             key_personnel_str = '\n'.join(team_members) if team_members else ''
         
-        # Build the description block: description + cost + staff
-        description_parts = []
-        if project.brief_description:
-            description_parts.append(project.brief_description)
-        if project.project_cost:
-            description_parts.append(f"\nProject Cost: {project.project_cost}")
-        if key_personnel_str:
-            description_parts.append(f"\nKey Personnel:\n{key_personnel_str}")
-        full_description = '\n'.join(description_parts) if description_parts else ''
-        
         # Define all placeholder replacements (same tags as company template)
         placeholders = {
             '{{PROJECT_TITLE}}': project.title or '',
             '{{PROJECT_LOCATION}}': project.location or '',
             '{{PROJECT_COST}}': project.project_cost or '',
-            '{{BRIEF_DESCRIPTION}}': full_description,
+            '{{BRIEF_DESCRIPTION}}': project.brief_description or '',
             '{{DELIVERY_METHOD}}': project.project_delivery_method or '',
             '{{YEAR_COMPLETED_PROFESSIONAL}}': project.year_completed_professional or '',
             '{{YEAR_COMPLETED_CONSTRUCTION}}': project.year_completed_construction or '',
@@ -3756,14 +3746,10 @@ def create_default_sf330_template():
     
     cost_p = doc.add_paragraph()
     cost_p.alignment = WD_ALIGN_PARAGRAPH.LEFT
-    cost_p.add_run('Project Cost: {{PROJECT_COST}}')
-    
-    delivery_p = doc.add_paragraph()
-    delivery_p.add_run('Delivery Method: ').bold = True
-    delivery_p.add_run('{{DELIVERY_METHOD}}')
+    cost_p.add_run('{{PROJECT_COST}}')
     
     team_p = doc.add_paragraph()
-    team_p.add_run('Key Personnel: ').bold = True
+    team_p.alignment = WD_ALIGN_PARAGRAPH.LEFT
     team_p.add_run('{{KEY_PERSONNEL}}')
     
     p25 = doc.add_paragraph()
@@ -3838,6 +3824,14 @@ def create_default_company_template():
     # Description Section
     doc.add_heading('Project Description', level=1)
     doc.add_paragraph('{{BRIEF_DESCRIPTION}}')
+    
+    cost_para = doc.add_paragraph()
+    cost_para.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    cost_para.add_run('{{PROJECT_COST}}')
+    
+    team_para = doc.add_paragraph()
+    team_para.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    team_para.add_run('{{KEY_PERSONNEL}}')
     
     doc.add_paragraph()
     
