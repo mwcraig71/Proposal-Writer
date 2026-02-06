@@ -1174,6 +1174,55 @@ Return ONLY the formatted text, no explanations or extra text."""
         return jsonify({'success': False, 'error': str(e)})
 
 
+@app.route('/employees/<int:id>/format-training', methods=['POST'])
+def format_training_ai(id):
+    """Use AI to format training/certifications into SF330-compatible format"""
+    from gemini_service import client
+    
+    employee = Employee.query.get_or_404(id)
+    data = request.json
+    raw_text = data.get('training', '').strip()
+    
+    if not raw_text:
+        return jsonify({'success': False, 'error': 'No training data provided'})
+    
+    prompt = """Format the following training and certifications into a condensed SF330-compatible format.
+
+Rules:
+1. Group items by category (e.g., NHI/FHWA courses together, Technical/Safety certifications together, etc.)
+2. Abbreviate course names to fit SF330 space constraints - use common abbreviations (Inspection=Insp., Refresher=Ref., Techniques=Tech., Structures=Struct., etc.)
+3. Include course numbers in parentheses without the "NHI" prefix for NHI courses
+4. Include years as 2-digit with apostrophe format: '18, '23, etc.
+5. Separate items within a category with semicolons
+6. Format each category on its own line as: "Category: item1; item2; item3"
+7. If multiple years for the same cert, show as ('17, '23)
+8. Use ampersand (&) to combine related items where appropriate
+
+Example input:
+Safety Inspection of In-Service Bridges (2021, NHI 130055)
+Safety Inspection of In-Service Bridges Refresher (2023, NHI 130055)
+Fracture Critical Inspection Techniques for Steel Bridges (NHI 130078)
+Tunnel Safety Inspection (NHI 130110)
+
+Example output:
+NHI/FHWA: In-Service Bridges (130055, '21); Bridge Insp. Refresher (130053, '23); Fracture Critical (130078); Tunnel Safety (130110)
+
+Now format this data:
+""" + raw_text + """
+
+Return ONLY the formatted text, no explanations or extra text."""
+
+    try:
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt
+        )
+        formatted = response.text.strip()
+        return jsonify({'success': True, 'formatted': formatted})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
 @app.route('/employees/<int:id>/experience/<int:exp_id>/toggle-sf330', methods=['POST'])
 def toggle_sf330_include(id, exp_id):
     """Toggle SF330 inclusion flag for a project experience"""

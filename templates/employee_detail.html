@@ -113,9 +113,17 @@
             </div>
             
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Training & Certifications</label>
-                <p class="text-xs text-gray-500 mb-1">Format: Course Name (Year, Course Code) - e.g., NHI courses</p>
-                <textarea name="training" rows="3" class="w-full p-2 border rounded-lg">{{ employee.training or '' }}</textarea>
+                <div class="flex items-center justify-between mb-1">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Training & Certifications</label>
+                        <p class="text-xs text-gray-500">Format: Course Name (Year, Course Code) - e.g., NHI courses</p>
+                    </div>
+                    <button type="button" onclick="formatTrainingAI()" class="inline-flex items-center px-3 py-1.5 bg-purple-600 text-white text-xs font-medium rounded-lg hover:bg-purple-700 transition">
+                        <i class="fas fa-magic mr-1"></i> Format for SF330
+                    </button>
+                </div>
+                <textarea name="training" id="training-field" rows="3" class="w-full p-2 border rounded-lg">{{ employee.training or '' }}</textarea>
+                <div id="format-training-status" class="text-xs text-gray-500 mt-1 hidden"></div>
             </div>
             
             <div>
@@ -1571,6 +1579,43 @@ document.addEventListener('click', (e) => {
         document.getElementById('resume-dd-menu').classList.add('hidden');
     }
 });
+
+async function formatTrainingAI() {
+    const textarea = document.getElementById('training-field');
+    const statusDiv = document.getElementById('format-training-status');
+    const rawText = textarea.value.trim();
+    
+    if (!rawText) {
+        alert('Please enter training data first.');
+        return;
+    }
+    
+    statusDiv.classList.remove('hidden');
+    statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Formatting training with AI...';
+    statusDiv.className = 'text-xs text-purple-600 mt-1';
+    
+    try {
+        const response = await fetch(`/employees/{{ employee.id }}/format-training`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ training: rawText })
+        });
+        const result = await response.json();
+        if (result.success) {
+            textarea.value = result.formatted;
+            statusDiv.innerHTML = '<i class="fas fa-check mr-1"></i> Formatted successfully. Click Save to keep changes.';
+            statusDiv.className = 'text-xs text-green-600 mt-1';
+        } else {
+            statusDiv.innerHTML = '<i class="fas fa-exclamation-triangle mr-1"></i> ' + (result.error || 'Formatting failed');
+            statusDiv.className = 'text-xs text-red-600 mt-1';
+        }
+    } catch (err) {
+        statusDiv.innerHTML = '<i class="fas fa-exclamation-triangle mr-1"></i> Error: ' + err.message;
+        statusDiv.className = 'text-xs text-red-600 mt-1';
+    }
+    
+    setTimeout(() => { statusDiv.classList.add('hidden'); }, 5000);
+}
 
 async function formatRegistrationsAI() {
     const textarea = document.getElementById('registrations-field');
