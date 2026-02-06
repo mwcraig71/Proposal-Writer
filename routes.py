@@ -695,23 +695,48 @@ def download_employee_resume(id):
     }
     placeholders.update(individual_project_placeholders)
     
+    def _set_run_text_with_breaks(run, text):
+        """Set run text, converting newlines to proper Word line break elements."""
+        from docx.oxml.ns import qn
+        from lxml import etree
+        r_element = run._element
+        for child in list(r_element):
+            if child.tag == qn('w:t'):
+                r_element.remove(child)
+            elif child.tag == qn('w:br'):
+                r_element.remove(child)
+        lines = text.split('\n')
+        for i, line in enumerate(lines):
+            if i > 0:
+                br = etree.SubElement(r_element, qn('w:br'))
+            t = etree.SubElement(r_element, qn('w:t'))
+            t.text = line
+            t.set(qn('xml:space'), 'preserve')
+
     def replace_resume_placeholders_in_para(para, placeholders):
         for placeholder, value in placeholders.items():
             if placeholder in para.text:
+                has_newlines = '\n' in value
                 replaced = False
                 for run in para.runs:
                     if placeholder in run.text:
-                        run.text = run.text.replace(placeholder, value)
+                        if has_newlines:
+                            before_after = run.text.split(placeholder, 1)
+                            new_text = before_after[0] + value + before_after[1]
+                            _set_run_text_with_breaks(run, new_text)
+                        else:
+                            run.text = run.text.replace(placeholder, value)
                         replaced = True
                 if not replaced and para.runs:
                     full_text = para.text
                     new_text = full_text.replace(placeholder, value)
                     if full_text != new_text:
-                        for i, run in enumerate(para.runs):
-                            if i == 0:
-                                run.text = new_text
-                            else:
-                                run.text = ''
+                        if has_newlines:
+                            _set_run_text_with_breaks(para.runs[0], new_text)
+                        else:
+                            para.runs[0].text = new_text
+                        for i in range(1, len(para.runs)):
+                            para.runs[i].text = ''
     
     for para in doc.paragraphs:
         replace_resume_placeholders_in_para(para, placeholders)
@@ -847,23 +872,48 @@ def download_employee_sf330_resume(id):
     }
     placeholders.update(individual_project_placeholders)
     
+    def _set_sf330_run_text_with_breaks(run, text):
+        """Set run text, converting newlines to proper Word line break elements."""
+        from docx.oxml.ns import qn
+        from lxml import etree
+        r_element = run._element
+        for child in list(r_element):
+            if child.tag == qn('w:t'):
+                r_element.remove(child)
+            elif child.tag == qn('w:br'):
+                r_element.remove(child)
+        lines = text.split('\n')
+        for i, line in enumerate(lines):
+            if i > 0:
+                br = etree.SubElement(r_element, qn('w:br'))
+            t = etree.SubElement(r_element, qn('w:t'))
+            t.text = line
+            t.set(qn('xml:space'), 'preserve')
+
     def replace_sf330_placeholders_in_para(para, phs):
         for placeholder, value in phs.items():
             if placeholder in para.text:
+                has_newlines = '\n' in value
                 replaced = False
                 for run in para.runs:
                     if placeholder in run.text:
-                        run.text = run.text.replace(placeholder, value)
+                        if has_newlines:
+                            before_after = run.text.split(placeholder, 1)
+                            new_text = before_after[0] + value + before_after[1]
+                            _set_sf330_run_text_with_breaks(run, new_text)
+                        else:
+                            run.text = run.text.replace(placeholder, value)
                         replaced = True
                 if not replaced and para.runs:
                     full_text = para.text
                     new_text = full_text.replace(placeholder, value)
                     if full_text != new_text:
-                        for i, run in enumerate(para.runs):
-                            if i == 0:
-                                run.text = new_text
-                            else:
-                                run.text = ''
+                        if has_newlines:
+                            _set_sf330_run_text_with_breaks(para.runs[0], new_text)
+                        else:
+                            para.runs[0].text = new_text
+                        for i in range(1, len(para.runs)):
+                            para.runs[i].text = ''
     
     for para in doc.paragraphs:
         replace_sf330_placeholders_in_para(para, placeholders)
