@@ -1191,21 +1191,23 @@ def format_training_ai(id):
 Rules:
 1. Group items by category (e.g., NHI/FHWA courses together, Technical/Safety certifications together, etc.)
 2. Abbreviate course names to fit SF330 space constraints - use common abbreviations (Inspection=Insp., Refresher=Ref., Techniques=Tech., Structures=Struct., etc.)
-3. Include course numbers in parentheses without the "NHI" prefix for NHI courses
-4. Include years as 2-digit with apostrophe format: '18, '23, etc.
+3. For items with a course number, format as: Abbreviated Name (course_number, year). The year MUST come AFTER the course number inside the same parentheses. Strip the "NHI" prefix from NHI course numbers.
+4. If no course number exists but a year is given, put the year in parentheses after the name: Cert Name ('18)
 5. Separate items within a category with semicolons
 6. Format each category on its own line as: "Category: item1; item2; item3"
-7. If multiple years for the same cert, show as ('17, '23)
+7. If multiple years for the same cert, show as (number, '17, '23)
 8. Use ampersand (&) to combine related items where appropriate
 
 Example input:
 Safety Inspection of In-Service Bridges (2021, NHI 130055)
-Safety Inspection of In-Service Bridges Refresher (2023, NHI 130055)
-Fracture Critical Inspection Techniques for Steel Bridges (NHI 130078)
+Safety Inspection of In-Service Bridges Refresher (2023, NHI 130053)
+Fracture Critical Inspection Techniques for Steel Bridges (2014, NHI 130078)
 Tunnel Safety Inspection (NHI 130110)
+SPRAT Level I (2024)
 
 Example output:
-NHI/FHWA: In-Service Bridges (130055, '21); Bridge Insp. Refresher (130053, '23); Fracture Critical (130078); Tunnel Safety (130110)
+NHI/FHWA: In-Service Bridges (130055, '21); Bridge Insp. Refresher (130053, '23); Fracture Critical (130078, '14); Tunnel Safety (130110)
+Technical/Safety: SPRAT Level I ('24)
 
 Now format this data:
 """ + raw_text + """
