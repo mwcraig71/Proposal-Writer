@@ -1122,6 +1122,58 @@ def generate_bio_with_ai(id):
         return jsonify({'success': False, 'error': str(e)})
 
 
+@app.route('/employees/<int:id>/format-registrations', methods=['POST'])
+def format_registrations_ai(id):
+    """Use AI to format professional registrations into SF330-compatible format"""
+    from gemini_service import client
+    
+    employee = Employee.query.get_or_404(id)
+    data = request.json
+    raw_text = data.get('registrations', '').strip()
+    
+    if not raw_text:
+        return jsonify({'success': False, 'error': 'No registration data provided'})
+    
+    prompt = """Format the following professional registrations/licenses into a standardized SF330-compatible format.
+
+Rules:
+1. Group by license type (PE, SE, etc.)
+2. For each license type that has multiple states, combine all states into standard 2-letter abbreviations on ONE line, comma-separated
+3. Format licenses with numbers as: TYPE State (#number)
+4. Items that are NOT professional engineering/structural licenses (like certifications, training, pilot licenses, rope access, etc.) should be grouped under "Other" on a single line, separated by semicolons
+5. Use standard US state abbreviations (Alabama=AL, Alaska=AK, Arizona=AZ, Arkansas=AR, California=CA, Colorado=CO, Connecticut=CT, Delaware=DE, District of Columbia=DC, Florida=FL, Georgia=GA, Hawaii=HI, Idaho=ID, Illinois=IL, Indiana=IN, Iowa=IA, Kansas=KS, Kentucky=KY, Louisiana=LA, Maine=ME, Maryland=MD, Massachusetts=MA, Michigan=MI, Minnesota=MN, Mississippi=MS, Missouri=MO, Montana=MT, Nebraska=NE, Nevada=NV, New Hampshire=NH, New Jersey=NJ, New Mexico=NM, New York=NY, North Carolina=NC, North Dakota=ND, Ohio=OH, Oklahoma=OK, Oregon=OR, Pennsylvania=PA, Puerto Rico=PR, Rhode Island=RI, South Carolina=SC, South Dakota=SD, Tennessee=TN, Texas=TX, Utah=UT, Vermont=VT, Virginia=VA, Washington=WA, West Virginia=WV, Wisconsin=WI, Wyoming=WY)
+6. Each license type gets its own line
+7. Sort state abbreviations alphabetically within each line
+
+Example input:
+SE #000958, Georgia
+PE, Alabama
+PE, Florida
+PE, Georgia
+Level 1 Rope Access Technician
+FAA Part 107 UAS Remote Pilot
+
+Example output:
+SE Georgia (#000958)
+PE AL, FL, GA
+Other FAA Part 107 UAS Remote Pilot; SPRAT Level 1 Rope Access Tech
+
+Now format this data:
+""" + raw_text + """
+
+Return ONLY the formatted text, no explanations or extra text."""
+
+    try:
+        response = client.models.generate_content(
+            model='gemini-2.0-flash',
+            contents=prompt
+        )
+        formatted = response.text.strip()
+        return jsonify({'success': True, 'formatted': formatted})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
 @app.route('/employees/<int:id>/experience/<int:exp_id>/toggle-sf330', methods=['POST'])
 def toggle_sf330_include(id, exp_id):
     """Toggle SF330 inclusion flag for a project experience"""
