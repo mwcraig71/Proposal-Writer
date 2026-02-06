@@ -1122,6 +1122,53 @@ def generate_bio_with_ai(id):
         return jsonify({'success': False, 'error': str(e)})
 
 
+@app.route('/employees/<int:id>/format-education', methods=['POST'])
+def format_education_ai(id):
+    """Use AI to format education into SF330-compatible format"""
+    from gemini_service import client
+    
+    employee = Employee.query.get_or_404(id)
+    data = request.json
+    raw_text = data.get('education', '').strip()
+    
+    if not raw_text:
+        return jsonify({'success': False, 'error': 'No education data provided'})
+    
+    prompt = """Format the following education information into a standardized SF330-compatible format.
+
+Rules:
+1. Format each degree on a SEPARATE LINE as: Abbreviated Degree, Major/Field, Institution (Year)
+2. Use standard degree abbreviations: Ph.D., M.S., M.E., M.B.A., B.S., B.A., B.E., A.S., A.A., etc.
+3. Keep the institution name but abbreviate if very long
+4. Year in parentheses at the end
+5. List degrees in reverse chronological order (most recent first)
+6. Each degree gets its own line
+7. If no year is provided, omit the parentheses
+
+Example input:
+Masters of Science in Civil Engineering from SUNY Buffalo 1999
+Bachelor of Science Civil Engineering SUNY Buffalo 1997
+
+Example output:
+M.S., Civil Engineering, SUNY Buffalo (1999)
+B.S., Civil Engineering, SUNY Buffalo (1997)
+
+Now format this data:
+""" + raw_text + """
+
+Return ONLY the formatted text, no explanations or extra text."""
+
+    try:
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt
+        )
+        formatted = response.text.strip()
+        return jsonify({'success': True, 'formatted': formatted})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
 @app.route('/employees/<int:id>/format-registrations', methods=['POST'])
 def format_registrations_ai(id):
     """Use AI to format professional registrations into SF330-compatible format"""
