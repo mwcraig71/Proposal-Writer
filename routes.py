@@ -756,6 +756,149 @@ def download_employee_resume(id):
     )
 
 
+@app.route('/employee/<int:id>/download-sf330')
+def download_employee_sf330_resume(id):
+    """Download employee resume in SF330 Section E format"""
+    employee = Employee.query.get_or_404(id)
+    firm = Firm.query.get(employee.firm_id) if employee.firm_id else None
+    
+    doc = None
+    try:
+        client = get_storage_client()
+        template_bytes = client.download_as_bytes('templates/sf330_resume_template_custom.docx')
+        if template_bytes:
+            from docx import Document
+            doc = Document(io.BytesIO(template_bytes))
+    except:
+        pass
+    
+    if doc is None:
+        try:
+            from docx import Document
+            default_path = os.path.join(os.path.dirname(__file__), 'attached_assets', 'sf330_section_e_template.docx')
+            if os.path.exists(default_path):
+                doc = Document(default_path)
+            else:
+                doc = Document(os.path.join(os.path.dirname(__file__), 'attached_assets', '330_Section_E_Standards_template_1770398969209.docx'))
+        except Exception as e:
+            flash(f'SF330 Section E template not found: {str(e)}', 'error')
+            return redirect(url_for('employee_detail', id=id))
+    
+    numbered_experiences = EmployeeProjectExperience.query.filter_by(employee_id=id).filter(
+        EmployeeProjectExperience.resume_order.isnot(None)
+    ).order_by(EmployeeProjectExperience.resume_order.asc()).all()
+    
+    project_exp_str = ''
+    individual_project_placeholders = {}
+    if numbered_experiences:
+        exp_lines = []
+        for idx, exp in enumerate(numbered_experiences, 1):
+            line = exp.project_title or 'Untitled'
+            if exp.role_performed:
+                line += f" - {exp.role_performed}"
+            if exp.location:
+                line += f" | {exp.location}"
+            if exp.year_completed:
+                line += f" ({exp.year_completed})"
+            if exp.active_description:
+                line += f"\n{exp.active_description}"
+            exp_lines.append(line)
+            individual_project_placeholders[f'{{{{PROJECT_EXPERIENCE_{idx}}}}}'] = line
+            individual_project_placeholders[f'{{{{PROJECT_EXPERIENCE_{idx}_TITLE}}}}'] = exp.project_title or ''
+            individual_project_placeholders[f'{{{{PROJECT_EXPERIENCE_{idx}_ROLE}}}}'] = exp.role_performed or ''
+            individual_project_placeholders[f'{{{{PROJECT_EXPERIENCE_{idx}_LOCATION}}}}'] = exp.location or ''
+            individual_project_placeholders[f'{{{{PROJECT_EXPERIENCE_{idx}_YEAR}}}}'] = exp.year_completed or ''
+            individual_project_placeholders[f'{{{{PROJECT_EXPERIENCE_{idx}_DESCRIPTION}}}}'] = exp.active_description or ''
+        project_exp_str = '\n\n'.join(exp_lines)
+    
+    placeholders = {
+        '{{EMPLOYEE_NAME}}': employee.display_name or employee.name or '',
+        '{{EMPLOYEE_TITLE}}': employee.title or '',
+        '{{EMPLOYEE_ROLE}}': employee.role or '',
+        '{{FIRM_NAME}}': firm.name if firm else '',
+        '{{FIRM_CITY}}': firm.city if firm else '',
+        '{{FIRM_STATE}}': firm.state if firm else '',
+        '{{YEARS_EXPERIENCE_TOTAL}}': str(employee.years_experience_total) if employee.years_experience_total else '',
+        '{{YEARS_EXPERIENCE_FIRM}}': str(employee.years_experience_firm) if employee.years_experience_firm else '',
+        '{{EDUCATION}}': employee.education or '',
+        '{{REGISTRATIONS}}': employee.registrations or '',
+        '{{BIO}}': employee.bio or '',
+        '{{TRAINING}}': employee.training or '',
+        '{{OTHER_QUALIFICATIONS}}': employee.other_qualifications or '',
+        '{{PROJECT_EXPERIENCE}}': project_exp_str,
+    }
+    placeholders.update(individual_project_placeholders)
+    
+    def replace_sf330_placeholders_in_para(para, phs):
+        for placeholder, value in phs.items():
+            if placeholder in para.text:
+                replaced = False
+                for run in para.runs:
+                    if placeholder in run.text:
+                        run.text = run.text.replace(placeholder, value)
+                        replaced = True
+                if not replaced and para.runs:
+                    full_text = para.text
+                    new_text = full_text.replace(placeholder, value)
+                    if full_text != new_text:
+                        for i, run in enumerate(para.runs):
+                            if i == 0:
+                                run.text = new_text
+                            else:
+                                run.text = ''
+    
+    for para in doc.paragraphs:
+        replace_sf330_placeholders_in_para(para, placeholders)
+    
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                for para in cell.paragraphs:
+                    replace_sf330_placeholders_in_para(para, placeholders)
+    
+    import re
+    project_exp_pattern = re.compile(r'\{\{PROJECT_EXPERIENCE_\d+(_[A-Z]+)?\}\}')
+    def collect_empty_sf330_paras(paragraphs):
+        to_remove = []
+        in_project_zone = False
+        for para in paragraphs:
+            text = para.text.strip()
+            if project_exp_pattern.search(text):
+                cleaned = project_exp_pattern.sub('', text).strip(' -()')
+                if not cleaned:
+                    to_remove.append(para)
+                    in_project_zone = True
+            elif not text and in_project_zone:
+                to_remove.append(para)
+            else:
+                in_project_zone = False
+        return to_remove
+    
+    paras_to_remove = collect_empty_sf330_paras(doc.paragraphs)
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                paras_to_remove.extend(collect_empty_sf330_paras(cell.paragraphs))
+    for para in paras_to_remove:
+        p_element = para._element
+        p_element.getparent().remove(p_element)
+    
+    safe_name = employee.display_name or employee.name or 'Employee'
+    safe_name = ''.join(c for c in safe_name if c.isalnum() or c in ' _-')[:50].strip()
+    filename = f"SF330_Section_E_{safe_name.replace(' ', '_')}.docx"
+    
+    buffer = io.BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name=filename,
+        mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    )
+
+
 @app.route('/employees/<int:id>', methods=['PUT'])
 def update_employee(id):
     employee = Employee.query.get_or_404(id)
@@ -3774,9 +3917,17 @@ def settings():
     except:
         pass
     
+    has_sf330_resume_template = False
+    try:
+        client = get_storage_client()
+        obj = client.download_as_bytes('templates/sf330_resume_template_custom.docx')
+        has_sf330_resume_template = obj is not None
+    except:
+        pass
+    
     return render_template('settings.html', ai_style=ai_style, ai_tone=ai_tone, 
                            has_custom_template=has_custom_template, has_company_template=has_company_template,
-                           has_resume_template=has_resume_template)
+                           has_resume_template=has_resume_template, has_sf330_resume_template=has_sf330_resume_template)
 
 
 @app.route('/settings', methods=['POST'])
@@ -4238,6 +4389,83 @@ def reset_resume_template():
         client = get_storage_client()
         client.delete('templates/resume_template_custom.docx')
         flash('Resume template reset to default successfully!', 'success')
+    except Exception as e:
+        flash(f'Error resetting template: {str(e)}', 'error')
+    
+    return redirect(url_for('settings'))
+
+
+@app.route('/settings/sf330-resume-template/export')
+def export_sf330_resume_template():
+    """Download the SF330 Section E resume template"""
+    try:
+        client = get_storage_client()
+        template_bytes = client.download_as_bytes('templates/sf330_resume_template_custom.docx')
+        if template_bytes:
+            return send_file(
+                io.BytesIO(template_bytes),
+                as_attachment=True,
+                download_name='SF330_Section_E_Resume_Template.docx',
+                mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            )
+    except:
+        pass
+    
+    default_path = os.path.join(os.path.dirname(__file__), 'attached_assets', 'sf330_section_e_template.docx')
+    if not os.path.exists(default_path):
+        default_path = os.path.join(os.path.dirname(__file__), 'attached_assets', '330_Section_E_Standards_template_1770398969209.docx')
+    
+    try:
+        with open(default_path, 'rb') as f:
+            return send_file(
+                io.BytesIO(f.read()),
+                as_attachment=True,
+                download_name='SF330_Section_E_Resume_Template.docx',
+                mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            )
+    except Exception as e:
+        flash(f'Error exporting SF330 resume template: {str(e)}', 'error')
+        return redirect(url_for('settings'))
+
+
+@app.route('/settings/sf330-resume-template/import', methods=['POST'])
+def import_sf330_resume_template():
+    """Upload a custom SF330 Section E resume template"""
+    if 'template' not in request.files:
+        flash('No file uploaded', 'error')
+        return redirect(url_for('settings'))
+    
+    file = request.files['template']
+    if file.filename == '':
+        flash('No file selected', 'error')
+        return redirect(url_for('settings'))
+    
+    if not file.filename.lower().endswith('.docx'):
+        flash('Please upload a .docx file', 'error')
+        return redirect(url_for('settings'))
+    
+    try:
+        file_content = file.read()
+        from docx import Document
+        doc = Document(io.BytesIO(file_content))
+        
+        client = get_storage_client()
+        client.upload_from_bytes('templates/sf330_resume_template_custom.docx', file_content)
+        
+        flash('Custom SF330 resume template uploaded successfully!', 'success')
+    except Exception as e:
+        flash(f'Error uploading template: {str(e)}', 'error')
+    
+    return redirect(url_for('settings'))
+
+
+@app.route('/settings/sf330-resume-template/reset', methods=['POST'])
+def reset_sf330_resume_template():
+    """Remove custom SF330 resume template and reset to default"""
+    try:
+        client = get_storage_client()
+        client.delete('templates/sf330_resume_template_custom.docx')
+        flash('SF330 resume template reset to default successfully!', 'success')
     except Exception as e:
         flash(f'Error resetting template: {str(e)}', 'error')
     

@@ -9,10 +9,25 @@
     </a>
     <div class="flex items-center justify-between">
         <h1 class="text-3xl font-bold text-gray-800">{{ employee.name }}</h1>
-        <a href="/employee/{{ employee.id }}/download" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
-            <i class="fas fa-file-word mr-2"></i>
-            Download Resume
-        </a>
+        <div class="relative" id="resume-download-dropdown">
+            <button onclick="document.getElementById('resume-dd-menu').classList.toggle('hidden')" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center">
+                <i class="fas fa-file-word mr-2"></i>
+                Download Resume
+                <i class="fas fa-chevron-down ml-2 text-xs"></i>
+            </button>
+            <div id="resume-dd-menu" class="hidden absolute right-0 mt-1 w-56 bg-white rounded-lg shadow-lg border z-50">
+                <a href="/employee/{{ employee.id }}/download" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-t-lg border-b">
+                    <i class="fas fa-id-card text-teal-600 mr-2"></i>
+                    Company Resume
+                    <span class="block text-xs text-gray-400 mt-0.5">Custom branded format</span>
+                </a>
+                <a href="/employee/{{ employee.id }}/download-sf330" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-b-lg">
+                    <i class="fas fa-file-alt text-blue-600 mr-2"></i>
+                    SF330 Section E
+                    <span class="block text-xs text-gray-400 mt-0.5">Federal standard format</span>
+                </a>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -1535,6 +1550,9 @@ document.addEventListener('click', (e) => {
     }
     if (!e.target.closest('#exp-owner-name') && !e.target.closest('#owner-autocomplete')) {
         document.getElementById('owner-autocomplete').classList.add('hidden');
+    }
+    if (!e.target.closest('#resume-download-dropdown')) {
+        document.getElementById('resume-dd-menu').classList.add('hidden');
     }
 });
 
