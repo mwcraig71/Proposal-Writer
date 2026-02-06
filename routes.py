@@ -1165,7 +1165,7 @@ Return ONLY the formatted text, no explanations or extra text."""
 
     try:
         response = client.models.generate_content(
-            model='gemini-2.0-flash',
+            model='gemini-2.5-flash',
             contents=prompt
         )
         formatted = response.text.strip()
