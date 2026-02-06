@@ -303,14 +303,14 @@ Return ONLY the JSON object, no markdown formatting or explanation."""
 def detect_document_type(text: str) -> str:
     prompt = f"""Analyze the following document text and determine if it is primarily:
 1. An employee resume/CV (contains personal info, education, experience of one person)
-2. A project description/sheet (contains details about a SINGLE project - scope, owner, costs)
-3. A project references table (contains MULTIPLE projects/contracts listed in a table or list format, often with contact info and contract values - like a references appendix)
+2. A project description/sheet (contains details about a SINGLE project - scope, owner, costs). This includes SF330 Section F forms which describe one example project with fields like "TITLE AND LOCATION", "YEAR COMPLETED", "PROJECT OWNER'S INFORMATION", "BRIEF DESCRIPTION OF PROJECT". Even though the SF330 header mentions "10 projects", each Section F page describes ONE project - return "project" for these.
+3. A project references table (contains MULTIPLE DISTINCT projects/contracts listed in a table or list format, often with contact info and contract values - like a references appendix with many rows of different projects)
 4. A firm profile (contains company information, address, capabilities)
 5. Unknown
 
 Return ONLY one of these exact strings: "employee", "project", "projects", "firm", or "unknown"
-- Return "project" for a SINGLE project description
-- Return "projects" for MULTIPLE projects in a table/list format (references appendix)
+- Return "project" for a SINGLE project description or SF330 Section F form
+- Return "projects" ONLY for documents listing MULTIPLE distinct projects in a table/list format (references appendix)
 
 Text to analyze (first 2000 characters):
 {text[:2000]}

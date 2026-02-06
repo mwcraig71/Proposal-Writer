@@ -173,6 +173,32 @@ function displayResults(data) {
     
     saveBtn.classList.remove('hidden');
     
+    if (data.doc_type === 'projects') {
+        const projects = data.parsed_data.projects || [];
+        if (projects.length === 0) {
+            parsedForm.innerHTML = '<p class="text-gray-500">No projects found in document.</p>';
+            saveBtn.classList.add('hidden');
+            return;
+        }
+        let html = `<p class="text-sm text-gray-600 mb-3">${projects.length} project(s) found. Click Save to add all to database.</p>`;
+        projects.forEach((p, idx) => {
+            html += `<div class="border rounded-lg p-3 bg-gray-50 mb-3">
+                <div class="font-semibold text-gray-800 mb-1">${escapeHtml(p.title || p.contract_number || 'Project ' + (idx + 1))}</div>
+                <div class="grid grid-cols-2 gap-2 text-sm">
+                    ${p.location ? `<div><span class="text-gray-500">Location:</span> ${escapeHtml(p.location)}</div>` : ''}
+                    ${p.client ? `<div><span class="text-gray-500">Client:</span> ${escapeHtml(p.client)}</div>` : ''}
+                    ${p.year_completed ? `<div><span class="text-gray-500">Year:</span> ${escapeHtml(p.year_completed)}</div>` : ''}
+                    ${p.contract_value ? `<div><span class="text-gray-500">Value:</span> ${escapeHtml(p.contract_value)}</div>` : ''}
+                    ${p.primary_contact_name ? `<div><span class="text-gray-500">Contact:</span> ${escapeHtml(p.primary_contact_name)}</div>` : ''}
+                    ${p.delivery_method ? `<div><span class="text-gray-500">Delivery:</span> ${escapeHtml(p.delivery_method)}</div>` : ''}
+                </div>
+                ${p.description ? `<div class="text-gray-600 text-xs mt-2 border-t pt-2">${escapeHtml((p.description || '').substring(0, 200))}${(p.description || '').length > 200 ? '...' : ''}</div>` : ''}
+            </div>`;
+        });
+        parsedForm.innerHTML = html;
+        return;
+    }
+    
     if (data.doc_type === 'project' && data.parsed_data.team_members && Array.isArray(data.parsed_data.team_members) && data.parsed_data.team_members.length > 0) {
         let teamHtml = `<div class="mb-4"><label class="block text-sm font-medium text-gray-700 mb-1">Team Members</label>`;
         teamHtml += `<div class="space-y-1 bg-gray-50 p-3 rounded-lg max-h-48 overflow-y-auto">`;
