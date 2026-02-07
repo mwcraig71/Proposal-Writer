@@ -3231,7 +3231,7 @@ def api_orgchart_personnel(proposal_id):
 def api_saved_orgchart_personnel(chart_id):
     chart = SavedOrgChart.query.get_or_404(chart_id)
     try:
-        org_data = json.loads(chart.chart_data) if isinstance(chart.chart_data, str) else chart.chart_data
+        org_data = json.loads(chart.org_chart_data) if isinstance(chart.org_chart_data, str) else chart.org_chart_data
         nodes = org_data.get('nodes', [])
         personnel = []
         for node in nodes:
