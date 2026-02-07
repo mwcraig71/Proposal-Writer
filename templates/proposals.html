@@ -80,6 +80,9 @@
                     <a href="/proposals/{{ proposal.id }}/generate-word-simple" class="text-purple-600 hover:text-purple-800 mr-3" title="Generate Simple Word Doc">
                         <i class="fas fa-file-alt"></i>
                     </a>
+                    <a href="/proposals/{{ proposal.id }}/export-json" class="text-yellow-600 hover:text-yellow-800 mr-3" title="Export Proposal JSON">
+                        <i class="fas fa-file-export"></i>
+                    </a>
                     <button onclick="confirmDelete({{ proposal.id }}, '{{ proposal.name | e }}')" class="text-red-600 hover:text-red-800" title="Delete">
                         <i class="fas fa-trash"></i>
                     </button>

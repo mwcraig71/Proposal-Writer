@@ -3786,6 +3786,218 @@ def delete_proposal(id):
     return redirect('/proposals')
 
 
+@app.route('/proposals/<int:id>/export-json')
+def export_proposal_json(id):
+    import json as json_module
+    proposal = Proposal.query.get_or_404(id)
+    
+    data = {
+        'proposal': {
+            'id': proposal.id,
+            'tracking_number': proposal.tracking_number,
+            'name': proposal.name,
+            'contract_title': proposal.contract_title,
+            'contract_location': proposal.contract_location,
+            'public_notice_date': proposal.public_notice_date,
+            'solicitation_number': proposal.solicitation_number,
+            'win_theme': proposal.win_theme,
+            'proposal_outline': proposal.proposal_outline,
+            'proposal_outline_instructions': proposal.proposal_outline_instructions,
+            'cover_letter': proposal.cover_letter,
+            'written_sections': proposal.written_sections,
+            'org_chart_data': proposal.org_chart_data,
+            'org_chart_notes': proposal.org_chart_notes,
+            'status': proposal.status,
+            'created_at': proposal.created_at.isoformat() if proposal.created_at else None,
+            'updated_at': proposal.updated_at.isoformat() if proposal.updated_at else None,
+        },
+        'firm': None,
+        'selected_employees': [],
+        'selected_projects': [],
+        'selected_firm_photos': [],
+        'selected_marketing_photos': [],
+        'reference_documents': [],
+        'intelligence_documents': [],
+        'saved_responses': [],
+        'linked_responses': [],
+        'linked_references': [],
+    }
+    
+    if proposal.firm:
+        f = proposal.firm
+        data['firm'] = {
+            'id': f.id, 'name': f.name, 'duns_number': f.duns_number,
+            'cage_code': f.cage_code, 'address_line1': f.address_line1,
+            'address_line2': f.address_line2, 'city': f.city, 'state': f.state,
+            'zip_code': f.zip_code, 'country': f.country, 'phone': f.phone,
+            'email': f.email, 'website': f.website, 'bio': f.bio,
+            'year_established': f.year_established, 'annual_revenue': f.annual_revenue,
+        }
+    
+    if proposal.firm_bio_alternate:
+        data['proposal']['firm_bio_alternate'] = {
+            'id': proposal.firm_bio_alternate.id,
+            'description': proposal.firm_bio_alternate.description,
+            'label': proposal.firm_bio_alternate.label if hasattr(proposal.firm_bio_alternate, 'label') else None,
+        }
+    
+    selected_employees = ProposalSelectedEmployee.query.filter_by(proposal_id=id)\
+        .order_by(ProposalSelectedEmployee.display_order).all()
+    for pse in selected_employees:
+        emp = pse.employee
+        emp_data = {
+            'employee_id': emp.id,
+            'name': emp.name,
+            'title': emp.title,
+            'role_in_contract': pse.role_in_contract,
+            'display_order': pse.display_order,
+            'firm_id': emp.firm_id,
+            'firm_name': emp.firm.name if emp.firm else None,
+            'education': emp.education,
+            'registrations': emp.registrations,
+            'bio': emp.bio,
+            'years_experience': emp.years_experience,
+            'years_with_firm': emp.years_with_firm,
+            'relevant_projects': [],
+        }
+        for rp in pse.relevant_projects:
+            rp_data = {
+                'project_id': rp.project_id,
+                'experience_id': rp.experience_id,
+                'display_order': rp.display_order,
+            }
+            if rp.project:
+                rp_data['project_name'] = rp.project.name
+                rp_data['project_location'] = rp.project.location
+            if rp.experience:
+                rp_data['experience_role'] = rp.experience.role
+                rp_data['experience_description'] = rp.experience.description
+            emp_data['relevant_projects'].append(rp_data)
+        data['selected_employees'].append(emp_data)
+    
+    selected_projects = ProposalSelectedProject.query.filter_by(proposal_id=id)\
+        .order_by(ProposalSelectedProject.display_order).all()
+    for psp in selected_projects:
+        proj = psp.project
+        proj_data = {
+            'project_id': proj.id,
+            'display_order': psp.display_order,
+            'custom_writeup': psp.custom_writeup,
+            'name': proj.name,
+            'owner': proj.owner,
+            'location': proj.location,
+            'completion_date': proj.completion_date,
+            'cost': proj.cost,
+            'description': proj.description,
+            'firm_id': proj.firm_id,
+            'firm_name': proj.firm.name if proj.firm else None,
+        }
+        if psp.alternate_description:
+            proj_data['alternate_description'] = {
+                'id': psp.alternate_description.id,
+                'description': psp.alternate_description.description,
+                'label': psp.alternate_description.label if hasattr(psp.alternate_description, 'label') else None,
+            }
+        data['selected_projects'].append(proj_data)
+    
+    for fp in ProposalSelectedFirmPhoto.query.filter_by(proposal_id=id).order_by(ProposalSelectedFirmPhoto.display_order).all():
+        photo = fp.firm_photo
+        data['selected_firm_photos'].append({
+            'firm_photo_id': fp.firm_photo_id,
+            'display_order': fp.display_order,
+            'caption': photo.caption if hasattr(photo, 'caption') else None,
+        })
+    
+    for mp in ProposalSelectedMarketingPhoto.query.filter_by(proposal_id=id).order_by(ProposalSelectedMarketingPhoto.display_order).all():
+        photo = mp.marketing_photo
+        data['selected_marketing_photos'].append({
+            'marketing_photo_id': mp.marketing_photo_id,
+            'display_order': mp.display_order,
+            'filename': photo.filename if photo else None,
+            'caption': photo.caption if photo else None,
+            'tags': photo.tags if photo else None,
+        })
+    
+    for ref in ProposalReference.query.filter_by(proposal_id=id).all():
+        data['reference_documents'].append({
+            'id': ref.id,
+            'filename': ref.filename,
+            'extracted_text': ref.extracted_text,
+            'file_size': ref.file_size,
+            'content_type': ref.content_type,
+            'created_at': ref.created_at.isoformat() if ref.created_at else None,
+        })
+    
+    for intel in ProposalIntelligence.query.filter_by(proposal_id=id).all():
+        data['intelligence_documents'].append({
+            'id': intel.id,
+            'filename': intel.filename,
+            'extracted_text': intel.extracted_text,
+            'description': intel.description,
+            'file_size': intel.file_size,
+            'content_type': intel.content_type,
+            'created_at': intel.created_at.isoformat() if intel.created_at else None,
+        })
+    
+    for sr in ProposalSavedResponse.query.filter_by(proposal_id=id).all():
+        data['saved_responses'].append({
+            'id': sr.id,
+            'prompt': sr.prompt,
+            'response': sr.response,
+            'label': sr.label,
+            'created_at': sr.created_at.isoformat() if sr.created_at else None,
+        })
+    
+    for lr in ProposalLinkedResponse.query.filter_by(proposal_id=id).all():
+        resp = lr.response
+        data['linked_responses'].append({
+            'response_id': lr.response_id,
+            'display_order': lr.display_order,
+            'year': resp.year if resp else None,
+            'client': resp.client if resp else None,
+            'project_type': resp.project_type if resp else None,
+            'contract': resp.contract if resp else None,
+            'firm': resp.firm if resp else None,
+            'grade': resp.grade if resp else None,
+            'question': resp.question if resp else None,
+            'response': resp.response if resp else None,
+            'tags': resp.tags if resp else None,
+        })
+    
+    for lref in ProposalLinkedReference.query.filter_by(proposal_id=id).all():
+        ref = lref.reference
+        data['linked_references'].append({
+            'reference_id': lref.reference_id,
+            'display_order': lref.display_order,
+            'client': ref.client if ref else None,
+            'agency': ref.agency if ref else None,
+            'project_name': ref.project_name if ref else None,
+            'contract_number': ref.contract_number if ref else None,
+            'evaluation_date': ref.evaluation_date.isoformat() if ref and ref.evaluation_date else None,
+            'final_score': ref.final_score if ref else None,
+            'quotes': ref.quotes if ref else None,
+            'evaluator_name': ref.evaluator_name if ref else None,
+            'firm': ref.firm if ref else None,
+        })
+    
+    if proposal.saved_org_chart:
+        data['saved_org_chart'] = {
+            'id': proposal.saved_org_chart.id,
+            'name': proposal.saved_org_chart.name,
+            'chart_data': proposal.saved_org_chart.chart_data,
+        }
+    
+    safe_name = ''.join(c if c.isalnum() or c in (' ', '-', '_') else '' for c in proposal.name).strip().replace(' ', '_')
+    filename = f"proposal_{proposal.tracking_number or proposal.id}_{safe_name}.json"
+    
+    json_str = json_module.dumps(data, indent=2, ensure_ascii=False)
+    
+    response = make_response(json_str)
+    response.headers['Content-Type'] = 'application/json'
+    response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
+
+
 @app.route('/proposals/<int:id>/generate-pdf')
 def generate_proposal_pdf(id):
     proposal = Proposal.query.get_or_404(id)
