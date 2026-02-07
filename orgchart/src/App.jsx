@@ -20,6 +20,17 @@ const nodeWidth = 192
 const nodeHeight = 100
 const junctionSize = 12
 
+const FIRM_COLORS = [
+  { bg: 'bg-red-50', border: 'border-red-600', text: 'text-red-700', label: 'bg-red-600', hex: '#dc2626' },
+  { bg: 'bg-blue-50', border: 'border-blue-600', text: 'text-blue-700', label: 'bg-blue-600', hex: '#2563eb' },
+  { bg: 'bg-green-50', border: 'border-green-600', text: 'text-green-700', label: 'bg-green-600', hex: '#16a34a' },
+  { bg: 'bg-purple-50', border: 'border-purple-600', text: 'text-purple-700', label: 'bg-purple-600', hex: '#9333ea' },
+  { bg: 'bg-orange-50', border: 'border-orange-600', text: 'text-orange-700', label: 'bg-orange-600', hex: '#ea580c' },
+  { bg: 'bg-teal-50', border: 'border-teal-600', text: 'text-teal-700', label: 'bg-teal-600', hex: '#0d9488' },
+  { bg: 'bg-pink-50', border: 'border-pink-600', text: 'text-pink-700', label: 'bg-pink-600', hex: '#db2777' },
+  { bg: 'bg-yellow-50', border: 'border-yellow-600', text: 'text-yellow-700', label: 'bg-yellow-600', hex: '#ca8a04' },
+]
+
 const getLayoutedElements = (nodes, edges, direction = 'TB') => {
   const pmNode = nodes.find(n => n.id === 'pm')
   const junctionNode = nodes.find(n => n.id === 'junction')
@@ -28,6 +39,7 @@ const getLayoutedElements = (nodes, edges, direction = 'TB') => {
   
   const serviceNodes = nodes.filter(n => n.data?.isTaskLead)
   const teamNodes = nodes.filter(n => n.data?.isTeamMember)
+  const branchNodes = nodes.filter(n => n.data?.parentId && !n.data?.isTaskLead && !n.data?.isTeamMember && n.id !== 'junction')
   
   const centerX = 500
   const pmY = 20
@@ -73,6 +85,26 @@ const getLayoutedElements = (nodes, edges, direction = 'TB') => {
         }
       }
     }
+
+    if (node.data?.parentId && !node.data?.isTaskLead && !node.data?.isTeamMember) {
+      const parentNode = nodes.find(n => n.id === node.data.parentId)
+      if (parentNode) {
+        const siblingsUnderSameParent = branchNodes.filter(n => n.data.parentId === node.data.parentId)
+        const siblingIndex = siblingsUnderSameParent.findIndex(n => n.id === node.id)
+        const totalSiblings = siblingsUnderSameParent.length
+        const spacing = nodeWidth + 20
+        const parentPos = parentNode.position || { x: centerX, y: 200 }
+        const totalWidth = totalSiblings * spacing - 20
+        const startX = parentPos.x + (nodeWidth / 2) - (totalWidth / 2)
+        return { 
+          ...node, 
+          position: { 
+            x: startX + siblingIndex * spacing, 
+            y: parentPos.y + nodeHeight + 40
+          } 
+        }
+      }
+    }
     
     return node
   })
@@ -111,17 +143,44 @@ function OrgChartFlow() {
   const [edges, setEdges, onEdgesChange] = useEdgesState(layoutedEdges)
   const [reactFlowInstance, setReactFlowInstance] = useState(null)
   const [staff, setStaff] = useState([])
+  const [firms, setFirms] = useState([])
+  const [selectedFirmFilter, setSelectedFirmFilter] = useState('')
   const [draggedStaff, setDraggedStaff] = useState(null)
   const [globalNotes, setGlobalNotes] = useState('')
   const [proposals, setProposals] = useState([])
   const [selectedProposalId, setSelectedProposalId] = useState('')
   const [saveStatus, setSaveStatus] = useState('')
+  const [firmColorMap, setFirmColorMap] = useState({})
+  const [savedCharts, setSavedCharts] = useState([])
+  const [selectedSavedChartId, setSelectedSavedChartId] = useState('')
+  const [showSaveAsModal, setShowSaveAsModal] = useState(false)
+  const [saveAsName, setSaveAsName] = useState('')
+  const [saveTarget, setSaveTarget] = useState('proposal')
 
   useEffect(() => {
     fetch('/api/employees')
       .then(res => res.json())
-      .then(data => setStaff(data))
+      .then(data => {
+        setStaff(data)
+        const firmIds = [...new Set(data.map(e => e.firm_id).filter(Boolean))]
+        const colorMap = {}
+        firmIds.forEach((firmId, index) => {
+          colorMap[firmId] = FIRM_COLORS[index % FIRM_COLORS.length]
+        })
+        setFirmColorMap(colorMap)
+      })
       .catch(err => console.error('Failed to fetch staff:', err))
+    
+    fetch('/api/firms/list')
+      .then(res => res.json())
+      .then(data => {
+        setFirms(data)
+        const strinteg = data.find(f => f.name.toLowerCase().includes('strinteg'))
+        if (strinteg) {
+          setSelectedFirmFilter(String(strinteg.id))
+        }
+      })
+      .catch(err => console.error('Failed to fetch firms:', err))
     
     fetch('/api/proposals/list')
       .then(res => res.json())
@@ -131,10 +190,26 @@ function OrgChartFlow() {
         const proposalId = urlParams.get('proposal')
         if (proposalId) {
           setSelectedProposalId(proposalId)
+          setSaveTarget('proposal')
         }
       })
       .catch(err => console.error('Failed to fetch proposals:', err))
+    
+    fetch('/api/saved-orgcharts')
+      .then(res => res.json())
+      .then(data => setSavedCharts(data))
+      .catch(err => console.error('Failed to fetch saved charts:', err))
   }, [])
+
+  const filteredStaff = (selectedFirmFilter
+    ? staff.filter(s => String(s.firm_id) === selectedFirmFilter)
+    : [...staff].sort((a, b) => {
+        const firmA = (a.firm_name || 'zzz').toLowerCase()
+        const firmB = (b.firm_name || 'zzz').toLowerCase()
+        if (firmA !== firmB) return firmA.localeCompare(firmB)
+        return (a.name || '').localeCompare(b.name || '')
+      })
+  )
 
   const loadOrgChart = useCallback((proposalId) => {
     if (!proposalId) return
@@ -160,34 +235,139 @@ function OrgChartFlow() {
       })
   }, [setNodes, setEdges])
 
+  const loadSavedChart = useCallback((chartId) => {
+    if (!chartId) return
+    
+    fetch(`/api/saved-orgcharts/${chartId}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.org_chart_data) {
+          const chartData = JSON.parse(data.org_chart_data)
+          setNodes(chartData.nodes || layoutedNodes)
+          setEdges(chartData.edges || layoutedEdges)
+        }
+        if (data.org_chart_notes) {
+          setGlobalNotes(data.org_chart_notes)
+        }
+        setSaveStatus(`Loaded: ${data.name}`)
+        setTimeout(() => setSaveStatus(''), 2000)
+      })
+      .catch(err => {
+        console.error('Failed to load saved chart:', err)
+        setSaveStatus('Failed to load')
+        setTimeout(() => setSaveStatus(''), 2000)
+      })
+  }, [setNodes, setEdges])
+
   const saveOrgChart = useCallback(() => {
-    if (!selectedProposalId) {
-      setSaveStatus('Select a proposal first')
-      setTimeout(() => setSaveStatus(''), 2000)
-      return
+    if (saveTarget === 'proposal') {
+      if (!selectedProposalId) {
+        setSaveStatus('Select a proposal first')
+        setTimeout(() => setSaveStatus(''), 2000)
+        return
+      }
+
+      const chartData = JSON.stringify({ nodes, edges })
+      
+      fetch(`/api/proposals/${selectedProposalId}/orgchart`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          org_chart_data: chartData,
+          org_chart_notes: globalNotes
+        })
+      })
+        .then(res => res.json())
+        .then(data => {
+          setSaveStatus('Saved to Proposal!')
+          setTimeout(() => setSaveStatus(''), 2000)
+        })
+        .catch(err => {
+          console.error('Failed to save org chart:', err)
+          setSaveStatus('Failed to save')
+          setTimeout(() => setSaveStatus(''), 2000)
+        })
+    } else if (saveTarget === 'saved') {
+      if (!selectedSavedChartId) {
+        setSaveStatus('Select a saved chart first')
+        setTimeout(() => setSaveStatus(''), 2000)
+        return
+      }
+
+      const chartData = JSON.stringify({ nodes, edges })
+      
+      fetch(`/api/saved-orgcharts/${selectedSavedChartId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          org_chart_data: chartData,
+          org_chart_notes: globalNotes
+        })
+      })
+        .then(res => res.json())
+        .then(data => {
+          setSaveStatus('Saved!')
+          setTimeout(() => setSaveStatus(''), 2000)
+        })
+        .catch(err => {
+          console.error('Failed to save chart:', err)
+          setSaveStatus('Failed to save')
+          setTimeout(() => setSaveStatus(''), 2000)
+        })
     }
+  }, [saveTarget, selectedProposalId, selectedSavedChartId, nodes, edges, globalNotes])
+
+  const saveAsNewChart = useCallback(() => {
+    if (!saveAsName.trim()) return
 
     const chartData = JSON.stringify({ nodes, edges })
     
-    fetch(`/api/proposals/${selectedProposalId}/orgchart`, {
+    fetch('/api/saved-orgcharts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        name: saveAsName.trim(),
         org_chart_data: chartData,
         org_chart_notes: globalNotes
       })
     })
       .then(res => res.json())
       .then(data => {
-        setSaveStatus('Saved!')
+        if (data.success) {
+          setSaveStatus(`Saved as "${data.name}"`)
+          setShowSaveAsModal(false)
+          setSaveAsName('')
+          setSaveTarget('saved')
+          setSelectedSavedChartId(String(data.id))
+          fetch('/api/saved-orgcharts')
+            .then(res => res.json())
+            .then(charts => setSavedCharts(charts))
+        }
         setTimeout(() => setSaveStatus(''), 2000)
       })
       .catch(err => {
-        console.error('Failed to save org chart:', err)
+        console.error('Failed to save:', err)
         setSaveStatus('Failed to save')
         setTimeout(() => setSaveStatus(''), 2000)
       })
-  }, [selectedProposalId, nodes, edges, globalNotes])
+  }, [saveAsName, nodes, edges, globalNotes])
+
+  const deleteSavedChart = useCallback(() => {
+    if (!selectedSavedChartId) return
+    const chart = savedCharts.find(c => String(c.id) === selectedSavedChartId)
+    if (!confirm(`Delete saved chart "${chart?.name}"?`)) return
+
+    fetch(`/api/saved-orgcharts/${selectedSavedChartId}`, { method: 'DELETE' })
+      .then(res => res.json())
+      .then(() => {
+        setSelectedSavedChartId('')
+        fetch('/api/saved-orgcharts')
+          .then(res => res.json())
+          .then(charts => setSavedCharts(charts))
+        setSaveStatus('Deleted')
+        setTimeout(() => setSaveStatus(''), 2000)
+      })
+  }, [selectedSavedChartId, savedCharts])
 
   const handleProposalChange = (e) => {
     const proposalId = e.target.value
@@ -197,11 +377,19 @@ function OrgChartFlow() {
     }
   }
 
+  const handleSavedChartChange = (e) => {
+    const chartId = e.target.value
+    setSelectedSavedChartId(chartId)
+    if (chartId) {
+      loadSavedChart(chartId)
+    }
+  }
+
   useEffect(() => {
-    if (selectedProposalId && proposals.length > 0) {
+    if (selectedProposalId && proposals.length > 0 && saveTarget === 'proposal') {
       loadOrgChart(selectedProposalId)
     }
-  }, [selectedProposalId, proposals.length, loadOrgChart])
+  }, [selectedProposalId, proposals.length, loadOrgChart, saveTarget])
 
   const onConnect = useCallback(
     (params) => setEdges((eds) => addEdge({ ...params, type: 'smoothstep' }, eds)),
@@ -257,10 +445,10 @@ function OrgChartFlow() {
           setNodes((nds) =>
             nds.map((node) => {
               if (node.id === staffInfo.fromNodeId) {
-                return { ...node, data: { ...node.data, assignedStaff: null, staffId: null } }
+                return { ...node, data: { ...node.data, assignedStaff: null, staffId: null, staffFirmId: null, staffFirmName: null } }
               }
               if (node.id === dropTargetNode.id) {
-                return { ...node, data: { ...node.data, assignedStaff: staffInfo.name, staffId: staffInfo.staffId } }
+                return { ...node, data: { ...node.data, assignedStaff: staffInfo.name, staffId: staffInfo.staffId, staffFirmId: staffInfo.firmId, staffFirmName: staffInfo.firmName } }
               }
               return node
             })
@@ -269,7 +457,7 @@ function OrgChartFlow() {
           setNodes((nds) => {
             const updated = nds.map((node) => {
               if (node.id === staffInfo.fromNodeId) {
-                return { ...node, data: { ...node.data, assignedStaff: null, staffId: null } }
+                return { ...node, data: { ...node.data, assignedStaff: null, staffId: null, staffFirmId: null, staffFirmName: null } }
               }
               return node
             })
@@ -277,7 +465,7 @@ function OrgChartFlow() {
               id: `node-${Date.now()}`,
               type: 'custom',
               position,
-              data: { role: 'New Role', assignedStaff: staffInfo.name, staffId: staffInfo.staffId },
+              data: { role: 'New Role', assignedStaff: staffInfo.name, staffId: staffInfo.staffId, staffFirmId: staffInfo.firmId, staffFirmName: staffInfo.firmName },
             }
             return [...updated, newNode]
           })
@@ -300,7 +488,7 @@ function OrgChartFlow() {
                   ...node,
                   data: {
                     ...node.data,
-                    staffList: [...currentList, staffMember.name],
+                    staffList: [...currentList, { name: staffMember.name, id: staffMember.id, firm_id: staffMember.firm_id, firm_name: staffMember.firm_name }],
                   },
                 }
               }
@@ -310,6 +498,8 @@ function OrgChartFlow() {
                   ...node.data,
                   assignedStaff: staffMember.name,
                   staffId: staffMember.id,
+                  staffFirmId: staffMember.firm_id,
+                  staffFirmName: staffMember.firm_name,
                 },
               }
             }
@@ -321,7 +511,7 @@ function OrgChartFlow() {
           id: `node-${Date.now()}`,
           type: 'custom',
           position,
-          data: { role: 'New Role', assignedStaff: staffMember.name, staffId: staffMember.id, canDelete: true },
+          data: { role: 'New Role', assignedStaff: staffMember.name, staffId: staffMember.id, staffFirmId: staffMember.firm_id, staffFirmName: staffMember.firm_name, canDelete: true },
         }
         setNodes((nds) => nds.concat(newNode))
       }
@@ -349,7 +539,7 @@ function OrgChartFlow() {
     setNodes((nds) =>
       nds.map((node) => {
         if (node.id === nodeId) {
-          return { ...node, data: { ...node.data, assignedStaff: null } }
+          return { ...node, data: { ...node.data, assignedStaff: null, staffFirmId: null, staffFirmName: null } }
         }
         return node
       })
@@ -468,6 +658,41 @@ function OrgChartFlow() {
     }, 50)
   }, [nodes, edges, setNodes, setEdges, addTeamMember])
 
+  const addChildBranch = useCallback((parentNodeId) => {
+    const parentNode = nodes.find(n => n.id === parentNodeId)
+    if (!parentNode) return
+
+    const branchName = prompt('Enter branch/role name:', 'New Branch')
+    if (!branchName || branchName.trim() === '') return
+
+    const newNodeId = `branch-${Date.now()}`
+    const newNode = {
+      id: newNodeId,
+      type: 'custom',
+      position: { x: parentNode.position.x + 50, y: parentNode.position.y + 120 },
+      data: { 
+        role: branchName.trim(), 
+        assignedStaff: null, 
+        parentId: parentNodeId,
+        canDelete: true,
+      },
+    }
+    const newEdge = {
+      id: `e-${parentNodeId}-${newNodeId}`,
+      source: parentNodeId,
+      target: newNodeId,
+      type: 'smoothstep'
+    }
+    
+    setNodes((nds) => [...nds, newNode])
+    setEdges((eds) => [...eds, newEdge])
+
+    setTimeout(() => {
+      const { nodes: layouted } = getLayoutedElements([...nodes, newNode], [...edges, newEdge])
+      setNodes(layouted)
+    }, 50)
+  }, [nodes, edges, setNodes, setEdges])
+
   const removeStaffFromList = useCallback((nodeId, index) => {
     setNodes((nds) =>
       nds.map((node) => {
@@ -493,9 +718,24 @@ function OrgChartFlow() {
       onAddTeamMember: addTeamMember,
       onDeleteNode: deleteNode,
       onAddDPM: addDPM,
-      onRemoveStaffFromList: removeStaffFromList
+      onRemoveStaffFromList: removeStaffFromList,
+      onAddChildBranch: addChildBranch,
+      firmColorMap: firmColorMap,
     }
   }))
+
+  const legendFirms = [...new Set(
+    nodes
+      .filter(n => n.data?.staffFirmId)
+      .map(n => n.data.staffFirmId)
+  )].map(firmId => {
+    const staffMember = staff.find(s => s.firm_id === firmId)
+    return {
+      firmId,
+      firmName: staffMember?.firm_name || 'Unknown',
+      color: firmColorMap[firmId] || FIRM_COLORS[0]
+    }
+  })
 
   return (
     <div className="flex h-screen w-full">
@@ -504,23 +744,45 @@ function OrgChartFlow() {
           <h2 className="text-lg font-bold">Available Staff</h2>
           <p className="text-sm text-gray-400">Drag to assign</p>
         </div>
+        <div className="p-2 border-b border-gray-300">
+          <select
+            value={selectedFirmFilter}
+            onChange={(e) => setSelectedFirmFilter(e.target.value)}
+            className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-red-500"
+          >
+            <option value="">All Firms</option>
+            {firms.map(f => (
+              <option key={f.id} value={f.id}>{f.name}</option>
+            ))}
+          </select>
+        </div>
         <div className="flex-1 overflow-y-auto p-2">
-          {staff.length === 0 ? (
-            <p className="text-gray-500 text-sm p-2">No staff available. Add employees in the main app.</p>
+          {filteredStaff.length === 0 ? (
+            <p className="text-gray-500 text-sm p-2">No staff available{selectedFirmFilter ? ' for this firm' : '. Add employees in the main app.'}.</p>
           ) : (
-            staff.map((person) => (
-              <div
-                key={person.id}
-                className="staff-item p-3 mb-2 bg-white rounded shadow hover:shadow-md border border-gray-200 hover:border-red-500 transition-all cursor-grab"
-                draggable
-                onDragStart={(e) => onDragStart(e, person)}
-              >
-                <div className="font-medium text-gray-800 text-sm">{person.name}</div>
-                {person.title && (
-                  <div className="text-xs text-gray-500">{person.title}</div>
-                )}
-              </div>
-            ))
+            filteredStaff.map((person) => {
+              const firmColor = firmColorMap[person.firm_id]
+              return (
+                <div
+                  key={person.id}
+                  className={`staff-item p-3 mb-2 rounded shadow hover:shadow-md border-2 transition-all cursor-grab ${
+                    firmColor ? `${firmColor.border} ${firmColor.bg}` : 'border-gray-200 bg-white hover:border-red-500'
+                  }`}
+                  draggable
+                  onDragStart={(e) => onDragStart(e, person)}
+                >
+                  <div className="font-medium text-gray-800 text-sm">{person.name}</div>
+                  {person.title && (
+                    <div className="text-xs text-gray-500">{person.title}</div>
+                  )}
+                  {person.firm_name && (
+                    <div className={`text-[10px] font-semibold mt-0.5 ${firmColor ? firmColor.text : 'text-gray-400'}`}>
+                      {person.firm_name}
+                    </div>
+                  )}
+                </div>
+              )
+            })
           )}
         </div>
       </div>
@@ -542,39 +804,102 @@ function OrgChartFlow() {
         >
           <Controls />
           <Background variant="dots" gap={12} size={1} />
-          <Panel position="top-left" className="flex items-center gap-2 bg-white p-2 rounded shadow">
-            <select
-              value={selectedProposalId}
-              onChange={handleProposalChange}
-              className="px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-red-500"
-            >
-              <option value="">Select Proposal...</option>
-              {proposals.map(p => (
-                <option key={p.id} value={p.id}>
-                  {p.tracking_number ? `${p.tracking_number} - ` : ''}{p.name}
-                  {p.has_org_chart ? ' ✓' : ''}
-                </option>
-              ))}
-            </select>
-            <button
-              onClick={saveOrgChart}
-              disabled={!selectedProposalId}
-              className={`px-4 py-2 rounded shadow font-medium transition-colors ${
-                selectedProposalId 
-                  ? 'bg-green-600 text-white hover:bg-green-700' 
-                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              }`}
-            >
-              Save to Proposal
-            </button>
-            {saveStatus && (
-              <span className={`text-sm font-medium ${
-                saveStatus.includes('Failed') ? 'text-red-600' : 'text-green-600'
-              }`}>
-                {saveStatus}
-              </span>
-            )}
+          <Panel position="top-left" className="bg-white p-3 rounded shadow max-w-sm">
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-1">
+                <label className="flex items-center gap-1 text-xs font-medium text-gray-600 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="saveTarget"
+                    value="proposal"
+                    checked={saveTarget === 'proposal'}
+                    onChange={() => setSaveTarget('proposal')}
+                    className="text-red-600"
+                  />
+                  Proposal
+                </label>
+                <label className="flex items-center gap-1 text-xs font-medium text-gray-600 cursor-pointer ml-2">
+                  <input
+                    type="radio"
+                    name="saveTarget"
+                    value="saved"
+                    checked={saveTarget === 'saved'}
+                    onChange={() => setSaveTarget('saved')}
+                    className="text-red-600"
+                  />
+                  Saved Chart
+                </label>
+              </div>
+
+              {saveTarget === 'proposal' ? (
+                <select
+                  value={selectedProposalId}
+                  onChange={handleProposalChange}
+                  className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-red-500"
+                >
+                  <option value="">Select Proposal...</option>
+                  {proposals.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.tracking_number ? `${p.tracking_number} - ` : ''}{p.name}
+                      {p.has_org_chart ? ' \u2713' : ''}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="flex items-center gap-1">
+                  <select
+                    value={selectedSavedChartId}
+                    onChange={handleSavedChartChange}
+                    className="flex-1 px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-red-500"
+                  >
+                    <option value="">Select Saved Chart...</option>
+                    {savedCharts.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                  {selectedSavedChartId && (
+                    <button
+                      onClick={deleteSavedChart}
+                      className="px-2 py-1.5 bg-red-100 text-red-600 rounded text-xs hover:bg-red-200"
+                      title="Delete saved chart"
+                    >
+                      \u00d7
+                    </button>
+                  )}
+                </div>
+              )}
+
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={saveOrgChart}
+                  disabled={saveTarget === 'proposal' ? !selectedProposalId : !selectedSavedChartId}
+                  className={`flex-1 px-3 py-1.5 rounded shadow font-medium transition-colors text-sm ${
+                    (saveTarget === 'proposal' ? selectedProposalId : selectedSavedChartId)
+                      ? 'bg-green-600 text-white hover:bg-green-700' 
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
+                >
+                  Save
+                </button>
+                <button
+                  onClick={() => setShowSaveAsModal(true)}
+                  className="px-3 py-1.5 bg-blue-600 text-white rounded shadow font-medium hover:bg-blue-700 transition-colors text-sm"
+                  title="Save as new chart with a custom name"
+                >
+                  Save As...
+                </button>
+              </div>
+
+              {saveStatus && (
+                <span className={`text-xs font-medium ${
+                  saveStatus.includes('Failed') ? 'text-red-600' : 'text-green-600'
+                }`}>
+                  {saveStatus}
+                </span>
+              )}
+            </div>
           </Panel>
+
           <Panel position="top-right" className="flex gap-2">
             <button
               onClick={addNewServiceType}
@@ -589,6 +914,18 @@ function OrgChartFlow() {
               Reset Layout
             </button>
           </Panel>
+
+          {legendFirms.length > 0 && (
+            <Panel position="bottom-left" className="bg-white p-2 rounded shadow">
+              <div className="text-xs font-bold text-gray-600 mb-1">Firm Legend</div>
+              {legendFirms.map(({ firmId, firmName, color }) => (
+                <div key={firmId} className="flex items-center gap-1.5 text-xs py-0.5">
+                  <div className={`w-3 h-3 rounded ${color.label}`}></div>
+                  <span className="text-gray-700">{firmName}</span>
+                </div>
+              ))}
+            </Panel>
+          )}
         </ReactFlow>
       </div>
 
@@ -601,21 +938,27 @@ function OrgChartFlow() {
           {nodes.filter(n => n.data?.assignedStaff).length === 0 ? (
             <p className="text-gray-500 text-sm p-2">No staff assigned yet. Drag staff from the left panel to a role.</p>
           ) : (
-            nodes.filter(n => n.data?.assignedStaff).map((node) => (
-              <div
-                key={node.id}
-                className="p-3 mb-2 bg-white rounded shadow border border-gray-200"
-              >
-                <div className="font-medium text-gray-800 text-sm">{node.data.role}</div>
-                <div className="text-xs text-red-600 font-medium">{node.data.assignedStaff}</div>
-                <button
-                  onClick={() => removeStaffFromNode(node.id)}
-                  className="mt-1 text-xs text-gray-500 hover:text-red-600"
+            nodes.filter(n => n.data?.assignedStaff).map((node) => {
+              const firmColor = firmColorMap[node.data.staffFirmId]
+              return (
+                <div
+                  key={node.id}
+                  className={`p-3 mb-2 rounded shadow border-l-4 ${firmColor ? `${firmColor.border} bg-white` : 'border-gray-300 bg-white'}`}
                 >
-                  Remove
-                </button>
-              </div>
-            ))
+                  <div className="font-medium text-gray-800 text-sm">{node.data.role}</div>
+                  <div className={`text-xs font-medium ${firmColor ? firmColor.text : 'text-red-600'}`}>{node.data.assignedStaff}</div>
+                  {node.data.staffFirmName && (
+                    <div className="text-[10px] text-gray-400">{node.data.staffFirmName}</div>
+                  )}
+                  <button
+                    onClick={() => removeStaffFromNode(node.id)}
+                    className="mt-1 text-xs text-gray-500 hover:text-red-600"
+                  >
+                    Remove
+                  </button>
+                </div>
+              )
+            })
           )}
         </div>
         <div className="border-t border-gray-300">
@@ -627,21 +970,53 @@ function OrgChartFlow() {
               value={globalNotes}
               onChange={(e) => setGlobalNotes(e.target.value)}
               placeholder="Add notes about this org chart..."
-              className="w-full h-32 p-2 text-sm border border-gray-300 rounded resize-none focus:outline-none focus:border-red-500"
+              className="w-full h-24 p-2 border border-gray-300 rounded text-sm focus:outline-none focus:border-red-500 resize-none"
             />
           </div>
         </div>
       </div>
+
+      {showSaveAsModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-96">
+            <h3 className="text-lg font-bold text-gray-800 mb-4">Save Org Chart As</h3>
+            <input
+              type="text"
+              value={saveAsName}
+              onChange={(e) => setSaveAsName(e.target.value)}
+              placeholder="Enter chart name..."
+              className="w-full px-3 py-2 border border-gray-300 rounded mb-4 focus:outline-none focus:border-red-500"
+              autoFocus
+              onKeyDown={(e) => { if (e.key === 'Enter') saveAsNewChart() }}
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => { setShowSaveAsModal(false); setSaveAsName('') }}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveAsNewChart}
+                disabled={!saveAsName.trim()}
+                className={`px-4 py-2 rounded font-medium ${
+                  saveAsName.trim() ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
-function App() {
+export default function App() {
   return (
     <ReactFlowProvider>
       <OrgChartFlow />
     </ReactFlowProvider>
   )
 }
-
-export default App

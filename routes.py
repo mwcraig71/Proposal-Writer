@@ -13,7 +13,8 @@ from models import (
     EmployeePhoto, ProjectPhoto, ProposalReference, ProposalIntelligence,
     FirmPhoto, ProposalSelectedFirmPhoto, MarketingPhoto, ProposalSelectedMarketingPhoto,
     EmployeeAlternateBio, FirmAlternateDescription, ProposalSavedResponse,
-    Response, ProposalLinkedResponse, Reference, ProposalLinkedReference
+    Response, ProposalLinkedResponse, Reference, ProposalLinkedReference,
+    SavedOrgChart
 )
 from replit.object_storage import Client as ObjectStorageClient
 import uuid
@@ -3186,6 +3187,7 @@ def api_orgchart_personnel(proposal_id):
         nodes = org_data.get('nodes', [])
         
         personnel = []
+        
         for node in nodes:
             node_data = node.get('data', {})
             staff_name = node_data.get('assignedStaff')
@@ -3198,6 +3200,27 @@ def api_orgchart_personnel(proposal_id):
                     'name': staff_name,
                     'role': role
                 })
+            
+            staff_list = node_data.get('staffList', [])
+            if staff_list:
+                for entry in staff_list:
+                    if isinstance(entry, dict) and entry.get('id'):
+                        personnel.append({
+                            'employee_id': entry['id'],
+                            'name': entry.get('name', ''),
+                            'role': role
+                        })
+                    elif isinstance(entry, str):
+                        emp = Employee.query.filter(
+                            (Employee.name == entry) | 
+                            (Employee.first_name + ' ' + Employee.last_name == entry)
+                        ).first()
+                        if emp:
+                            personnel.append({
+                                'employee_id': emp.id,
+                                'name': entry,
+                                'role': role
+                            })
         
         return jsonify({'success': True, 'personnel': personnel})
     except Exception as e:
@@ -3940,11 +3963,15 @@ def generate_proposal_word_simple(id):
 @app.route('/api/employees')
 def api_employees():
     employees = Employee.query.order_by(Employee.name).all()
+    firms = Firm.query.order_by(Firm.name).all()
+    firm_map = {f.id: f.name for f in firms}
     return jsonify([{
         'id': e.id,
         'name': e.name,
         'title': e.title,
-        'role': e.role
+        'role': e.role,
+        'firm_id': e.firm_id,
+        'firm_name': firm_map.get(e.firm_id, 'Unknown')
     } for e in employees])
 
 
@@ -6434,6 +6461,72 @@ def api_save_proposal_orgchart(proposal_id):
         'success': True,
         'message': f'Org chart saved to proposal: {proposal.name}'
     })
+
+
+@app.route('/api/firms/list')
+def api_firms_list():
+    firms = Firm.query.order_by(Firm.name).all()
+    return jsonify([{'id': f.id, 'name': f.name} for f in firms])
+
+
+@app.route('/api/saved-orgcharts', methods=['GET'])
+def api_list_saved_orgcharts():
+    charts = SavedOrgChart.query.order_by(SavedOrgChart.updated_at.desc()).all()
+    return jsonify([{
+        'id': c.id,
+        'name': c.name,
+        'updated_at': c.updated_at.isoformat() if c.updated_at else None
+    } for c in charts])
+
+
+@app.route('/api/saved-orgcharts', methods=['POST'])
+def api_create_saved_orgchart():
+    data = request.get_json()
+    name = data.get('name', '').strip()
+    if not name:
+        return jsonify({'success': False, 'error': 'Name is required'}), 400
+    
+    chart = SavedOrgChart(
+        name=name,
+        org_chart_data=data.get('org_chart_data'),
+        org_chart_notes=data.get('org_chart_notes', '')
+    )
+    db.session.add(chart)
+    db.session.commit()
+    return jsonify({'success': True, 'id': chart.id, 'name': chart.name})
+
+
+@app.route('/api/saved-orgcharts/<int:chart_id>', methods=['GET'])
+def api_get_saved_orgchart(chart_id):
+    chart = SavedOrgChart.query.get_or_404(chart_id)
+    return jsonify({
+        'id': chart.id,
+        'name': chart.name,
+        'org_chart_data': chart.org_chart_data,
+        'org_chart_notes': chart.org_chart_notes
+    })
+
+
+@app.route('/api/saved-orgcharts/<int:chart_id>', methods=['PUT'])
+def api_update_saved_orgchart(chart_id):
+    chart = SavedOrgChart.query.get_or_404(chart_id)
+    data = request.get_json()
+    if 'name' in data:
+        chart.name = data['name']
+    if 'org_chart_data' in data:
+        chart.org_chart_data = data['org_chart_data']
+    if 'org_chart_notes' in data:
+        chart.org_chart_notes = data['org_chart_notes']
+    db.session.commit()
+    return jsonify({'success': True, 'id': chart.id, 'name': chart.name})
+
+
+@app.route('/api/saved-orgcharts/<int:chart_id>', methods=['DELETE'])
+def api_delete_saved_orgchart(chart_id):
+    chart = SavedOrgChart.query.get_or_404(chart_id)
+    db.session.delete(chart)
+    db.session.commit()
+    return jsonify({'success': True})
 
 
 @app.route('/api/projects/list', methods=['GET'])

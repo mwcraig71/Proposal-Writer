@@ -464,6 +464,17 @@ class FirmDocument(db.Model):
     firm = db.relationship('Firm', backref=db.backref('documents', lazy=True, cascade='all, delete-orphan'))
 
 
+class SavedOrgChart(db.Model):
+    __tablename__ = 'saved_org_charts'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(500), nullable=False)
+    org_chart_data = db.Column(db.Text)
+    org_chart_notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class ProposalSelectedFirmPhoto(db.Model):
     """Junction table for firm photos selected for a proposal"""
     __tablename__ = 'proposal_selected_firm_photos'
