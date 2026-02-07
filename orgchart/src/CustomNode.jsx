@@ -115,7 +115,7 @@ function CustomNode({ data, selected, id }) {
         <div className="font-semibold text-gray-900 text-sm leading-tight break-words">
           {data.role}
         </div>
-        {data.assignedStaff && !isTeamMember && (
+        {data.assignedStaff && !isTeamMember && !data.useStaffList && (
           <div
             className={`mt-1 text-xs font-medium border-t pt-1 cursor-grab hover:opacity-75 rounded px-1 transition-colors ${staffTextColor} ${firmColor ? 'border-current' : 'border-red-200'}`}
             draggable
@@ -128,7 +128,7 @@ function CustomNode({ data, selected, id }) {
             )}
           </div>
         )}
-        {isTeamMember && data.staffList && data.staffList.length > 0 && (
+        {(isTeamMember || data.useStaffList) && data.staffList && data.staffList.length > 0 && (
           <div className="mt-1 border-t border-gray-300 pt-1">
             {data.staffList.map((staffEntry, index) => {
               const staffName = typeof staffEntry === 'string' ? staffEntry : staffEntry.name

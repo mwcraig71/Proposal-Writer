@@ -448,6 +448,10 @@ function OrgChartFlow() {
                 return { ...node, data: { ...node.data, assignedStaff: null, staffId: null, staffFirmId: null, staffFirmName: null } }
               }
               if (node.id === dropTargetNode.id) {
+                if (node.data.isTeamMember || node.data.useStaffList) {
+                  const currentList = node.data.staffList || []
+                  return { ...node, data: { ...node.data, staffList: [...currentList, { name: staffInfo.name, id: staffInfo.staffId, firm_id: staffInfo.firmId, firm_name: staffInfo.firmName }] } }
+                }
                 return { ...node, data: { ...node.data, assignedStaff: staffInfo.name, staffId: staffInfo.staffId, staffFirmId: staffInfo.firmId, staffFirmName: staffInfo.firmName } }
               }
               return node
@@ -482,7 +486,7 @@ function OrgChartFlow() {
         setNodes((nds) =>
           nds.map((node) => {
             if (node.id === dropTargetNode.id) {
-              if (node.data.isTeamMember) {
+              if (node.data.isTeamMember || node.data.useStaffList) {
                 const currentList = node.data.staffList || []
                 return {
                   ...node,
@@ -675,6 +679,8 @@ function OrgChartFlow() {
         assignedStaff: null, 
         parentId: parentNodeId,
         canDelete: true,
+        useStaffList: true,
+        staffList: [],
       },
     }
     const newEdge = {
