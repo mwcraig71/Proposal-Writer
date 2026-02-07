@@ -228,60 +228,43 @@ def generate_section_f(project, proposal, project_key_number, firms_involved=Non
     return doc
 
 
-def generate_section_g(employees_with_roles, projects, matrix, template_doc=None):
-    """
-    Generate Section G (Key Personnel Participation Matrix) using template.
-    employees_with_roles: list of dicts with 'employee' and 'role' keys
-    projects: list of project objects (max 10)
-    matrix: dict of {employee_id: set(project_ids)}
-    template_doc: optional Document object (custom template); falls back to default
-    Returns: Document object
-    """
-    if template_doc:
-        doc = template_doc
-    else:
-        default_template = os.path.join(os.path.dirname(__file__), 'attached_assets',
-                                        '330_Section_G_Standards_08-2026-mwc_1770486074175.docx')
-        if os.path.exists(default_template):
-            doc = Document(default_template)
-        else:
-            doc = Document(os.path.join(TEMPLATE_DIR, 'section_g.docx'))
+def _clone_row(table, source_row_idx):
+    """Clone a table row and insert it after the source row. Returns the new row element."""
+    from lxml import etree
+    source_tr = table.rows[source_row_idx]._tr
+    new_tr = copy.deepcopy(source_tr)
+    source_tr.addnext(new_tr)
+    return new_tr
 
-    placeholders = {}
 
-    for emp_idx, emp_data in enumerate(employees_with_roles[:13]):
-        emp_num = emp_idx + 1
-        employee = emp_data.get('employee')
-        role = emp_data.get('role', '')
-        placeholders[f'{{{{EMPLOYEE_NAME_{emp_num}}}}}'] = employee.name if employee else ''
-        placeholders[f'{{{{EMPLOYEE_ROLE_{emp_num}}}}}'] = role
+def _replace_cell_text(cell, old_text, new_text):
+    """Replace text in a cell, handling runs properly."""
+    for para in cell.paragraphs:
+        full = para.text
+        if old_text not in full:
+            continue
+        replaced = False
+        for run in para.runs:
+            if old_text in run.text:
+                run.text = run.text.replace(old_text, new_text)
+                replaced = True
+        if not replaced and para.runs:
+            new_full = full.replace(old_text, new_text)
+            para.runs[0].text = new_full
+            for run in para.runs[1:]:
+                run.text = ''
 
-        if employee:
-            emp_projects = matrix.get(employee.id, set())
-            for proj_idx, project in enumerate(projects[:10]):
-                proj_num = proj_idx + 1
-                mark = 'X' if project.id in emp_projects else ''
-                placeholders[f'{{{{EMPLOYEE_PROJECT_{emp_num}_{proj_num}}}}}'] = mark
-        else:
-            for proj_num in range(1, 11):
-                placeholders[f'{{{{EMPLOYEE_PROJECT_{emp_num}_{proj_num}}}}}'] = ''
 
-    for emp_num in range(len(employees_with_roles) + 1, 14):
-        placeholders[f'{{{{EMPLOYEE_NAME_{emp_num}}}}}'] = ''
-        placeholders[f'{{{{EMPLOYEE_ROLE_{emp_num}}}}}'] = ''
-        for proj_num in range(1, 11):
-            placeholders[f'{{{{EMPLOYEE_PROJECT_{emp_num}_{proj_num}}}}}'] = ''
-
-    for proj_idx, project in enumerate(projects[:10]):
-        proj_num = proj_idx + 1
-        placeholders[f'{{{{PROJECT_TITLE_{proj_num}}}}}'] = project.title or ''
-
-    for proj_num in range(len(projects) + 1, 11):
-        placeholders[f'{{{{PROJECT_TITLE_{proj_num}}}}}'] = ''
-
-    for table in doc.tables:
-        for row in table.rows:
+def _replace_all_placeholders_in_doc(doc, placeholders):
+    """Replace all placeholders throughout the entire document."""
+    seen_tcs = set()
+    for tbl in doc.tables:
+        for row in tbl.rows:
             for cell in row.cells:
+                tc = cell._tc
+                if tc in seen_tcs:
+                    continue
+                seen_tcs.add(tc)
                 for para in cell.paragraphs:
                     full_text = para.text
                     if '{{' not in full_text:
@@ -301,6 +284,120 @@ def generate_section_g(employees_with_roles, projects, matrix, template_doc=None
                                 for run in para.runs[1:]:
                                     run.text = ''
                                 break
+                            full_text = para.text
+
+
+def generate_section_g(employees_with_roles, projects, matrix, template_doc=None):
+    """
+    Generate Section G (Key Personnel Participation Matrix) using template.
+    Dynamically expands rows to fit any number of employees.
+    employees_with_roles: list of dicts with 'employee' and 'role' keys
+    projects: list of project objects (max 10)
+    matrix: dict of {employee_id: set(project_ids)}
+    template_doc: optional Document object (custom template); falls back to default
+    Returns: Document object
+    """
+    if template_doc:
+        doc = template_doc
+    else:
+        default_template = os.path.join(os.path.dirname(__file__), 'attached_assets',
+                                        '330_Section_G_Standards_08-2026-mwc_1770486074175.docx')
+        if os.path.exists(default_template):
+            doc = Document(default_template)
+        else:
+            doc = Document(os.path.join(TEMPLATE_DIR, 'section_g.docx'))
+
+    table = doc.tables[0]
+    TEMPLATE_EMP_ROWS = 13
+    num_employees = len(employees_with_roles)
+
+    first_emp_row_idx = None
+    for row_idx, row in enumerate(table.rows):
+        seen = set()
+        for cell in row.cells:
+            cid = id(cell._tc)
+            if cid in seen:
+                continue
+            seen.add(cid)
+            if '{{EMPLOYEE_NAME_1}}' in cell.text:
+                first_emp_row_idx = row_idx
+                break
+        if first_emp_row_idx is not None:
+            break
+
+    if first_emp_row_idx is None:
+        first_emp_row_idx = 3
+
+    last_template_emp_row_idx = first_emp_row_idx + TEMPLATE_EMP_ROWS - 1
+
+    if num_employees > TEMPLATE_EMP_ROWS:
+        extra_rows_needed = num_employees - TEMPLATE_EMP_ROWS
+        for i in range(extra_rows_needed):
+            _clone_row(table, last_template_emp_row_idx)
+    elif num_employees < TEMPLATE_EMP_ROWS:
+        from lxml import etree
+        rows_to_remove = TEMPLATE_EMP_ROWS - num_employees
+        for i in range(rows_to_remove):
+            remove_idx = first_emp_row_idx + num_employees
+            if remove_idx < len(table.rows):
+                tr = table.rows[remove_idx]._tr
+                tr.getparent().remove(tr)
+
+    placeholders = {}
+
+    for emp_idx, emp_data in enumerate(employees_with_roles):
+        emp_num = emp_idx + 1
+        employee = emp_data.get('employee')
+        role = emp_data.get('role', '')
+        placeholders[f'{{{{EMPLOYEE_NAME_{emp_num}}}}}'] = employee.name if employee else ''
+        placeholders[f'{{{{EMPLOYEE_ROLE_{emp_num}}}}}'] = role
+
+        if employee:
+            emp_projects = matrix.get(employee.id, set())
+            for proj_idx, project in enumerate(projects[:10]):
+                proj_num = proj_idx + 1
+                mark = 'X' if project.id in emp_projects else ''
+                placeholders[f'{{{{EMPLOYEE_PROJECT_{emp_num}_{proj_num}}}}}'] = mark
+
+        for proj_num in range(len(projects) + 1, 11):
+            placeholders[f'{{{{EMPLOYEE_PROJECT_{emp_num}_{proj_num}}}}}'] = ''
+
+    if num_employees > TEMPLATE_EMP_ROWS:
+        src_num = TEMPLATE_EMP_ROWS
+        for emp_num in range(TEMPLATE_EMP_ROWS + 1, num_employees + 1):
+            row_idx = first_emp_row_idx + emp_num - 1
+            if row_idx < len(table.rows):
+                row = table.rows[row_idx]
+                seen_tcs = set()
+                for cell in row.cells:
+                    tc = cell._tc
+                    if tc in seen_tcs:
+                        continue
+                    seen_tcs.add(tc)
+                    for para in cell.paragraphs:
+                        for run in para.runs:
+                            run.text = run.text.replace(
+                                f'{{{{EMPLOYEE_NAME_{src_num}}}}}',
+                                f'{{{{EMPLOYEE_NAME_{emp_num}}}}}'
+                            )
+                            run.text = run.text.replace(
+                                f'{{{{EMPLOYEE_ROLE_{src_num}}}}}',
+                                f'{{{{EMPLOYEE_ROLE_{emp_num}}}}}'
+                            )
+                            for pn in range(1, 11):
+                                run.text = run.text.replace(
+                                    f'{{{{EMPLOYEE_PROJECT_{src_num}_{pn}}}}}',
+                                    f'{{{{EMPLOYEE_PROJECT_{emp_num}_{pn}}}}}'
+                                )
+
+    for proj_idx, project in enumerate(projects[:10]):
+        proj_num = proj_idx + 1
+        placeholders[f'{{{{PROJECT_TITLE_{proj_num}}}}}'] = project.title or ''
+
+    for proj_num in range(len(projects) + 1, 11):
+        placeholders[f'{{{{PROJECT_TITLE_{proj_num}}}}}'] = ''
+
+    _replace_all_placeholders_in_doc(doc, placeholders)
 
     return doc
 
