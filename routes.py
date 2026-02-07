@@ -3405,6 +3405,7 @@ def download_section_g(id):
     
     template_doc = None
     try:
+        from docx import Document
         client = get_storage_client()
         template_bytes = client.download_as_bytes('templates/section_g_custom.docx')
         if template_bytes:
