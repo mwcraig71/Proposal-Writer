@@ -100,15 +100,60 @@
 </div>
 {% endif %}
 
+<div id="deleteModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+        <div class="flex items-center mb-4">
+            <div class="bg-red-100 rounded-full p-3 mr-4">
+                <i class="fas fa-exclamation-triangle text-red-600 text-xl"></i>
+            </div>
+            <div>
+                <h3 class="text-lg font-bold text-gray-900">Delete Proposal</h3>
+                <p class="text-sm text-gray-500">This action cannot be undone</p>
+            </div>
+        </div>
+        <p class="text-gray-700 mb-2">Are you sure you want to permanently delete:</p>
+        <p class="font-semibold text-gray-900 mb-4 bg-gray-50 p-3 rounded" id="deleteProposalName"></p>
+        <p class="text-sm text-red-600 mb-6">
+            <i class="fas fa-info-circle mr-1"></i>
+            All associated personnel selections, projects, references, and saved responses will also be deleted.
+        </p>
+        <div class="flex justify-end space-x-3">
+            <button onclick="closeDeleteModal()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-medium">
+                Cancel
+            </button>
+            <button id="confirmDeleteBtn" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium">
+                <i class="fas fa-trash mr-1"></i> Delete Proposal
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
+let deleteProposalId = null;
+
 function confirmDelete(proposalId, proposalName) {
-    if (confirm('Are you sure you want to delete the proposal "' + proposalName + '"? This action cannot be undone.')) {
+    deleteProposalId = proposalId;
+    document.getElementById('deleteProposalName').textContent = '"' + proposalName + '"';
+    document.getElementById('deleteModal').classList.remove('hidden');
+}
+
+function closeDeleteModal() {
+    document.getElementById('deleteModal').classList.add('hidden');
+    deleteProposalId = null;
+}
+
+document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
+    if (deleteProposalId) {
         const form = document.createElement('form');
         form.method = 'POST';
-        form.action = '/proposals/' + proposalId + '/delete';
+        form.action = '/proposals/' + deleteProposalId + '/delete';
         document.body.appendChild(form);
         form.submit();
     }
-}
+});
+
+document.getElementById('deleteModal').addEventListener('click', function(e) {
+    if (e.target === this) closeDeleteModal();
+});
 </script>
 {% endblock %}
