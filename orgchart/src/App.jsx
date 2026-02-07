@@ -7,10 +7,15 @@ import {
   useEdgesState,
   Controls,
   Background,
-  Panel
+  Panel,
+  useReactFlow,
+  getNodesBounds,
+  getViewportForBounds
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import dagre from 'dagre'
+import html2canvas from 'html2canvas'
+import { jsPDF } from 'jspdf'
 import CustomNode from './CustomNode'
 import JunctionNode from './JunctionNode'
 
@@ -156,6 +161,102 @@ function OrgChartFlow() {
   const [showSaveAsModal, setShowSaveAsModal] = useState(false)
   const [saveAsName, setSaveAsName] = useState('')
   const [saveTarget, setSaveTarget] = useState('proposal')
+  const [showPdfModal, setShowPdfModal] = useState(false)
+  const [pdfOrientation, setPdfOrientation] = useState('landscape')
+  const [isExportingPdf, setIsExportingPdf] = useState(false)
+
+  const exportToPdf = useCallback(async () => {
+    setIsExportingPdf(true)
+    setShowPdfModal(false)
+
+    try {
+      const flowEl = document.querySelector('.react-flow__viewport')
+      if (!flowEl) {
+        alert('Could not find the chart to export.')
+        setIsExportingPdf(false)
+        return
+      }
+
+      const nodesBounds = getNodesBounds(nodes)
+      const padding = 50
+      const chartWidth = nodesBounds.width + padding * 2
+      const chartHeight = nodesBounds.height + padding * 2
+
+      const scaleFactor = 2
+      const renderWidth = chartWidth * scaleFactor
+      const renderHeight = chartHeight * scaleFactor
+
+      const viewport = getViewportForBounds(
+        nodesBounds,
+        chartWidth,
+        chartHeight,
+        0.5,
+        2,
+        padding
+      )
+
+      const canvas = await html2canvas(flowEl, {
+        width: chartWidth,
+        height: chartHeight,
+        scale: scaleFactor,
+        backgroundColor: '#ffffff',
+        logging: false,
+        useCORS: true,
+        windowWidth: chartWidth,
+        windowHeight: chartHeight,
+        x: 0,
+        y: 0,
+        onclone: (clonedDoc) => {
+          const clonedFlow = clonedDoc.querySelector('.react-flow__viewport')
+          if (clonedFlow) {
+            clonedFlow.style.transform = `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`
+          }
+        }
+      })
+
+      const isLandscape = pdfOrientation === 'landscape'
+      const pdf = new jsPDF({
+        orientation: pdfOrientation,
+        unit: 'pt',
+        format: 'letter'
+      })
+
+      const pageWidth = pdf.internal.pageSize.getWidth()
+      const pageHeight = pdf.internal.pageSize.getHeight()
+      const margin = 30
+
+      const availWidth = pageWidth - margin * 2
+      const availHeight = pageHeight - margin * 2
+
+      const imgRatio = canvas.width / canvas.height
+      const pageRatio = availWidth / availHeight
+
+      let imgWidth, imgHeight
+      if (imgRatio > pageRatio) {
+        imgWidth = availWidth
+        imgHeight = availWidth / imgRatio
+      } else {
+        imgHeight = availHeight
+        imgWidth = availHeight * imgRatio
+      }
+
+      const xOffset = margin + (availWidth - imgWidth) / 2
+      const yOffset = margin + (availHeight - imgHeight) / 2
+
+      const imgData = canvas.toDataURL('image/png', 1.0)
+      pdf.addImage(imgData, 'PNG', xOffset, yOffset, imgWidth, imgHeight)
+
+      const proposalName = proposals.find(p => String(p.id) === String(selectedProposalId))?.name
+      const chartName = savedCharts.find(c => String(c.id) === String(selectedSavedChartId))?.name
+      const fileName = proposalName || chartName || 'Org Chart'
+      pdf.save(`${fileName} - Org Chart.pdf`)
+    } catch (err) {
+      console.error('PDF export error:', err)
+      alert('Failed to export PDF. Please try again.')
+    }
+
+    setIsExportingPdf(false)
+  }, [nodes, pdfOrientation, proposals, selectedProposalId, savedCharts, selectedSavedChartId])
 
   useEffect(() => {
     fetch('/api/employees')
@@ -914,6 +1015,17 @@ function OrgChartFlow() {
               + Add Service Type
             </button>
             <button
+              onClick={() => setShowPdfModal(true)}
+              disabled={isExportingPdf}
+              className={`px-4 py-2 rounded shadow transition-colors font-medium ${
+                isExportingPdf
+                  ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
+            >
+              {isExportingPdf ? 'Exporting...' : 'Save PDF'}
+            </button>
+            <button
               onClick={onResetLayout}
               className="px-4 py-2 bg-gray-800 text-white rounded shadow hover:bg-gray-900 transition-colors font-medium"
             >
@@ -981,6 +1093,63 @@ function OrgChartFlow() {
           </div>
         </div>
       </div>
+
+      {showPdfModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-96">
+            <h3 className="text-lg font-bold text-gray-800 mb-4">Export Org Chart to PDF</h3>
+            <p className="text-sm text-gray-600 mb-4">Choose the page orientation for your PDF:</p>
+            <div className="flex gap-4 mb-6">
+              <label
+                className={`flex-1 flex flex-col items-center gap-2 p-4 border-2 rounded-lg cursor-pointer transition-colors ${
+                  pdfOrientation === 'landscape' ? 'border-blue-600 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="pdfOrientation"
+                  value="landscape"
+                  checked={pdfOrientation === 'landscape'}
+                  onChange={() => setPdfOrientation('landscape')}
+                  className="sr-only"
+                />
+                <div className={`w-16 h-10 border-2 rounded ${pdfOrientation === 'landscape' ? 'border-blue-600 bg-blue-100' : 'border-gray-400 bg-gray-100'}`}></div>
+                <span className={`text-sm font-medium ${pdfOrientation === 'landscape' ? 'text-blue-700' : 'text-gray-600'}`}>Landscape</span>
+              </label>
+              <label
+                className={`flex-1 flex flex-col items-center gap-2 p-4 border-2 rounded-lg cursor-pointer transition-colors ${
+                  pdfOrientation === 'portrait' ? 'border-blue-600 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="pdfOrientation"
+                  value="portrait"
+                  checked={pdfOrientation === 'portrait'}
+                  onChange={() => setPdfOrientation('portrait')}
+                  className="sr-only"
+                />
+                <div className={`w-10 h-14 border-2 rounded ${pdfOrientation === 'portrait' ? 'border-blue-600 bg-blue-100' : 'border-gray-400 bg-gray-100'}`}></div>
+                <span className={`text-sm font-medium ${pdfOrientation === 'portrait' ? 'text-blue-700' : 'text-gray-600'}`}>Portrait</span>
+              </label>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowPdfModal(false)}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={exportToPdf}
+                className="px-4 py-2 bg-blue-600 text-white rounded font-medium hover:bg-blue-700"
+              >
+                Export PDF
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showSaveAsModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
