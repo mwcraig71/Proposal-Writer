@@ -152,15 +152,12 @@ function OrgChartFlow() {
   const [selectedFirmFilter, setSelectedFirmFilter] = useState('')
   const [draggedStaff, setDraggedStaff] = useState(null)
   const [globalNotes, setGlobalNotes] = useState('')
-  const [proposals, setProposals] = useState([])
-  const [selectedProposalId, setSelectedProposalId] = useState('')
   const [saveStatus, setSaveStatus] = useState('')
   const [firmColorMap, setFirmColorMap] = useState({})
   const [savedCharts, setSavedCharts] = useState([])
   const [selectedSavedChartId, setSelectedSavedChartId] = useState('')
   const [showSaveAsModal, setShowSaveAsModal] = useState(false)
   const [saveAsName, setSaveAsName] = useState('')
-  const [saveTarget, setSaveTarget] = useState('proposal')
   const [showPdfModal, setShowPdfModal] = useState(false)
   const [pdfOrientation, setPdfOrientation] = useState('landscape')
   const [isExportingPdf, setIsExportingPdf] = useState(false)
@@ -246,9 +243,8 @@ function OrgChartFlow() {
       const imgData = canvas.toDataURL('image/png', 1.0)
       pdf.addImage(imgData, 'PNG', xOffset, yOffset, imgWidth, imgHeight)
 
-      const proposalName = proposals.find(p => String(p.id) === String(selectedProposalId))?.name
       const chartName = savedCharts.find(c => String(c.id) === String(selectedSavedChartId))?.name
-      const fileName = proposalName || chartName || 'Org Chart'
+      const fileName = chartName || 'Org Chart'
       pdf.save(`${fileName} - Org Chart.pdf`)
     } catch (err) {
       console.error('PDF export error:', err)
@@ -256,7 +252,7 @@ function OrgChartFlow() {
     }
 
     setIsExportingPdf(false)
-  }, [nodes, pdfOrientation, proposals, selectedProposalId, savedCharts, selectedSavedChartId])
+  }, [nodes, pdfOrientation, savedCharts, selectedSavedChartId])
 
   useEffect(() => {
     fetch('/api/employees')
@@ -283,19 +279,6 @@ function OrgChartFlow() {
       })
       .catch(err => console.error('Failed to fetch firms:', err))
     
-    fetch('/api/proposals/list')
-      .then(res => res.json())
-      .then(data => {
-        setProposals(data)
-        const urlParams = new URLSearchParams(window.location.search)
-        const proposalId = urlParams.get('proposal')
-        if (proposalId) {
-          setSelectedProposalId(proposalId)
-          setSaveTarget('proposal')
-        }
-      })
-      .catch(err => console.error('Failed to fetch proposals:', err))
-    
     fetch('/api/saved-orgcharts')
       .then(res => res.json())
       .then(data => setSavedCharts(data))
@@ -311,30 +294,6 @@ function OrgChartFlow() {
         return (a.name || '').localeCompare(b.name || '')
       })
   )
-
-  const loadOrgChart = useCallback((proposalId) => {
-    if (!proposalId) return
-    
-    fetch(`/api/proposals/${proposalId}/orgchart`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.org_chart_data) {
-          const chartData = JSON.parse(data.org_chart_data)
-          setNodes(chartData.nodes || layoutedNodes)
-          setEdges(chartData.edges || layoutedEdges)
-        }
-        if (data.org_chart_notes) {
-          setGlobalNotes(data.org_chart_notes)
-        }
-        setSaveStatus('Loaded')
-        setTimeout(() => setSaveStatus(''), 2000)
-      })
-      .catch(err => {
-        console.error('Failed to load org chart:', err)
-        setSaveStatus('Failed to load')
-        setTimeout(() => setSaveStatus(''), 2000)
-      })
-  }, [setNodes, setEdges])
 
   const loadSavedChart = useCallback((chartId) => {
     if (!chartId) return
@@ -361,62 +320,33 @@ function OrgChartFlow() {
   }, [setNodes, setEdges])
 
   const saveOrgChart = useCallback(() => {
-    if (saveTarget === 'proposal') {
-      if (!selectedProposalId) {
-        setSaveStatus('Select a proposal first')
-        setTimeout(() => setSaveStatus(''), 2000)
-        return
-      }
-
-      const chartData = JSON.stringify({ nodes, edges })
-      
-      fetch(`/api/proposals/${selectedProposalId}/orgchart`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          org_chart_data: chartData,
-          org_chart_notes: globalNotes
-        })
-      })
-        .then(res => res.json())
-        .then(data => {
-          setSaveStatus('Saved to Proposal!')
-          setTimeout(() => setSaveStatus(''), 2000)
-        })
-        .catch(err => {
-          console.error('Failed to save org chart:', err)
-          setSaveStatus('Failed to save')
-          setTimeout(() => setSaveStatus(''), 2000)
-        })
-    } else if (saveTarget === 'saved') {
-      if (!selectedSavedChartId) {
-        setSaveStatus('Select a saved chart first')
-        setTimeout(() => setSaveStatus(''), 2000)
-        return
-      }
-
-      const chartData = JSON.stringify({ nodes, edges })
-      
-      fetch(`/api/saved-orgcharts/${selectedSavedChartId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          org_chart_data: chartData,
-          org_chart_notes: globalNotes
-        })
-      })
-        .then(res => res.json())
-        .then(data => {
-          setSaveStatus('Saved!')
-          setTimeout(() => setSaveStatus(''), 2000)
-        })
-        .catch(err => {
-          console.error('Failed to save chart:', err)
-          setSaveStatus('Failed to save')
-          setTimeout(() => setSaveStatus(''), 2000)
-        })
+    if (!selectedSavedChartId) {
+      setSaveStatus('Select a chart first')
+      setTimeout(() => setSaveStatus(''), 2000)
+      return
     }
-  }, [saveTarget, selectedProposalId, selectedSavedChartId, nodes, edges, globalNotes])
+
+    const chartData = JSON.stringify({ nodes, edges })
+    
+    fetch(`/api/saved-orgcharts/${selectedSavedChartId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        org_chart_data: chartData,
+        org_chart_notes: globalNotes
+      })
+    })
+      .then(res => res.json())
+      .then(data => {
+        setSaveStatus('Saved!')
+        setTimeout(() => setSaveStatus(''), 2000)
+      })
+      .catch(err => {
+        console.error('Failed to save chart:', err)
+        setSaveStatus('Failed to save')
+        setTimeout(() => setSaveStatus(''), 2000)
+      })
+  }, [selectedSavedChartId, nodes, edges, globalNotes])
 
   const saveAsNewChart = useCallback(() => {
     if (!saveAsName.trim()) return
@@ -438,7 +368,6 @@ function OrgChartFlow() {
           setSaveStatus(`Saved as "${data.name}"`)
           setShowSaveAsModal(false)
           setSaveAsName('')
-          setSaveTarget('saved')
           setSelectedSavedChartId(String(data.id))
           fetch('/api/saved-orgcharts')
             .then(res => res.json())
@@ -470,14 +399,6 @@ function OrgChartFlow() {
       })
   }, [selectedSavedChartId, savedCharts])
 
-  const handleProposalChange = (e) => {
-    const proposalId = e.target.value
-    setSelectedProposalId(proposalId)
-    if (proposalId) {
-      loadOrgChart(proposalId)
-    }
-  }
-
   const handleSavedChartChange = (e) => {
     const chartId = e.target.value
     setSelectedSavedChartId(chartId)
@@ -485,12 +406,6 @@ function OrgChartFlow() {
       loadSavedChart(chartId)
     }
   }
-
-  useEffect(() => {
-    if (selectedProposalId && proposals.length > 0 && saveTarget === 'proposal') {
-      loadOrgChart(selectedProposalId)
-    }
-  }, [selectedProposalId, proposals.length, loadOrgChart, saveTarget])
 
   const onConnect = useCallback(
     (params) => setEdges((eds) => addEdge({ ...params, type: 'smoothstep' }, eds)),
@@ -914,74 +829,33 @@ function OrgChartFlow() {
           <Panel position="top-left" className="bg-white p-3 rounded shadow max-w-sm">
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-1">
-                <label className="flex items-center gap-1 text-xs font-medium text-gray-600 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="saveTarget"
-                    value="proposal"
-                    checked={saveTarget === 'proposal'}
-                    onChange={() => setSaveTarget('proposal')}
-                    className="text-red-600"
-                  />
-                  Proposal
-                </label>
-                <label className="flex items-center gap-1 text-xs font-medium text-gray-600 cursor-pointer ml-2">
-                  <input
-                    type="radio"
-                    name="saveTarget"
-                    value="saved"
-                    checked={saveTarget === 'saved'}
-                    onChange={() => setSaveTarget('saved')}
-                    className="text-red-600"
-                  />
-                  Saved Chart
-                </label>
-              </div>
-
-              {saveTarget === 'proposal' ? (
                 <select
-                  value={selectedProposalId}
-                  onChange={handleProposalChange}
-                  className="px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-red-500"
+                  value={selectedSavedChartId}
+                  onChange={handleSavedChartChange}
+                  className="flex-1 px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-red-500"
                 >
-                  <option value="">Select Proposal...</option>
-                  {proposals.map(p => (
-                    <option key={p.id} value={p.id}>
-                      {p.tracking_number ? `${p.tracking_number} - ` : ''}{p.name}
-                      {p.has_org_chart ? ' \u2713' : ''}
-                    </option>
+                  <option value="">Open Saved Chart...</option>
+                  {savedCharts.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
-              ) : (
-                <div className="flex items-center gap-1">
-                  <select
-                    value={selectedSavedChartId}
-                    onChange={handleSavedChartChange}
-                    className="flex-1 px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-red-500"
+                {selectedSavedChartId && (
+                  <button
+                    onClick={deleteSavedChart}
+                    className="px-2 py-1.5 bg-red-100 text-red-600 rounded text-xs hover:bg-red-200"
+                    title="Delete saved chart"
                   >
-                    <option value="">Select Saved Chart...</option>
-                    {savedCharts.map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
-                  {selectedSavedChartId && (
-                    <button
-                      onClick={deleteSavedChart}
-                      className="px-2 py-1.5 bg-red-100 text-red-600 rounded text-xs hover:bg-red-200"
-                      title="Delete saved chart"
-                    >
-                      \u00d7
-                    </button>
-                  )}
-                </div>
-              )}
+                    ×
+                  </button>
+                )}
+              </div>
 
               <div className="flex items-center gap-1">
                 <button
                   onClick={saveOrgChart}
-                  disabled={saveTarget === 'proposal' ? !selectedProposalId : !selectedSavedChartId}
+                  disabled={!selectedSavedChartId}
                   className={`flex-1 px-3 py-1.5 rounded shadow font-medium transition-colors text-sm ${
-                    (saveTarget === 'proposal' ? selectedProposalId : selectedSavedChartId)
+                    selectedSavedChartId
                       ? 'bg-green-600 text-white hover:bg-green-700' 
                       : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   }`}

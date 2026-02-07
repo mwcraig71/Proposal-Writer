@@ -37,48 +37,23 @@
     
     <div class="mb-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
         <h3 class="font-semibold text-purple-800 mb-2">
-            <i class="fas fa-sitemap mr-2"></i> Use Org Chart
+            <i class="fas fa-sitemap mr-2"></i> Org Chart
         </h3>
-        <p class="text-sm text-purple-600 mb-3">Build a new org chart or import from an existing one to automatically populate personnel and their roles.</p>
+        <p class="text-sm text-purple-600 mb-3">Select a saved org chart to import personnel and roles, or open the builder to create a new one.</p>
         
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="bg-white p-4 rounded-lg border">
-                <h4 class="font-medium text-gray-800 mb-2"><i class="fas fa-plus-circle text-green-600 mr-2"></i>Build New Org Chart</h4>
-                <p class="text-xs text-gray-500 mb-3">Create an org chart for this proposal, then import the personnel.</p>
-                <a href="/orgchart?proposal={{ proposal.id }}" target="_blank" class="inline-block px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm">
-                    <i class="fas fa-external-link-alt mr-2"></i> Open Org Chart Builder
-                </a>
-                <button type="button" id="refresh-orgchart-btn" class="ml-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition text-sm">
-                    <i class="fas fa-sync-alt mr-1"></i> Refresh & Import
-                </button>
-            </div>
-            
-            <div class="bg-white p-4 rounded-lg border">
-                <h4 class="font-medium text-gray-800 mb-2"><i class="fas fa-folder-open text-blue-600 mr-2"></i>Import from Existing</h4>
-                <p class="text-xs text-gray-500 mb-3">Use an org chart from another proposal or a saved chart.</p>
-                <div class="flex gap-2">
-                    <select id="orgchart-select" class="flex-1 p-2 border rounded-lg text-sm">
-                        <option value="">-- Select Org Chart --</option>
-                        {% if proposals_with_orgcharts %}
-                        <optgroup label="Proposals">
-                            {% for p in proposals_with_orgcharts %}
-                            <option value="proposal:{{ p.id }}">{{ p.tracking_number }} - {{ p.name }}</option>
-                            {% endfor %}
-                        </optgroup>
-                        {% endif %}
-                        {% if saved_orgcharts %}
-                        <optgroup label="Saved Charts">
-                            {% for c in saved_orgcharts %}
-                            <option value="saved:{{ c.id }}">{{ c.name }}</option>
-                            {% endfor %}
-                        </optgroup>
-                        {% endif %}
-                    </select>
-                    <button type="button" id="import-orgchart-btn" class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm">
-                        <i class="fas fa-download"></i>
-                    </button>
-                </div>
-            </div>
+        <div class="flex flex-wrap items-center gap-3">
+            <select id="orgchart-select" class="flex-1 min-w-[200px] p-2 border rounded-lg text-sm">
+                <option value="">-- Select Saved Org Chart --</option>
+                {% for c in saved_orgcharts %}
+                <option value="saved:{{ c.id }}">{{ c.name }}</option>
+                {% endfor %}
+            </select>
+            <button type="button" id="import-orgchart-btn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm">
+                <i class="fas fa-download mr-1"></i> Import
+            </button>
+            <a href="/orgchart-app" target="_blank" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm">
+                <i class="fas fa-external-link-alt mr-1"></i> Open Org Chart Builder
+            </a>
         </div>
     </div>
     
@@ -242,13 +217,13 @@ document.getElementById('sort-by').addEventListener('change', applyFiltersAndSor
 document.querySelectorAll('.employee-checkbox').forEach(cb => cb.addEventListener('change', updateSelectedCount));
 updateSelectedCount();
 
-async function importFromOrgChart(proposalId, buttonEl) {
+async function importFromOrgChart(chartId, buttonEl) {
     const originalHtml = buttonEl.innerHTML;
     buttonEl.disabled = true;
-    buttonEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    buttonEl.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Importing...';
     
     try {
-        const response = await fetch(`/api/proposals/${proposalId}/orgchart-personnel`);
+        const response = await fetch(`/api/saved-orgcharts/${chartId}/personnel`);
         const result = await response.json();
         
         if (result.success && result.personnel && result.personnel.length > 0) {
@@ -299,70 +274,6 @@ async function importFromOrgChart(proposalId, buttonEl) {
     buttonEl.innerHTML = originalHtml;
 }
 
-async function importFromSavedChart(chartId, buttonEl) {
-    const originalHtml = buttonEl.innerHTML;
-    buttonEl.disabled = true;
-    buttonEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-    
-    try {
-        const response = await fetch(`/api/saved-orgcharts/${chartId}/personnel`);
-        const result = await response.json();
-        
-        if (result.success && result.personnel && result.personnel.length > 0) {
-            document.querySelectorAll('.employee-checkbox').forEach(cb => {
-                cb.checked = false;
-            });
-            document.querySelectorAll('.role-input').forEach(input => {
-                input.value = '';
-            });
-            
-            const rolesByEmployee = {};
-            result.personnel.forEach(person => {
-                const empId = person.employee_id;
-                if (!rolesByEmployee[empId]) {
-                    rolesByEmployee[empId] = [];
-                }
-                if (person.role && !rolesByEmployee[empId].includes(person.role)) {
-                    rolesByEmployee[empId].push(person.role);
-                }
-            });
-            
-            let imported = 0;
-            Object.entries(rolesByEmployee).forEach(([empId, roles]) => {
-                const checkbox = document.getElementById(`emp-${empId}`);
-                const roleInput = document.querySelector(`.role-input[data-emp-id="${empId}"]`);
-                
-                if (checkbox) {
-                    checkbox.checked = true;
-                    imported++;
-                }
-                if (roleInput && roles.length > 0) {
-                    roleInput.value = roles.join(', ');
-                }
-            });
-            
-            updateSelectedCount();
-            alert(`Imported ${imported} personnel from saved chart.`);
-        } else if (result.personnel && result.personnel.length === 0) {
-            alert('No personnel found in this saved chart. Make sure you have assigned staff to roles in the org chart builder.');
-        } else {
-            alert('Error: ' + (result.error || 'Could not import saved chart data'));
-        }
-    } catch (error) {
-        alert('Error: ' + error.message);
-    }
-    
-    buttonEl.disabled = false;
-    buttonEl.innerHTML = originalHtml;
-}
-
-const refreshBtn = document.getElementById('refresh-orgchart-btn');
-if (refreshBtn) {
-    refreshBtn.addEventListener('click', () => {
-        importFromOrgChart({{ proposal.id }}, refreshBtn);
-    });
-}
-
 const importBtn = document.getElementById('import-orgchart-btn');
 if (importBtn) {
     importBtn.addEventListener('click', () => {
@@ -374,13 +285,8 @@ if (importBtn) {
             return;
         }
         
-        if (selectedValue.startsWith('saved:')) {
-            const chartId = selectedValue.split(':')[1];
-            importFromSavedChart(chartId, importBtn);
-        } else {
-            const proposalId = selectedValue.startsWith('proposal:') ? selectedValue.split(':')[1] : selectedValue;
-            importFromOrgChart(proposalId, importBtn);
-        }
+        const chartId = selectedValue.split(':')[1];
+        importFromOrgChart(chartId, importBtn);
     });
 }
 
