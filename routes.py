@@ -3227,6 +3227,37 @@ def api_orgchart_personnel(proposal_id):
         return jsonify({'success': False, 'error': str(e)})
 
 
+@app.route('/api/saved-orgcharts/<int:chart_id>/personnel')
+def api_saved_orgchart_personnel(chart_id):
+    chart = SavedOrgChart.query.get_or_404(chart_id)
+    try:
+        org_data = json.loads(chart.chart_data) if isinstance(chart.chart_data, str) else chart.chart_data
+        nodes = org_data.get('nodes', [])
+        personnel = []
+        for node in nodes:
+            node_data = node.get('data', {})
+            staff_name = node_data.get('assignedStaff')
+            role = node_data.get('role', '')
+            staff_id = node_data.get('staffId')
+            if staff_name and staff_id:
+                personnel.append({'employee_id': staff_id, 'name': staff_name, 'role': role})
+            staff_list = node_data.get('staffList', [])
+            if staff_list:
+                for entry in staff_list:
+                    if isinstance(entry, dict) and entry.get('id'):
+                        personnel.append({'employee_id': entry['id'], 'name': entry.get('name', ''), 'role': role})
+                    elif isinstance(entry, str):
+                        emp = Employee.query.filter(
+                            (Employee.name == entry) | 
+                            (Employee.first_name + ' ' + Employee.last_name == entry)
+                        ).first()
+                        if emp:
+                            personnel.append({'employee_id': emp.id, 'name': entry, 'role': role})
+        return jsonify({'success': True, 'personnel': personnel})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
 @app.route('/proposals/<int:id>/step2', methods=['GET', 'POST'])
 def proposal_step2(id):
     proposal = Proposal.query.get_or_404(id)
@@ -3238,6 +3269,7 @@ def proposal_step2(id):
         selected_ids = [se.employee_id for se in proposal.selected_employees]
         selected_roles = {se.employee_id: se.role_in_contract for se in proposal.selected_employees}
         proposals_with_orgcharts = Proposal.query.filter(Proposal.org_chart_data.isnot(None)).order_by(Proposal.created_at.desc()).all()
+        saved_orgcharts = SavedOrgChart.query.order_by(SavedOrgChart.updated_at.desc()).all()
         return render_template('proposal_wizard_step2.html', 
                              proposal=proposal, 
                              employees=employees,
@@ -3245,7 +3277,8 @@ def proposal_step2(id):
                              firm_map=firm_map,
                              selected_ids=selected_ids,
                              selected_roles=selected_roles,
-                             proposals_with_orgcharts=proposals_with_orgcharts)
+                             proposals_with_orgcharts=proposals_with_orgcharts,
+                             saved_orgcharts=saved_orgcharts)
     
     data = request.json
     employee_ids = data.get('employee_ids', [])
