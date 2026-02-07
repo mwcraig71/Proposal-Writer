@@ -45,9 +45,10 @@
             <select id="orgchart-select" class="flex-1 min-w-[200px] p-2 border rounded-lg text-sm">
                 <option value="">-- Select Saved Org Chart --</option>
                 {% for c in saved_orgcharts %}
-                <option value="saved:{{ c.id }}">{{ c.name }}</option>
+                <option value="saved:{{ c.id }}" {% if proposal.saved_org_chart_id == c.id %}selected{% endif %}>{{ c.name }}</option>
                 {% endfor %}
             </select>
+            <input type="hidden" id="linked-orgchart-id" value="{{ proposal.saved_org_chart_id or '' }}">
             <button type="button" id="import-orgchart-btn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm">
                 <i class="fas fa-download mr-1"></i> Import
             </button>
@@ -259,6 +260,7 @@ async function importFromOrgChart(chartId, buttonEl) {
                 }
             });
             
+            document.getElementById('linked-orgchart-id').value = chartId;
             updateSelectedCount();
             alert(`Imported ${imported} personnel from org chart.`);
         } else if (result.personnel && result.personnel.length === 0) {
@@ -273,6 +275,11 @@ async function importFromOrgChart(chartId, buttonEl) {
     buttonEl.disabled = false;
     buttonEl.innerHTML = originalHtml;
 }
+
+document.getElementById('orgchart-select').addEventListener('change', function() {
+    const val = this.value;
+    document.getElementById('linked-orgchart-id').value = val ? val.split(':')[1] : '';
+});
 
 async function refreshOrgChartDropdown() {
     try {
@@ -345,7 +352,7 @@ document.getElementById('next-btn').addEventListener('click', async () => {
         const response = await fetch('/proposals/{{ proposal.id }}/step2', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ employee_ids: selectedEmployees, roles: roles })
+            body: JSON.stringify({ employee_ids: selectedEmployees, roles: roles, saved_org_chart_id: document.getElementById('linked-orgchart-id').value || null })
         });
         
         const result = await response.json();

@@ -3281,6 +3281,17 @@ def proposal_step2(id):
     data = request.json
     employee_ids = data.get('employee_ids', [])
     roles = data.get('roles', {})
+    saved_org_chart_id = data.get('saved_org_chart_id')
+    
+    if saved_org_chart_id:
+        try:
+            chart_id = int(saved_org_chart_id)
+            chart = SavedOrgChart.query.get(chart_id)
+            proposal.saved_org_chart_id = chart.id if chart else None
+        except (ValueError, TypeError):
+            proposal.saved_org_chart_id = None
+    else:
+        proposal.saved_org_chart_id = None
     
     ProposalSelectedEmployee.query.filter_by(proposal_id=id).delete()
     

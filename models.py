@@ -274,12 +274,14 @@ class Proposal(db.Model):
     written_sections = db.Column(db.Text)
     org_chart_data = db.Column(db.Text)  # JSON string storing org chart nodes and edges
     org_chart_notes = db.Column(db.Text)  # Global notes for the org chart
+    saved_org_chart_id = db.Column(db.Integer, db.ForeignKey('saved_org_charts.id'), nullable=True)
     status = db.Column(db.String(50), default='draft')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     firm = db.relationship('Firm', backref='proposals')
     firm_bio_alternate = db.relationship('FirmAlternateDescription')
+    saved_org_chart = db.relationship('SavedOrgChart', backref='proposals')
     selected_employees = db.relationship('ProposalSelectedEmployee', backref='proposal', lazy=True, cascade='all, delete-orphan')
     selected_projects = db.relationship('ProposalSelectedProject', backref='proposal', lazy=True, cascade='all, delete-orphan')
 
