@@ -120,8 +120,8 @@ const getLayoutedElements = (nodes, edges, direction = 'TB') => {
 const initialNodes = [
   { id: 'pm', type: 'custom', data: { role: 'Project Manager (PM)', assignedStaff: null, isTaskLead: false, canDelete: false, isPM: true }, position: { x: 400, y: 0 } },
   { id: 'junction', type: 'junction', data: {}, position: { x: 400, y: 100 } },
-  { id: 'safety', type: 'custom', data: { role: 'Safety Officer', assignedStaff: null, isTaskLead: false, canDelete: false, connectFromSide: 'right' }, position: { x: 150, y: 100 } },
-  { id: 'qaqc', type: 'custom', data: { role: 'QA/QC Manager', assignedStaff: null, isTaskLead: false, canDelete: false, connectFromSide: 'left' }, position: { x: 650, y: 100 } },
+  { id: 'safety', type: 'custom', data: { role: 'Safety Officer', assignedStaff: null, isTaskLead: false, canDelete: true, connectFromSide: 'right' }, position: { x: 150, y: 100 } },
+  { id: 'qaqc', type: 'custom', data: { role: 'QA/QC Manager', assignedStaff: null, isTaskLead: false, canDelete: true, connectFromSide: 'left' }, position: { x: 650, y: 100 } },
   { id: 'topside', type: 'custom', data: { role: 'Top Side Inspection Task Lead', assignedStaff: null, isTaskLead: true, parentId: 'junction', canDelete: true, notes: '' }, position: { x: 0, y: 250 } },
   { id: 'underwater', type: 'custom', data: { role: 'Underwater Inspection Task Lead', assignedStaff: null, isTaskLead: true, parentId: 'junction', canDelete: true, notes: '' }, position: { x: 200, y: 250 } },
   { id: 'loadrating', type: 'custom', data: { role: 'Load Rating Task Lead', assignedStaff: null, isTaskLead: true, parentId: 'junction', canDelete: true, notes: '' }, position: { x: 400, y: 250 } },
