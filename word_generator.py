@@ -228,53 +228,80 @@ def generate_section_f(project, proposal, project_key_number, firms_involved=Non
     return doc
 
 
-def generate_section_g(employees_with_roles, projects, matrix):
+def generate_section_g(employees_with_roles, projects, matrix, template_doc=None):
     """
-    Generate Section G (Key Personnel Participation Matrix)
-    matrix: dict of {employee_id: set(project_ids)} 
+    Generate Section G (Key Personnel Participation Matrix) using template.
+    employees_with_roles: list of dicts with 'employee' and 'role' keys
+    projects: list of project objects (max 10)
+    matrix: dict of {employee_id: set(project_ids)}
+    template_doc: optional Document object (custom template); falls back to default
     Returns: Document object
     """
-    doc = Document(os.path.join(TEMPLATE_DIR, 'section_g.docx'))
-    table = doc.tables[0]
-    
-    # Row 0-2: Headers
-    # Row 2: Project numbers 1-10
-    # Starting from row 3: Employee rows
-    
-    # Set project titles in header (columns 2-11 for projects 1-10)
-    # The bottom of the section has project key titles
-    
-    # Fill employee rows (starting at row 3)
-    for emp_idx, emp_data in enumerate(employees_with_roles[:19]):  # Max 19 employees
-        row_idx = emp_idx + 3
-        if row_idx < len(table.rows) - 10:  # Leave room for footer
-            employee = emp_data.get('employee')
-            role = emp_data.get('role', '')
-            
-            set_cell_text(table, row_idx, 0, employee.name if employee else '')
-            set_cell_text(table, row_idx, 1, role)
-            
-            # Mark X for projects where employee participated
-            if employee:
-                emp_projects = matrix.get(employee.id, set())
-                for proj_idx, project in enumerate(projects[:10]):
-                    if project.id in emp_projects:
-                        # Columns 2-11 are for projects 1-10
-                        set_cell_text(table, row_idx, proj_idx + 2, "X")
-    
-    # Set project titles at bottom (Example Projects Key section)
-    # This is typically rows 22-26 or similar
-    footer_start = len(table.rows) - 7
-    for proj_idx, project in enumerate(projects[:10]):
-        if proj_idx < 5:
-            row = footer_start + proj_idx
-            if row < len(table.rows):
-                set_cell_text(table, row, 1, project.title or '')
+    if template_doc:
+        doc = template_doc
+    else:
+        default_template = os.path.join(os.path.dirname(__file__), 'attached_assets',
+                                        '330_Section_G_Standards_08-2026-mwc_1770486074175.docx')
+        if os.path.exists(default_template):
+            doc = Document(default_template)
         else:
-            row = footer_start + (proj_idx - 5)
-            if row < len(table.rows):
-                set_cell_text(table, row, 8, project.title or '')
-    
+            doc = Document(os.path.join(TEMPLATE_DIR, 'section_g.docx'))
+
+    placeholders = {}
+
+    for emp_idx, emp_data in enumerate(employees_with_roles[:13]):
+        emp_num = emp_idx + 1
+        employee = emp_data.get('employee')
+        role = emp_data.get('role', '')
+        placeholders[f'{{{{EMPLOYEE_NAME_{emp_num}}}}}'] = employee.name if employee else ''
+        placeholders[f'{{{{EMPLOYEE_ROLE_{emp_num}}}}}'] = role
+
+        if employee:
+            emp_projects = matrix.get(employee.id, set())
+            for proj_idx, project in enumerate(projects[:10]):
+                proj_num = proj_idx + 1
+                mark = 'X' if project.id in emp_projects else ''
+                placeholders[f'{{{{EMPLOYEE_PROJECT_{emp_num}_{proj_num}}}}}'] = mark
+        else:
+            for proj_num in range(1, 11):
+                placeholders[f'{{{{EMPLOYEE_PROJECT_{emp_num}_{proj_num}}}}}'] = ''
+
+    for emp_num in range(len(employees_with_roles) + 1, 14):
+        placeholders[f'{{{{EMPLOYEE_NAME_{emp_num}}}}}'] = ''
+        placeholders[f'{{{{EMPLOYEE_ROLE_{emp_num}}}}}'] = ''
+        for proj_num in range(1, 11):
+            placeholders[f'{{{{EMPLOYEE_PROJECT_{emp_num}_{proj_num}}}}}'] = ''
+
+    for proj_idx, project in enumerate(projects[:10]):
+        proj_num = proj_idx + 1
+        placeholders[f'{{{{PROJECT_TITLE_{proj_num}}}}}'] = project.title or ''
+
+    for proj_num in range(len(projects) + 1, 11):
+        placeholders[f'{{{{PROJECT_TITLE_{proj_num}}}}}'] = ''
+
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                for para in cell.paragraphs:
+                    full_text = para.text
+                    if '{{' not in full_text:
+                        continue
+                    for placeholder, value in placeholders.items():
+                        if placeholder in full_text:
+                            replaced = False
+                            for run in para.runs:
+                                if placeholder in run.text:
+                                    run.text = run.text.replace(placeholder, value)
+                                    replaced = True
+                            if not replaced and para.runs:
+                                new_text = full_text
+                                for ph, val in placeholders.items():
+                                    new_text = new_text.replace(ph, val)
+                                para.runs[0].text = new_text
+                                for run in para.runs[1:]:
+                                    run.text = ''
+                                break
+
     return doc
 
 

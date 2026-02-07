@@ -3373,6 +3373,59 @@ def proposal_step4(id):
                          matrix=matrix)
 
 
+@app.route('/proposals/<int:id>/download-section-g')
+def download_section_g(id):
+    proposal = Proposal.query.get_or_404(id)
+    
+    selected_employees = ProposalSelectedEmployee.query.filter_by(proposal_id=id)\
+        .order_by(ProposalSelectedEmployee.display_order).all()
+    selected_projects = ProposalSelectedProject.query.filter_by(proposal_id=id)\
+        .order_by(ProposalSelectedProject.display_order).all()
+    
+    employees_with_roles = []
+    for pse in selected_employees:
+        employees_with_roles.append({
+            'employee': pse.employee,
+            'role': pse.role_in_contract or pse.employee.role or ''
+        })
+    
+    projects = [psp.project for psp in selected_projects]
+    
+    emp_project_matrix = {}
+    for pse in selected_employees:
+        emp_projects = set()
+        for psp in selected_projects:
+            link = EmployeeProjectLink.query.filter_by(
+                employee_id=pse.employee_id,
+                project_id=psp.project_id
+            ).first()
+            if link:
+                emp_projects.add(psp.project_id)
+        emp_project_matrix[pse.employee_id] = emp_projects
+    
+    template_doc = None
+    try:
+        client = get_storage_client()
+        template_bytes = client.download_as_bytes('templates/section_g_custom.docx')
+        if template_bytes:
+            template_doc = Document(io.BytesIO(template_bytes))
+    except:
+        pass
+    
+    from word_generator import generate_section_g
+    doc = generate_section_g(employees_with_roles, projects, emp_project_matrix, template_doc=template_doc)
+    
+    buffer = io.BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    
+    safe_name = ''.join(c for c in (proposal.name or 'Proposal') if c.isalnum() or c in ' _-')[:50]
+    filename = f"SF330_Section_G_{safe_name.replace(' ', '_')}.docx"
+    
+    return send_file(buffer, as_attachment=True, download_name=filename,
+                     mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+
+
 @app.route('/proposals/<int:id>/rfp-download')
 def download_rfp(id):
     """Download the stored RFP file"""
