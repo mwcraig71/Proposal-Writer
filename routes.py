@@ -4271,9 +4271,18 @@ def settings():
     except:
         pass
     
+    has_section_g_template = False
+    try:
+        client = get_storage_client()
+        obj = client.download_as_bytes('templates/section_g_custom.docx')
+        has_section_g_template = obj is not None
+    except:
+        pass
+    
     return render_template('settings.html', ai_style=ai_style, ai_tone=ai_tone, 
                            has_custom_template=has_custom_template, has_company_template=has_company_template,
-                           has_resume_template=has_resume_template, has_sf330_resume_template=has_sf330_resume_template)
+                           has_resume_template=has_resume_template, has_sf330_resume_template=has_sf330_resume_template,
+                           has_section_g_template=has_section_g_template)
 
 
 @app.route('/settings', methods=['POST'])
@@ -4812,6 +4821,76 @@ def reset_sf330_resume_template():
         client = get_storage_client()
         client.delete('templates/sf330_resume_template_custom.docx')
         flash('SF330 resume template reset to default successfully!', 'success')
+    except Exception as e:
+        flash(f'Error resetting template: {str(e)}', 'error')
+    
+    return redirect(url_for('settings'))
+
+
+@app.route('/settings/section-g-template/export')
+def export_section_g_template():
+    """Download the Section G matrix template"""
+    try:
+        client = get_storage_client()
+        template_bytes = client.download_as_bytes('templates/section_g_custom.docx')
+        if template_bytes:
+            return send_file(
+                io.BytesIO(template_bytes),
+                as_attachment=True,
+                download_name='SF330_Section_G_Template.docx',
+                mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            )
+    except:
+        pass
+    
+    default_path = os.path.join(os.path.dirname(__file__), 'attached_assets',
+                                '330_Section_G_Standards_08-2026-mwc_1770486074175.docx')
+    if os.path.exists(default_path):
+        return send_file(default_path, as_attachment=True,
+                        download_name='SF330_Section_G_Template.docx',
+                        mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+    
+    flash('Section G template not found.', 'error')
+    return redirect(url_for('settings'))
+
+
+@app.route('/settings/section-g-template/import', methods=['POST'])
+def import_section_g_template():
+    """Upload a custom Section G matrix template"""
+    if 'template' not in request.files:
+        flash('No file selected.', 'error')
+        return redirect(url_for('settings'))
+    
+    file = request.files['template']
+    if file.filename == '':
+        flash('No file selected.', 'error')
+        return redirect(url_for('settings'))
+    
+    if not file.filename.endswith('.docx'):
+        flash('Please upload a .docx file.', 'error')
+        return redirect(url_for('settings'))
+    
+    try:
+        file_content = file.read()
+        Document(io.BytesIO(file_content))
+        
+        client = get_storage_client()
+        client.upload_from_bytes('templates/section_g_custom.docx', file_content)
+        
+        flash('Custom Section G template uploaded successfully!', 'success')
+    except Exception as e:
+        flash(f'Error uploading template: {str(e)}', 'error')
+    
+    return redirect(url_for('settings'))
+
+
+@app.route('/settings/section-g-template/reset', methods=['POST'])
+def reset_section_g_template():
+    """Remove custom Section G template and reset to default"""
+    try:
+        client = get_storage_client()
+        client.delete('templates/section_g_custom.docx')
+        flash('Section G template reset to default successfully!', 'success')
     except Exception as e:
         flash(f'Error resetting template: {str(e)}', 'error')
     

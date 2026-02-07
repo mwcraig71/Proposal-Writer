@@ -481,5 +481,90 @@
             </div>
         </div>
     </div>
+
+    <div class="bg-white rounded-lg shadow p-6 mt-8">
+        <h2 class="text-xl font-semibold text-gray-800 mb-6">
+            <i class="fas fa-th text-purple-600 mr-2"></i>
+            SF330 Section G Matrix Template
+        </h2>
+        
+        <p class="text-gray-600 mb-6">
+            Customize the SF330 Section G (Key Personnel Participation in Example Projects) matrix template.
+            The template automatically expands to fit any number of personnel. Export, customize formatting, and re-import using 
+            {% raw %}<code class="bg-gray-100 px-1 rounded">{{PLACEHOLDER_NAME}}</code>{% endraw %} syntax.
+        </p>
+        
+        <div class="grid md:grid-cols-2 gap-6">
+            <div class="border rounded-lg p-4">
+                <h3 class="font-medium text-gray-800 mb-2">
+                    <i class="fas fa-download text-purple-600 mr-2"></i>
+                    Export Section G Template
+                </h3>
+                <p class="text-sm text-gray-600 mb-4">Download the Section G matrix template with all available placeholders.</p>
+                <a href="/settings/section-g-template/export" class="inline-block px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
+                    <i class="fas fa-file-export mr-2"></i>
+                    Download Template
+                </a>
+            </div>
+            
+            <div class="border rounded-lg p-4">
+                <h3 class="font-medium text-gray-800 mb-2">
+                    <i class="fas fa-upload text-green-600 mr-2"></i>
+                    Import Custom Template
+                </h3>
+                <p class="text-sm text-gray-600 mb-4">Upload your customized Section G matrix template.</p>
+                <form method="POST" action="/settings/section-g-template/import" enctype="multipart/form-data">
+                    <input type="file" name="template" accept=".docx" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 mb-3">
+                    <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
+                        <i class="fas fa-file-import mr-2"></i>
+                        Import Template
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        {% if has_section_g_template %}
+        <div class="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg flex items-center justify-between">
+            <div>
+                <span class="text-purple-800 font-medium">
+                    <i class="fas fa-check-circle mr-2"></i>
+                    Custom Section G template is active
+                </span>
+                <p class="text-sm text-purple-700 mt-1">Your customized template is being used for Section G matrix downloads.</p>
+            </div>
+            <form method="POST" action="/settings/section-g-template/reset" class="ml-4">
+                <button type="submit" class="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 transition">
+                    <i class="fas fa-undo mr-1"></i>
+                    Reset to Default
+                </button>
+            </form>
+        </div>
+        {% endif %}
+        
+        <div class="bg-purple-50 border border-purple-200 rounded-lg p-4 mt-4">
+            <h3 class="font-medium text-purple-800 mb-2">
+                <i class="fas fa-code mr-1"></i>
+                Available Placeholders
+            </h3>
+            <div class="grid md:grid-cols-2 gap-4 text-sm text-purple-700">
+                {% raw %}
+                <ul class="space-y-1">
+                    <li><code class="bg-white px-1 rounded">{{EMPLOYEE_NAME_1}}</code> - Employee #1 name</li>
+                    <li><code class="bg-white px-1 rounded">{{EMPLOYEE_ROLE_1}}</code> - Employee #1 role</li>
+                    <li><code class="bg-white px-1 rounded">{{EMPLOYEE_PROJECT_1_1}}</code> - Employee #1, Project #1 mark</li>
+                    <li><code class="bg-white px-1 rounded">{{EMPLOYEE_PROJECT_1_2}}</code> - Employee #1, Project #2 mark</li>
+                    <li class="text-gray-500 italic text-xs">Use _2 through _13 for additional employees</li>
+                    <li class="text-gray-500 italic text-xs">Use _1 through _10 for project columns</li>
+                </ul>
+                <ul class="space-y-1">
+                    <li><code class="bg-white px-1 rounded">{{PROJECT_TITLE_1}}</code> - Project #1 title</li>
+                    <li><code class="bg-white px-1 rounded">{{PROJECT_TITLE_2}}</code> - Project #2 title</li>
+                    <li class="text-gray-500 italic text-xs">Use _1 through _10 for project titles</li>
+                    <li class="mt-2 text-gray-500 italic text-xs">Template rows expand automatically beyond 13 employees</li>
+                </ul>
+                {% endraw %}
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
