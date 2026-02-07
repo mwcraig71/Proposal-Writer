@@ -4871,6 +4871,7 @@ def import_section_g_template():
         return redirect(url_for('settings'))
     
     try:
+        from docx import Document
         file_content = file.read()
         Document(io.BytesIO(file_content))
         
