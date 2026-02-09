@@ -3707,8 +3707,13 @@ def employee_relevant_projects(id, emp_id):
     
     if request.method == 'GET':
         employee = Employee.query.get(emp_id)
-        selected_project_ids = [rp.project_id for rp in pse.relevant_projects if rp.project_id]
-        selected_experience_ids = [rp.experience_id for rp in pse.relevant_projects if rp.experience_id]
+        project_orders = {}
+        experience_orders = {}
+        for rp in pse.relevant_projects:
+            if rp.project_id:
+                project_orders[rp.project_id] = rp.display_order
+            elif rp.experience_id:
+                experience_orders[rp.experience_id] = rp.display_order
         
         linked_project_ids = [link.project_id for link in EmployeeProjectLink.query.filter_by(employee_id=emp_id).all()]
         firm_projects = Project.query.filter(Project.id.in_(linked_project_ids)).order_by(Project.title).all() if linked_project_ids else []
@@ -3720,37 +3725,35 @@ def employee_relevant_projects(id, emp_id):
                              employee=employee,
                              firm_projects=firm_projects,
                              personnel_experiences=personnel_experiences,
-                             selected_project_ids=selected_project_ids,
-                             selected_experience_ids=selected_experience_ids)
+                             project_orders=project_orders,
+                             experience_orders=experience_orders)
     
     data = request.json
-    project_ids = data.get('project_ids', [])
-    experience_ids = data.get('experience_ids', [])
+    items = data.get('items', [])
     
-    total_items = project_ids[:5] if len(project_ids) >= 5 else project_ids
-    remaining_slots = 5 - len(total_items)
-    exp_to_add = experience_ids[:remaining_slots] if remaining_slots > 0 else []
+    valid_items = []
+    seen_orders = set()
+    for item in items:
+        order_num = item.get('order')
+        if order_num is None or not isinstance(order_num, int) or order_num < 1:
+            continue
+        if order_num in seen_orders:
+            return jsonify({'success': False, 'error': f'Duplicate order number: {order_num}'}), 400
+        seen_orders.add(order_num)
+        valid_items.append(item)
+    
+    valid_items.sort(key=lambda x: x['order'])
     
     ProposalEmployeeRelevantProject.query.filter_by(proposal_selected_employee_id=pse.id).delete()
     
-    display_order = 0
-    for proj_id in total_items:
+    for item in valid_items:
         perp = ProposalEmployeeRelevantProject(
             proposal_selected_employee_id=pse.id,
-            project_id=proj_id,
-            display_order=display_order
+            project_id=item.get('project_id'),
+            experience_id=item.get('experience_id'),
+            display_order=item['order']
         )
         db.session.add(perp)
-        display_order += 1
-    
-    for exp_id in exp_to_add:
-        perp = ProposalEmployeeRelevantProject(
-            proposal_selected_employee_id=pse.id,
-            experience_id=exp_id,
-            display_order=display_order
-        )
-        db.session.add(perp)
-        display_order += 1
     
     db.session.commit()
     return jsonify({'success': True})
@@ -4277,31 +4280,56 @@ def download_all_resumes(id):
             employee = pse.employee
             firm = Firm.query.get(employee.firm_id) if employee.firm_id else None
             
-            numbered_experiences = EmployeeProjectExperience.query.filter_by(employee_id=employee.id).filter(
-                EmployeeProjectExperience.resume_order.isnot(None)
-            ).order_by(EmployeeProjectExperience.resume_order.asc()).all()
+            relevant_projects = ProposalEmployeeRelevantProject.query.filter_by(
+                proposal_selected_employee_id=pse.id
+            ).order_by(ProposalEmployeeRelevantProject.display_order.asc()).all()
             
             project_exp_str = ''
             individual_project_placeholders = {}
-            if numbered_experiences:
+            if relevant_projects:
                 exp_lines = []
-                for exp_idx, exp in enumerate(numbered_experiences, 1):
-                    line = exp.project_title or 'Untitled'
-                    if exp.role_performed:
-                        line += f" - {exp.role_performed}"
-                    if exp.location:
-                        line += f" | {exp.location}"
-                    if exp.year_completed:
-                        line += f" ({exp.year_completed})"
-                    if exp.active_description:
-                        line += f"\n{exp.active_description}"
+                for exp_idx, rp in enumerate(relevant_projects, 1):
+                    title = ''
+                    role = ''
+                    location = ''
+                    year = ''
+                    description = ''
+                    
+                    if rp.project_id and rp.project:
+                        proj = rp.project
+                        title = proj.title or 'Untitled'
+                        location = proj.location or ''
+                        year = proj.year_completed_professional or ''
+                        description = proj.brief_description or ''
+                        link = EmployeeProjectLink.query.filter_by(
+                            employee_id=employee.id, project_id=proj.id
+                        ).first()
+                        if link:
+                            role = link.role_on_project or ''
+                    elif rp.experience_id and rp.experience:
+                        exp = rp.experience
+                        title = exp.project_title or 'Untitled'
+                        role = exp.role_performed or ''
+                        location = exp.location or ''
+                        year = exp.year_completed or ''
+                        description = exp.active_description or ''
+                    
+                    line = title
+                    if role:
+                        line += f" - {role}"
+                    if location:
+                        line += f" | {location}"
+                    if year:
+                        line += f" ({year})"
+                    if description:
+                        line += f"\n{description}"
                     exp_lines.append(line)
                     individual_project_placeholders[f'{{{{PROJECT_EXPERIENCE_{exp_idx}}}}}'] = line
-                    individual_project_placeholders[f'{{{{PROJECT_EXPERIENCE_{exp_idx}_TITLE}}}}'] = exp.project_title or ''
-                    individual_project_placeholders[f'{{{{PROJECT_EXPERIENCE_{exp_idx}_ROLE}}}}'] = exp.role_performed or ''
-                    individual_project_placeholders[f'{{{{PROJECT_EXPERIENCE_{exp_idx}_LOCATION}}}}'] = exp.location or ''
-                    individual_project_placeholders[f'{{{{PROJECT_EXPERIENCE_{exp_idx}_YEAR}}}}'] = exp.year_completed or ''
-                    individual_project_placeholders[f'{{{{PROJECT_EXPERIENCE_{exp_idx}_DESCRIPTION}}}}'] = exp.active_description or ''
+                    individual_project_placeholders[f'{{{{PROJECT_EXPERIENCE_{exp_idx}_TITLE}}}}'] = title
+                    individual_project_placeholders[f'{{{{PROJECT_EXPERIENCE_{exp_idx}_ROLE}}}}'] = role
+                    individual_project_placeholders[f'{{{{PROJECT_EXPERIENCE_{exp_idx}_LOCATION}}}}'] = location
+                    individual_project_placeholders[f'{{{{PROJECT_EXPERIENCE_{exp_idx}_YEAR}}}}'] = year
+                    individual_project_placeholders[f'{{{{PROJECT_EXPERIENCE_{exp_idx}_DESCRIPTION}}}}'] = description
                 project_exp_str = '\n\n'.join(exp_lines)
             
             employee_location_parts = [employee.city or '', employee.state or '']
