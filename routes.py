@@ -3998,6 +3998,157 @@ def export_proposal_json(id):
     return response
 
 
+@app.route('/proposals/<int:id>/download-all-projects')
+def download_all_projects(id):
+    from docx import Document
+    from werkzeug.utils import secure_filename
+    import io
+    import os
+    import zipfile
+    
+    proposal = Proposal.query.get_or_404(id)
+    format_type = request.args.get('format', 'template')
+    
+    selected_projects = ProposalSelectedProject.query.filter_by(proposal_id=id)\
+        .order_by(ProposalSelectedProject.display_order).all()
+    
+    if not selected_projects:
+        flash('No projects selected for this proposal.', 'warning')
+        return redirect(f'/proposals/{id}/step4')
+    
+    def make_safe_filename(name, prefix="Project"):
+        if not name:
+            return f"{prefix}"
+        safe = secure_filename(name[:50])
+        return safe if safe else f"{prefix}"
+    
+    def replace_placeholders_in_para(para, placeholders):
+        for placeholder, value in placeholders.items():
+            if placeholder in para.text:
+                replaced = False
+                for run in para.runs:
+                    if placeholder in run.text:
+                        run.text = run.text.replace(placeholder, value)
+                        replaced = True
+                if not replaced and para.runs:
+                    full_text = para.text
+                    new_text = full_text.replace(placeholder, value)
+                    if full_text != new_text:
+                        for i, run in enumerate(para.runs):
+                            if i == 0:
+                                run.text = new_text
+                            else:
+                                run.text = ''
+    
+    def replace_placeholders_in_doc(doc, placeholders):
+        for para in doc.paragraphs:
+            replace_placeholders_in_para(para, placeholders)
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for para in cell.paragraphs:
+                        replace_placeholders_in_para(para, placeholders)
+    
+    def load_template(format_type):
+        doc = None
+        if format_type == 'template':
+            try:
+                client = get_storage_client()
+                template_bytes = client.download_as_bytes('templates/sf330_section_f_custom.docx')
+                if template_bytes:
+                    return io.BytesIO(template_bytes)
+            except:
+                pass
+            template_path = 'attached_assets/SF330_Section_F_Template_(1)-mwc_1770394097919.docx'
+            if os.path.exists(template_path):
+                return template_path
+        elif format_type == 'company':
+            try:
+                client = get_storage_client()
+                template_bytes = client.download_as_bytes('templates/company_template_custom.docx')
+                if template_bytes:
+                    return io.BytesIO(template_bytes)
+            except:
+                pass
+        return None
+    
+    template_source = load_template(format_type)
+    
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for idx, psp in enumerate(selected_projects, 1):
+            project = psp.project
+            firm = Firm.query.get(project.firm_id) if project.firm_id else None
+            
+            team_links = EmployeeProjectLink.query.filter_by(project_id=project.id).all()
+            key_personnel_list = []
+            for link in team_links:
+                emp = Employee.query.get(link.employee_id)
+                if emp:
+                    role = f" - {link.role_on_project}" if link.role_on_project else ""
+                    key_personnel_list.append(f"{emp.name}{role}")
+            
+            description = project.brief_description or ''
+            if psp.alternate_description:
+                description = psp.alternate_description.description or description
+            if psp.custom_writeup:
+                description = psp.custom_writeup
+            
+            placeholders = {
+                '{{PROJECT_TITLE}}': project.title or '',
+                '{{PROJECT_LOCATION}}': project.location or '',
+                '{{PROJECT_COST}}': project.project_cost or '',
+                '{{BRIEF_DESCRIPTION}}': description,
+                '{{DELIVERY_METHOD}}': project.project_delivery_method or '',
+                '{{YEAR_COMPLETED_PROFESSIONAL}}': project.year_completed_professional or '',
+                '{{YEAR_COMPLETED_CONSTRUCTION}}': project.year_completed_construction or '',
+                '{{OWNER_NAME}}': project.owner_name or '',
+                '{{OWNER_CONTACT}}': project.owner_contact_name or '',
+                '{{OWNER_PHONE}}': project.owner_contact_phone or '',
+                '{{OWNER_EMAIL}}': project.owner_contact_email or '',
+                '{{FIRM_NAME}}': firm.name if firm else '',
+                '{{FIRM_CITY}}': firm.city if firm else '',
+                '{{FIRM_STATE}}': firm.state if firm else '',
+                '{{FIRM_ROLE}}': 'Prime',
+                '{{KEY_PERSONNEL}}': '\n'.join(key_personnel_list) if key_personnel_list else '',
+            }
+            
+            if template_source:
+                if isinstance(template_source, io.BytesIO):
+                    template_source.seek(0)
+                    doc = Document(io.BytesIO(template_source.read()))
+                else:
+                    doc = Document(template_source)
+            elif format_type == 'company':
+                doc = create_default_company_template()
+            else:
+                doc = create_default_sf330_template()
+            
+            replace_placeholders_in_doc(doc, placeholders)
+            
+            prefix = "SF330_F" if format_type == 'template' else "Company"
+            safe_name = make_safe_filename(project.title, 'Project')
+            doc_filename = f"{idx:02d}_{prefix}_{safe_name}.docx"
+            
+            doc_buffer = io.BytesIO()
+            doc.save(doc_buffer)
+            doc_buffer.seek(0)
+            zf.writestr(doc_filename, doc_buffer.read())
+    
+    zip_buffer.seek(0)
+    
+    safe_proposal = make_safe_filename(proposal.name, 'Proposal')
+    format_label = "SF330_Section_F" if format_type == 'template' else "Company_Template"
+    zip_filename = f"{format_label}_Projects_{safe_proposal}.zip"
+    
+    return send_file(
+        zip_buffer,
+        mimetype='application/zip',
+        as_attachment=True,
+        download_name=zip_filename
+    )
+
+
 @app.route('/proposals/<int:id>/generate-pdf')
 def generate_proposal_pdf(id):
     proposal = Proposal.query.get_or_404(id)
