@@ -4224,26 +4224,35 @@ def download_all_resumes(id):
     
     def clean_unused_project_placeholders(doc):
         project_exp_pattern = re.compile(r'\{\{PROJECT_EXPERIENCE_\d+(_[A-Z]+)?\}\}')
-        def collect_empty_paras(paragraphs):
-            to_remove = []
+        
+        def blank_placeholders_in_paras(paragraphs, is_table_cell=False):
+            paras_to_remove = []
             in_project_zone = False
             for para in paragraphs:
                 text = para.text.strip()
                 if project_exp_pattern.search(text):
-                    cleaned = project_exp_pattern.sub('', text).strip(' -()')
-                    if not cleaned:
-                        to_remove.append(para)
-                        in_project_zone = True
-                elif not text and in_project_zone:
-                    to_remove.append(para)
+                    if is_table_cell:
+                        for run in para.runs:
+                            run.text = project_exp_pattern.sub('', run.text)
+                    else:
+                        cleaned = project_exp_pattern.sub('', text).strip(' -()')
+                        if not cleaned:
+                            paras_to_remove.append(para)
+                            in_project_zone = True
+                        else:
+                            for run in para.runs:
+                                run.text = project_exp_pattern.sub('', run.text)
+                elif not text and in_project_zone and not is_table_cell:
+                    paras_to_remove.append(para)
                 else:
                     in_project_zone = False
-            return to_remove
-        paras_to_remove = collect_empty_paras(doc.paragraphs)
+            return paras_to_remove
+        
+        paras_to_remove = blank_placeholders_in_paras(doc.paragraphs, is_table_cell=False)
         for table in doc.tables:
             for row in table.rows:
                 for cell in row.cells:
-                    paras_to_remove.extend(collect_empty_paras(cell.paragraphs))
+                    blank_placeholders_in_paras(cell.paragraphs, is_table_cell=True)
         for para in paras_to_remove:
             p_element = para._element
             p_element.getparent().remove(p_element)
