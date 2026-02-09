@@ -4149,6 +4149,227 @@ def download_all_projects(id):
     )
 
 
+@app.route('/proposals/<int:id>/download-all-resumes')
+def download_all_resumes(id):
+    from docx import Document
+    from docx.oxml.ns import qn
+    from lxml import etree
+    from werkzeug.utils import secure_filename
+    import io
+    import os
+    import re
+    import zipfile
+    
+    proposal = Proposal.query.get_or_404(id)
+    format_type = request.args.get('format', 'resume')
+    
+    selected_employees = ProposalSelectedEmployee.query.filter_by(proposal_id=id)\
+        .order_by(ProposalSelectedEmployee.display_order).all()
+    
+    if not selected_employees:
+        flash('No personnel selected for this proposal.', 'warning')
+        return redirect(f'/proposals/{id}/step4')
+    
+    def _set_run_text_with_breaks(run, text):
+        r_element = run._element
+        for child in list(r_element):
+            if child.tag == qn('w:t'):
+                r_element.remove(child)
+            elif child.tag == qn('w:br'):
+                r_element.remove(child)
+        lines = text.split('\n')
+        for i, line in enumerate(lines):
+            if i > 0:
+                etree.SubElement(r_element, qn('w:br'))
+            t = etree.SubElement(r_element, qn('w:t'))
+            t.text = line
+            t.set(qn('xml:space'), 'preserve')
+    
+    def replace_resume_placeholders_in_para(para, placeholders):
+        for placeholder, value in placeholders.items():
+            if placeholder in para.text:
+                has_newlines = '\n' in value
+                replaced = False
+                for run in para.runs:
+                    if placeholder in run.text:
+                        if has_newlines:
+                            before_after = run.text.split(placeholder, 1)
+                            new_text = before_after[0] + value + before_after[1]
+                            _set_run_text_with_breaks(run, new_text)
+                        else:
+                            run.text = run.text.replace(placeholder, value)
+                        replaced = True
+                if not replaced and para.runs:
+                    full_text = para.text
+                    new_text = full_text.replace(placeholder, value)
+                    if full_text != new_text:
+                        if has_newlines:
+                            _set_run_text_with_breaks(para.runs[0], new_text)
+                        else:
+                            para.runs[0].text = new_text
+                        for i in range(1, len(para.runs)):
+                            para.runs[i].text = ''
+    
+    def replace_placeholders_in_doc(doc, placeholders):
+        for para in doc.paragraphs:
+            replace_resume_placeholders_in_para(para, placeholders)
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for para in cell.paragraphs:
+                        replace_resume_placeholders_in_para(para, placeholders)
+    
+    def clean_unused_project_placeholders(doc):
+        project_exp_pattern = re.compile(r'\{\{PROJECT_EXPERIENCE_\d+(_[A-Z]+)?\}\}')
+        def collect_empty_paras(paragraphs):
+            to_remove = []
+            in_project_zone = False
+            for para in paragraphs:
+                text = para.text.strip()
+                if project_exp_pattern.search(text):
+                    cleaned = project_exp_pattern.sub('', text).strip(' -()')
+                    if not cleaned:
+                        to_remove.append(para)
+                        in_project_zone = True
+                elif not text and in_project_zone:
+                    to_remove.append(para)
+                else:
+                    in_project_zone = False
+            return to_remove
+        paras_to_remove = collect_empty_paras(doc.paragraphs)
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    paras_to_remove.extend(collect_empty_paras(cell.paragraphs))
+        for para in paras_to_remove:
+            p_element = para._element
+            p_element.getparent().remove(p_element)
+    
+    template_source = None
+    if format_type == 'sf330':
+        try:
+            client = get_storage_client()
+            template_bytes = client.download_as_bytes('templates/sf330_resume_template_custom.docx')
+            if template_bytes:
+                template_source = io.BytesIO(template_bytes)
+        except:
+            pass
+        if template_source is None:
+            for path in [
+                os.path.join(os.path.dirname(__file__), 'attached_assets', 'sf330_section_e_template.docx'),
+                os.path.join(os.path.dirname(__file__), 'attached_assets', '330_Section_E_Standards_template_1770398969209.docx'),
+            ]:
+                if os.path.exists(path):
+                    template_source = path
+                    break
+    else:
+        try:
+            client = get_storage_client()
+            template_bytes = client.download_as_bytes('templates/resume_template_custom.docx')
+            if template_bytes:
+                template_source = io.BytesIO(template_bytes)
+        except:
+            pass
+    
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for idx, pse in enumerate(selected_employees, 1):
+            employee = pse.employee
+            firm = Firm.query.get(employee.firm_id) if employee.firm_id else None
+            
+            numbered_experiences = EmployeeProjectExperience.query.filter_by(employee_id=employee.id).filter(
+                EmployeeProjectExperience.resume_order.isnot(None)
+            ).order_by(EmployeeProjectExperience.resume_order.asc()).all()
+            
+            project_exp_str = ''
+            individual_project_placeholders = {}
+            if numbered_experiences:
+                exp_lines = []
+                for exp_idx, exp in enumerate(numbered_experiences, 1):
+                    line = exp.project_title or 'Untitled'
+                    if exp.role_performed:
+                        line += f" - {exp.role_performed}"
+                    if exp.location:
+                        line += f" | {exp.location}"
+                    if exp.year_completed:
+                        line += f" ({exp.year_completed})"
+                    if exp.active_description:
+                        line += f"\n{exp.active_description}"
+                    exp_lines.append(line)
+                    individual_project_placeholders[f'{{{{PROJECT_EXPERIENCE_{exp_idx}}}}}'] = line
+                    individual_project_placeholders[f'{{{{PROJECT_EXPERIENCE_{exp_idx}_TITLE}}}}'] = exp.project_title or ''
+                    individual_project_placeholders[f'{{{{PROJECT_EXPERIENCE_{exp_idx}_ROLE}}}}'] = exp.role_performed or ''
+                    individual_project_placeholders[f'{{{{PROJECT_EXPERIENCE_{exp_idx}_LOCATION}}}}'] = exp.location or ''
+                    individual_project_placeholders[f'{{{{PROJECT_EXPERIENCE_{exp_idx}_YEAR}}}}'] = exp.year_completed or ''
+                    individual_project_placeholders[f'{{{{PROJECT_EXPERIENCE_{exp_idx}_DESCRIPTION}}}}'] = exp.active_description or ''
+                project_exp_str = '\n\n'.join(exp_lines)
+            
+            employee_location_parts = [employee.city or '', employee.state or '']
+            employee_location = ', '.join(p for p in employee_location_parts if p)
+            
+            placeholders = {
+                '{{EMPLOYEE_NAME}}': employee.display_name or employee.name or '',
+                '{{EMPLOYEE_FIRST_NAME}}': employee.first_name or '',
+                '{{EMPLOYEE_MIDDLE_NAME}}': employee.middle_name or '',
+                '{{EMPLOYEE_LAST_NAME}}': employee.last_name or '',
+                '{{EMPLOYEE_TITLE}}': employee.title or '',
+                '{{EMPLOYEE_ROLE}}': pse.role_in_contract or employee.role or '',
+                '{{EMPLOYEE_CITY}}': employee.city or '',
+                '{{EMPLOYEE_STATE}}': employee.state or '',
+                '{{EMPLOYEE_LOCATION}}': employee_location,
+                '{{FIRM_NAME}}': firm.name if firm else '',
+                '{{FIRM_CITY}}': firm.city if firm else '',
+                '{{FIRM_STATE}}': firm.state if firm else '',
+                '{{YEARS_EXPERIENCE_TOTAL}}': str(employee.years_experience_total) if employee.years_experience_total else '',
+                '{{YEARS_EXPERIENCE_FIRM}}': str(employee.years_experience_firm) if employee.years_experience_firm else '',
+                '{{EDUCATION}}': employee.education or '',
+                '{{REGISTRATIONS}}': employee.registrations or '',
+                '{{BIO}}': employee.bio or '',
+                '{{TRAINING}}': employee.training or '',
+                '{{OTHER_QUALIFICATIONS}}': employee.other_qualifications or '',
+                '{{PROJECT_EXPERIENCE}}': project_exp_str,
+            }
+            placeholders.update(individual_project_placeholders)
+            
+            if template_source:
+                if isinstance(template_source, io.BytesIO):
+                    template_source.seek(0)
+                    doc = Document(io.BytesIO(template_source.read()))
+                else:
+                    doc = Document(template_source)
+            elif format_type == 'sf330':
+                flash('SF330 Section E template not found.', 'error')
+                return redirect(f'/proposals/{id}/step4')
+            else:
+                doc = create_default_resume_template()
+            
+            replace_placeholders_in_doc(doc, placeholders)
+            clean_unused_project_placeholders(doc)
+            
+            safe_name = employee.display_name or employee.name or 'Employee'
+            safe_name = ''.join(c for c in safe_name if c.isalnum() or c in ' _-')[:50].strip()
+            prefix = "SF330_E" if format_type == 'sf330' else "Resume"
+            doc_filename = f"{idx:02d}_{prefix}_{safe_name.replace(' ', '_')}.docx"
+            
+            doc_buffer = io.BytesIO()
+            doc.save(doc_buffer)
+            doc_buffer.seek(0)
+            zf.writestr(doc_filename, doc_buffer.read())
+    
+    zip_buffer.seek(0)
+    
+    safe_proposal = ''.join(c for c in (proposal.name or 'Proposal') if c.isalnum() or c in ' _-')[:50].strip().replace(' ', '_')
+    format_label = "SF330_Section_E" if format_type == 'sf330' else "Resumes"
+    zip_filename = f"{format_label}_{safe_proposal}.zip"
+    
+    return send_file(
+        zip_buffer,
+        mimetype='application/zip',
+        as_attachment=True,
+        download_name=zip_filename
+    )
+
+
 @app.route('/proposals/<int:id>/generate-pdf')
 def generate_proposal_pdf(id):
     proposal = Proposal.query.get_or_404(id)
