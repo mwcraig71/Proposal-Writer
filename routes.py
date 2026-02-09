@@ -3314,22 +3314,43 @@ def proposal_step3(id):
     
     if request.method == 'GET':
         projects = Project.query.order_by(Project.title).all()
-        selected_ids = [sp.project_id for sp in proposal.selected_projects]
+        project_orders = {sp.project_id: sp.display_order for sp in proposal.selected_projects}
         selected_alt_descs = {sp.project_id: sp.alternate_description_id for sp in proposal.selected_projects if sp.alternate_description_id}
         return render_template('proposal_wizard_step3.html', 
                              proposal=proposal, 
                              projects=projects,
-                             selected_ids=selected_ids,
+                             project_orders=project_orders,
                              selected_alt_descs=selected_alt_descs)
     
     data = request.json
-    project_ids = data.get('project_ids', [])
+    items = data.get('items', [])
     writeups = data.get('writeups', {})
     desc_versions = data.get('desc_versions', {})
     
+    valid_items = []
+    seen_orders = set()
+    for item in items:
+        order_num = item.get('order')
+        proj_id = item.get('project_id')
+        if order_num is None or not isinstance(order_num, int) or order_num < 1 or not proj_id:
+            continue
+        if order_num in seen_orders:
+            return jsonify({'success': False, 'error': f'Duplicate order number: {order_num}'}), 400
+        seen_orders.add(order_num)
+        valid_items.append(item)
+    
+    valid_items.sort(key=lambda x: x['order'])
+    
+    if not valid_items:
+        return jsonify({'success': False, 'error': 'Please assign a number to at least one project.'}), 400
+    
+    if len(valid_items) > 10:
+        valid_items = valid_items[:10]
+    
     ProposalSelectedProject.query.filter_by(proposal_id=id).delete()
     
-    for idx, proj_id in enumerate(project_ids[:10]):
+    for item in valid_items:
+        proj_id = item['project_id']
         alt_desc_id = desc_versions.get(str(proj_id))
         if alt_desc_id:
             alt_desc = ProjectAlternateDescription.query.filter_by(id=alt_desc_id, project_id=proj_id).first()
@@ -3337,7 +3358,7 @@ def proposal_step3(id):
         psp = ProposalSelectedProject(
             proposal_id=id,
             project_id=proj_id,
-            display_order=idx,
+            display_order=item['order'],
             custom_writeup=writeups.get(str(proj_id), ''),
             alternate_description_id=alt_desc_id
         )
@@ -7775,16 +7796,16 @@ UEI: {firm.uei or 'N/A'}
 """
             sections['personnel'] = personnel_info
         
-        # Selected projects
-        selected_projects = ProposalSelectedProject.query.filter_by(proposal_id=proposal_id).all()
+        selected_projects = ProposalSelectedProject.query.filter_by(proposal_id=proposal_id)\
+            .order_by(ProposalSelectedProject.display_order.asc()).all()
         if selected_projects:
-            projects_info = "SELECTED PROJECTS:\n"
+            projects_info = "SELECTED PROJECTS (ordered by relevance to this proposal, #1 = most relevant):\n"
             for psp in selected_projects:
                 proj = psp.project
                 if proj:
                     desc = psp.custom_writeup or proj.brief_description or 'N/A'
                     projects_info += f"""
-- {proj.title}
+- #{psp.display_order} {proj.title}
   Location: {proj.location or 'N/A'}
   Owner/Client: {proj.owner_name or 'N/A'}
   Year Completed: {proj.year_completed_professional or 'N/A'}
@@ -8040,14 +8061,15 @@ UEI: {firm.uei or 'N/A'}
                     personnel_info += "\n"
             sections['personnel'] = personnel_info
         
-        selected_projects = ProposalSelectedProject.query.filter_by(proposal_id=proposal_id).all()
+        selected_projects = ProposalSelectedProject.query.filter_by(proposal_id=proposal_id)\
+            .order_by(ProposalSelectedProject.display_order.asc()).all()
         if selected_projects:
-            projects_info = "SELECTED PROJECTS:\n"
+            projects_info = "SELECTED PROJECTS (ordered by relevance, #1 = most relevant):\n"
             for psp in selected_projects:
                 proj = psp.project
                 if proj:
                     desc = psp.custom_writeup or proj.brief_description or 'N/A'
-                    projects_info += f"- {proj.title} | Location: {proj.location or 'N/A'} | Owner: {proj.owner_name or 'N/A'} | Year: {proj.year_completed_professional or 'N/A'}\n  Description: {desc[:300]}\n"
+                    projects_info += f"- #{psp.display_order} {proj.title} | Location: {proj.location or 'N/A'} | Owner: {proj.owner_name or 'N/A'} | Year: {proj.year_completed_professional or 'N/A'}\n  Description: {desc[:300]}\n"
             sections['projects'] = projects_info
         
         if proposal.org_chart_data:

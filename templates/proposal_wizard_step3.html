@@ -5,7 +5,7 @@
 {% block content %}
 <div class="mb-8">
     <h1 class="text-3xl font-bold text-gray-800 mb-2">{{ proposal.name }}</h1>
-    <p class="text-gray-600">Step 3: Select Example Projects (Section F) - Max 10 projects</p>
+    <p class="text-gray-600">Step 3: Select Example Projects (Section F)</p>
 </div>
 
 <div class="flex items-center justify-center mb-8">
@@ -33,21 +33,22 @@
 <div class="bg-white rounded-lg shadow p-6">
     <div class="mb-6">
         <div class="flex justify-between items-center">
-            <p class="text-gray-600">Select up to 10 example projects for Section F. These will also populate the Section G matrix.</p>
-            <span id="selected-count" class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">0 / 10 selected</span>
+            <p class="text-gray-600">Assign numbers to projects for Section F. Lower numbers indicate higher relevance. These will also populate the Section G matrix.</p>
+            <span id="selected-count" class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">0 assigned</span>
         </div>
     </div>
     
     {% if projects %}
     <div class="space-y-4 mb-6" id="project-list">
         {% for project in projects %}
-        <div class="border rounded-lg overflow-hidden">
+        <div class="border rounded-lg overflow-hidden project-row" data-project-id="{{ project.id }}">
             <div class="flex items-center p-4 hover:bg-gray-50">
-                <input type="checkbox" id="proj-{{ project.id }}" value="{{ project.id }}" 
-                       {% if project.id in selected_ids %}checked{% endif %}
-                       class="project-checkbox w-5 h-5 text-blue-600 rounded mr-4">
+                <input type="number" min="1" max="99"
+                       value="{{ project_orders.get(project.id, '') }}"
+                       class="order-input w-14 h-10 text-center border-2 border-gray-300 rounded-lg text-lg font-bold focus:border-blue-500 focus:ring-2 focus:ring-blue-200 mr-4"
+                       placeholder="#">
                 <div class="flex-1">
-                    <label for="proj-{{ project.id }}" class="font-medium text-gray-800 cursor-pointer">{{ project.title }}</label>
+                    <span class="font-medium text-gray-800">{{ project.title }}</span>
                     <p class="text-sm text-gray-500">{{ project.location or '-' }} | {{ project.owner_name or '-' }} | {{ project.year_completed_professional or '-' }}</p>
                 </div>
                 <button type="button" class="toggle-writeup text-blue-600 hover:text-blue-800 text-sm" data-project="{{ project.id }}">
@@ -93,23 +94,25 @@
 
 {% block scripts %}
 <script>
-const checkboxes = document.querySelectorAll('.project-checkbox');
+const allInputs = document.querySelectorAll('.order-input');
 const countDisplay = document.getElementById('selected-count');
 
 function updateCount() {
-    const count = document.querySelectorAll('.project-checkbox:checked').length;
-    countDisplay.textContent = `${count} / 10 selected`;
-    
-    if (count >= 10) {
-        checkboxes.forEach(cb => {
-            if (!cb.checked) cb.disabled = true;
-        });
-    } else {
-        checkboxes.forEach(cb => cb.disabled = false);
-    }
+    let count = 0;
+    allInputs.forEach(input => {
+        const val = input.value.trim();
+        const row = input.closest('.project-row');
+        if (val && parseInt(val) > 0) {
+            count++;
+            row.classList.add('ring-2', 'ring-blue-400');
+        } else {
+            row.classList.remove('ring-2', 'ring-blue-400');
+        }
+    });
+    countDisplay.textContent = `${count} assigned`;
 }
 
-checkboxes.forEach(cb => cb.addEventListener('change', updateCount));
+allInputs.forEach(input => input.addEventListener('input', updateCount));
 updateCount();
 
 document.querySelectorAll('.toggle-writeup').forEach(btn => {
@@ -121,13 +124,48 @@ document.querySelectorAll('.toggle-writeup').forEach(btn => {
 });
 
 document.getElementById('next-btn').addEventListener('click', async () => {
-    const selectedProjects = [];
+    const items = [];
     const writeups = {};
     const descVersions = {};
+    const usedNumbers = {};
+    let hasError = false;
     
-    document.querySelectorAll('.project-checkbox:checked').forEach(cb => {
-        selectedProjects.push(parseInt(cb.value));
+    document.querySelectorAll('.project-row').forEach(row => {
+        const input = row.querySelector('.order-input');
+        const projectId = parseInt(row.dataset.projectId);
+        const val = input.value.trim();
+        
+        if (!val) return;
+        
+        const order = parseInt(val);
+        if (isNaN(order) || order < 1) {
+            hasError = true;
+            input.classList.add('border-red-500');
+            return;
+        }
+        
+        if (usedNumbers[order]) {
+            hasError = true;
+            input.classList.add('border-red-500');
+            usedNumbers[order].classList.add('border-red-500');
+            return;
+        }
+        
+        input.classList.remove('border-red-500');
+        usedNumbers[order] = input;
+        
+        items.push({ project_id: projectId, order: order });
     });
+    
+    if (hasError) {
+        alert('Please fix the highlighted fields. Each number must be unique and at least 1.');
+        return;
+    }
+    
+    if (items.length === 0) {
+        alert('Please assign a number to at least one project.');
+        return;
+    }
     
     document.querySelectorAll('.writeup-input').forEach(input => {
         if (input.value) {
@@ -142,23 +180,18 @@ document.getElementById('next-btn').addEventListener('click', async () => {
         }
     });
     
-    if (selectedProjects.length === 0) {
-        alert('Please select at least one project.');
-        return;
-    }
-    
     try {
         const response = await fetch('/proposals/{{ proposal.id }}/step3', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ project_ids: selectedProjects, writeups: writeups, desc_versions: descVersions })
+            body: JSON.stringify({ items: items, writeups: writeups, desc_versions: descVersions })
         });
         
         const result = await response.json();
         if (result.success) {
             window.location.href = result.redirect;
         } else {
-            alert('Error saving selection');
+            alert(result.error || 'Error saving selection');
         }
     } catch (error) {
         alert('Error: ' + error.message);
