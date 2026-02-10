@@ -6514,7 +6514,6 @@ def get_document_type(filename):
 
 
 @app.route('/firms/<int:id>/documents', methods=['POST'])
-@login_required
 def upload_firm_document(id):
     """Upload a document for a firm"""
     from models import FirmDocument
@@ -6569,7 +6568,6 @@ def upload_firm_document(id):
 
 
 @app.route('/firms/<int:id>/documents/<int:doc_id>', methods=['DELETE'])
-@login_required
 def delete_firm_document(id, doc_id):
     """Delete a firm document"""
     from models import FirmDocument
@@ -6588,7 +6586,6 @@ def delete_firm_document(id, doc_id):
 
 
 @app.route('/firms/<int:id>/documents/<int:doc_id>/description', methods=['PUT'])
-@login_required
 def update_firm_document_description(id, doc_id):
     """Update a firm document description"""
     from models import FirmDocument
@@ -6600,7 +6597,6 @@ def update_firm_document_description(id, doc_id):
 
 
 @app.route('/api/firms/<int:id>/documents')
-@login_required
 def get_firm_documents(id):
     """Get all documents for a firm"""
     from models import FirmDocument
@@ -6617,7 +6613,6 @@ def get_firm_documents(id):
 
 
 @app.route('/documents/firm/<int:doc_id>')
-@login_required
 def serve_firm_document(doc_id):
     """Serve a firm document from object storage"""
     from models import FirmDocument
