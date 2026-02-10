@@ -2,6 +2,62 @@
 
 {% block title %}Settings - SF330 AI{% endblock %}
 
+{% macro template_card(title, icon, color, description, export_url, import_url, reset_url, has_custom, active_label, active_desc) %}
+<div class="bg-white rounded-lg shadow p-6 mt-8">
+    <h2 class="text-xl font-semibold text-gray-800 mb-4">
+        <i class="fas fa-{{ icon }} text-{{ color }}-600 mr-2"></i>
+        {{ title }}
+    </h2>
+    <p class="text-gray-600 mb-4 text-sm">
+        {{ description }} Uses {% raw %}<code class="bg-gray-100 px-1 rounded">{{PLACEHOLDER_NAME}}</code>{% endraw %} syntax.
+    </p>
+    <div class="grid md:grid-cols-2 gap-4 mb-4">
+        <div class="border rounded-lg p-3">
+            <h3 class="font-medium text-gray-800 mb-2 text-sm">
+                <i class="fas fa-download text-{{ color }}-600 mr-1"></i>Export Template
+            </h3>
+            <a href="{{ export_url }}" class="inline-block px-3 py-1.5 text-sm bg-{{ color }}-600 text-white rounded-lg hover:bg-{{ color }}-700 transition">
+                <i class="fas fa-file-export mr-1"></i>Download
+            </a>
+        </div>
+        <div class="border rounded-lg p-3">
+            <h3 class="font-medium text-gray-800 mb-2 text-sm">
+                <i class="fas fa-upload text-green-600 mr-1"></i>Import Custom Template
+            </h3>
+            <form method="POST" action="{{ import_url }}" enctype="multipart/form-data">
+                <input type="file" name="template" accept=".docx" class="block w-full text-sm text-gray-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 mb-2">
+                <button type="submit" class="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
+                    <i class="fas fa-file-import mr-1"></i>Import
+                </button>
+            </form>
+        </div>
+    </div>
+    {% if has_custom %}
+    <div class="p-3 bg-{{ color }}-50 border border-{{ color }}-200 rounded-lg flex items-center justify-between mb-4">
+        <div>
+            <span class="text-{{ color }}-800 font-medium text-sm">
+                <i class="fas fa-check-circle mr-1"></i>{{ active_label }}
+            </span>
+            <p class="text-xs text-{{ color }}-700 mt-0.5">{{ active_desc }}</p>
+        </div>
+        <form method="POST" action="{{ reset_url }}">
+            <button type="submit" class="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 transition">
+                <i class="fas fa-undo mr-1"></i>Reset
+            </button>
+        </form>
+    </div>
+    {% endif %}
+    <details class="bg-{{ color }}-50 border border-{{ color }}-200 rounded-lg">
+        <summary class="font-medium text-{{ color }}-800 p-3 cursor-pointer text-sm">
+            <i class="fas fa-code mr-1"></i>Available Placeholders
+        </summary>
+        <div class="grid md:grid-cols-2 gap-4 text-sm text-{{ color }}-700 px-3 pb-3">
+            {{ caller() }}
+        </div>
+    </details>
+</div>
+{% endmacro %}
+
 {% block content %}
 <div class="mb-8">
     <h1 class="text-3xl font-bold text-gray-800 mb-2">Settings</h1>
@@ -99,472 +155,175 @@
         </div>
     </div>
     
-    <div class="bg-white rounded-lg shadow p-6 mt-8">
-        <h2 class="text-xl font-semibold text-gray-800 mb-6">
-            <i class="fas fa-file-word text-blue-600 mr-2"></i>
-            SF330 Section F Template Management
-        </h2>
-        
-        <p class="text-gray-600 mb-6">
-            Customize the SF330 Section F template used when downloading projects. Export the current template, 
-            make adjustments in Word, and import your customized version. Both SF330 and Company templates use the same 
-            {% raw %}<code class="bg-gray-100 px-1 rounded">{{PLACEHOLDER_NAME}}</code>{% endraw %} system for data fields.
-        </p>
-        
-        <div class="grid md:grid-cols-2 gap-6">
-            <div class="border rounded-lg p-4">
-                <h3 class="font-medium text-gray-800 mb-2">
-                    <i class="fas fa-download text-blue-600 mr-2"></i>
-                    Export Blank Template
-                </h3>
-                <p class="text-sm text-gray-600 mb-4">Download the current SF330 Section F template file. Use this as a starting point for customization.</p>
-                <a href="/settings/template/export" class="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
-                    <i class="fas fa-file-export mr-2"></i>
-                    Download Template
-                </a>
-            </div>
-            
-            <div class="border rounded-lg p-4">
-                <h3 class="font-medium text-gray-800 mb-2">
-                    <i class="fas fa-upload text-green-600 mr-2"></i>
-                    Import Custom Template
-                </h3>
-                <p class="text-sm text-gray-600 mb-4">Upload a customized template to use for all future project downloads.</p>
-                <form method="POST" action="/settings/template/import" enctype="multipart/form-data">
-                    <input type="file" name="template" accept=".docx" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 mb-3">
-                    <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
-                        <i class="fas fa-file-import mr-2"></i>
-                        Import Template
-                    </button>
-                </form>
-            </div>
-        </div>
-        
-        {% if has_custom_template %}
-        <div class="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center justify-between">
-            <div>
-                <span class="text-green-800 font-medium">
-                    <i class="fas fa-check-circle mr-2"></i>
-                    Custom template is active
-                </span>
-                <p class="text-sm text-green-700 mt-1">Your customized template is being used for project downloads.</p>
-            </div>
-            <form method="POST" action="/settings/template/reset" class="ml-4">
-                <button type="submit" class="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 transition">
-                    <i class="fas fa-undo mr-1"></i>
-                    Reset to Default
-                </button>
-            </form>
-        </div>
-        {% endif %}
-        
-        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
-            <h3 class="font-medium text-blue-800 mb-2">
-                <i class="fas fa-info-circle mr-1"></i>
-                Template Customization Tips
-            </h3>
-            <ul class="text-sm text-blue-700 space-y-1">
-                {% raw %}
-                <li>Use <code class="bg-white px-1 rounded">{{PLACEHOLDER_NAME}}</code> syntax for data fields that get replaced with actual project data</li>
-                {% endraw %}
-                <li>You can adjust formatting, fonts, spacing, and layout as needed</li>
-                <li>Keep placeholders as plain text in Word - avoid applying different formatting to parts of a placeholder</li>
-                <li>Test your custom template by downloading a project after importing</li>
-            </ul>
-        </div>
-        
-        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
-            <h3 class="font-medium text-blue-800 mb-2">
-                <i class="fas fa-code mr-1"></i>
-                Available Placeholders
-            </h3>
-            <div class="grid md:grid-cols-2 gap-4 text-sm text-blue-700">
-                {% raw %}
-                <ul class="space-y-1">
-                    <li><code class="bg-white px-1 rounded">{{PROJECT_TITLE}}</code> - Project name</li>
-                    <li><code class="bg-white px-1 rounded">{{PROJECT_LOCATION}}</code> - Location</li>
-                    <li><code class="bg-white px-1 rounded">{{PROJECT_COST}}</code> - Project cost</li>
-                    <li><code class="bg-white px-1 rounded">{{BRIEF_DESCRIPTION}}</code> - Description</li>
-                    <li><code class="bg-white px-1 rounded">{{DELIVERY_METHOD}}</code> - Delivery method</li>
-                    <li><code class="bg-white px-1 rounded">{{YEAR_COMPLETED_PROFESSIONAL}}</code></li>
-                    <li><code class="bg-white px-1 rounded">{{YEAR_COMPLETED_CONSTRUCTION}}</code></li>
-                </ul>
-                <ul class="space-y-1">
-                    <li><code class="bg-white px-1 rounded">{{OWNER_NAME}}</code> - Owner/client name</li>
-                    <li><code class="bg-white px-1 rounded">{{OWNER_CONTACT}}</code> - Contact name</li>
-                    <li><code class="bg-white px-1 rounded">{{OWNER_PHONE}}</code> - Contact phone</li>
-                    <li><code class="bg-white px-1 rounded">{{OWNER_EMAIL}}</code> - Contact email</li>
-                    <li><code class="bg-white px-1 rounded">{{FIRM_NAME}}</code> - Firm name</li>
-                    <li><code class="bg-white px-1 rounded">{{FIRM_CITY}}</code> - Firm city</li>
-                    <li><code class="bg-white px-1 rounded">{{FIRM_STATE}}</code> - Firm state</li>
-                    <li><code class="bg-white px-1 rounded">{{FIRM_ROLE}}</code> - Firm role (e.g. Prime)</li>
-                    <li><code class="bg-white px-1 rounded">{{KEY_PERSONNEL}}</code> - Team list</li>
-                </ul>
-                {% endraw %}
-            </div>
-        </div>
-    </div>
-    
-    <div class="bg-white rounded-lg shadow p-6 mt-8">
-        <h2 class="text-xl font-semibold text-gray-800 mb-6">
-            <i class="fas fa-building text-indigo-600 mr-2"></i>
-            Company Template Management
-        </h2>
-        
-        <p class="text-gray-600 mb-6">
-            Create your own company-branded project template with placeholders. Export the template, 
-            customize it with your branding, then import it back. Use <code class="bg-gray-100 px-1 rounded">{% raw %}{{PLACEHOLDER_NAME}}{% endraw %}</code> syntax for data fields.
-        </p>
-        
-        <div class="grid md:grid-cols-2 gap-6">
-            <div class="border rounded-lg p-4">
-                <h3 class="font-medium text-gray-800 mb-2">
-                    <i class="fas fa-download text-indigo-600 mr-2"></i>
-                    Export Company Template
-                </h3>
-                <p class="text-sm text-gray-600 mb-4">Download the company template with all available placeholders.</p>
-                <a href="/settings/company-template/export" class="inline-block px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
-                    <i class="fas fa-file-export mr-2"></i>
-                    Download Template
-                </a>
-            </div>
-            
-            <div class="border rounded-lg p-4">
-                <h3 class="font-medium text-gray-800 mb-2">
-                    <i class="fas fa-upload text-green-600 mr-2"></i>
-                    Import Custom Template
-                </h3>
-                <p class="text-sm text-gray-600 mb-4">Upload your customized company template.</p>
-                <form method="POST" action="/settings/company-template/import" enctype="multipart/form-data">
-                    <input type="file" name="template" accept=".docx" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 mb-3">
-                    <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
-                        <i class="fas fa-file-import mr-2"></i>
-                        Import Template
-                    </button>
-                </form>
-            </div>
-        </div>
-        
-        {% if has_company_template %}
-        <div class="mt-4 p-4 bg-indigo-50 border border-indigo-200 rounded-lg flex items-center justify-between">
-            <div>
-                <span class="text-indigo-800 font-medium">
-                    <i class="fas fa-check-circle mr-2"></i>
-                    Custom company template is active
-                </span>
-                <p class="text-sm text-indigo-700 mt-1">Your customized company template is being used for project downloads.</p>
-            </div>
-            <form method="POST" action="/settings/company-template/reset" class="ml-4">
-                <button type="submit" class="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 transition">
-                    <i class="fas fa-undo mr-1"></i>
-                    Reset to Default
-                </button>
-            </form>
-        </div>
-        {% endif %}
-        
-        <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mt-4">
-            <h3 class="font-medium text-indigo-800 mb-2">
-                <i class="fas fa-code mr-1"></i>
-                Available Placeholders
-            </h3>
-            <div class="grid md:grid-cols-2 gap-4 text-sm text-indigo-700">
-                {% raw %}
-                <ul class="space-y-1">
-                    <li><code class="bg-white px-1 rounded">{{PROJECT_TITLE}}</code> - Project name</li>
-                    <li><code class="bg-white px-1 rounded">{{PROJECT_LOCATION}}</code> - Location</li>
-                    <li><code class="bg-white px-1 rounded">{{PROJECT_COST}}</code> - Project cost</li>
-                    <li><code class="bg-white px-1 rounded">{{BRIEF_DESCRIPTION}}</code> - Description</li>
-                    <li><code class="bg-white px-1 rounded">{{DELIVERY_METHOD}}</code> - Delivery method</li>
-                    <li><code class="bg-white px-1 rounded">{{YEAR_COMPLETED_PROFESSIONAL}}</code></li>
-                    <li><code class="bg-white px-1 rounded">{{YEAR_COMPLETED_CONSTRUCTION}}</code></li>
-                </ul>
-                <ul class="space-y-1">
-                    <li><code class="bg-white px-1 rounded">{{OWNER_NAME}}</code> - Owner/client name</li>
-                    <li><code class="bg-white px-1 rounded">{{OWNER_CONTACT}}</code> - Contact name</li>
-                    <li><code class="bg-white px-1 rounded">{{OWNER_PHONE}}</code> - Contact phone</li>
-                    <li><code class="bg-white px-1 rounded">{{OWNER_EMAIL}}</code> - Contact email</li>
-                    <li><code class="bg-white px-1 rounded">{{FIRM_NAME}}</code> - Firm name</li>
-                    <li><code class="bg-white px-1 rounded">{{FIRM_CITY}}</code> - Firm city</li>
-                    <li><code class="bg-white px-1 rounded">{{FIRM_STATE}}</code> - Firm state</li>
-                    <li><code class="bg-white px-1 rounded">{{FIRM_ROLE}}</code> - Firm role (e.g. Prime)</li>
-                    <li><code class="bg-white px-1 rounded">{{KEY_PERSONNEL}}</code> - Team list</li>
-                </ul>
-                {% endraw %}
-            </div>
-        </div>
-    </div>
+    {% call(caller) template_card(
+        title="SF330 Section F Template",
+        icon="file-word",
+        color="blue",
+        description="Customize the SF330 Section F template used when downloading projects. Export, customize in Word, and import your version.",
+        export_url="/settings/template/export",
+        import_url="/settings/template/import",
+        reset_url="/settings/template/reset",
+        has_custom=has_custom_template,
+        active_label="Custom template is active",
+        active_desc="Your customized template is being used for project downloads."
+    ) %}{% raw %}
+    <ul class="space-y-1">
+        <li><code class="bg-white px-1 rounded">{{PROJECT_TITLE}}</code> - Project name</li>
+        <li><code class="bg-white px-1 rounded">{{PROJECT_LOCATION}}</code> - Location</li>
+        <li><code class="bg-white px-1 rounded">{{PROJECT_COST}}</code> - Project cost</li>
+        <li><code class="bg-white px-1 rounded">{{BRIEF_DESCRIPTION}}</code> - Description</li>
+        <li><code class="bg-white px-1 rounded">{{DELIVERY_METHOD}}</code> - Delivery method</li>
+        <li><code class="bg-white px-1 rounded">{{YEAR_COMPLETED_PROFESSIONAL}}</code></li>
+        <li><code class="bg-white px-1 rounded">{{YEAR_COMPLETED_CONSTRUCTION}}</code></li>
+    </ul>
+    <ul class="space-y-1">
+        <li><code class="bg-white px-1 rounded">{{OWNER_NAME}}</code> - Owner/client name</li>
+        <li><code class="bg-white px-1 rounded">{{OWNER_CONTACT}}</code> - Contact name</li>
+        <li><code class="bg-white px-1 rounded">{{OWNER_PHONE}}</code> - Contact phone</li>
+        <li><code class="bg-white px-1 rounded">{{OWNER_EMAIL}}</code> - Contact email</li>
+        <li><code class="bg-white px-1 rounded">{{FIRM_NAME}}</code> - Firm name</li>
+        <li><code class="bg-white px-1 rounded">{{FIRM_CITY}}</code> - Firm city</li>
+        <li><code class="bg-white px-1 rounded">{{FIRM_STATE}}</code> - Firm state</li>
+        <li><code class="bg-white px-1 rounded">{{FIRM_ROLE}}</code> - Firm role (e.g. Prime)</li>
+        <li><code class="bg-white px-1 rounded">{{KEY_PERSONNEL}}</code> - Team list</li>
+    </ul>
+    {% endraw %}{% endcall %}
 
-    <div class="bg-white rounded-lg shadow p-6 mt-8">
-        <h2 class="text-xl font-semibold text-gray-800 mb-6">
-            <i class="fas fa-id-card text-teal-600 mr-2"></i>
-            Resume Template Management
-        </h2>
-        
-        <p class="text-gray-600 mb-6">
-            Create your own company-branded resume template with placeholders. Export the template, 
-            customize it with your branding, then import it back. Use <code class="bg-gray-100 px-1 rounded">{% raw %}{{PLACEHOLDER_NAME}}{% endraw %}</code> syntax for data fields.
-        </p>
-        
-        <div class="grid md:grid-cols-2 gap-6">
-            <div class="border rounded-lg p-4">
-                <h3 class="font-medium text-gray-800 mb-2">
-                    <i class="fas fa-download text-teal-600 mr-2"></i>
-                    Export Resume Template
-                </h3>
-                <p class="text-sm text-gray-600 mb-4">Download the resume template with all available placeholders.</p>
-                <a href="/settings/resume-template/export" class="inline-block px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition">
-                    <i class="fas fa-file-export mr-2"></i>
-                    Download Template
-                </a>
-            </div>
-            
-            <div class="border rounded-lg p-4">
-                <h3 class="font-medium text-gray-800 mb-2">
-                    <i class="fas fa-upload text-green-600 mr-2"></i>
-                    Import Custom Template
-                </h3>
-                <p class="text-sm text-gray-600 mb-4">Upload your customized resume template.</p>
-                <form method="POST" action="/settings/resume-template/import" enctype="multipart/form-data">
-                    <input type="file" name="template" accept=".docx" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 mb-3">
-                    <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
-                        <i class="fas fa-file-import mr-2"></i>
-                        Import Template
-                    </button>
-                </form>
-            </div>
-        </div>
-        
-        {% if has_resume_template %}
-        <div class="mt-4 p-4 bg-teal-50 border border-teal-200 rounded-lg flex items-center justify-between">
-            <div>
-                <span class="text-teal-800 font-medium">
-                    <i class="fas fa-check-circle mr-2"></i>
-                    Custom resume template is active
-                </span>
-                <p class="text-sm text-teal-700 mt-1">Your customized resume template is being used for resume downloads.</p>
-            </div>
-            <form method="POST" action="/settings/resume-template/reset" class="ml-4">
-                <button type="submit" class="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 transition">
-                    <i class="fas fa-undo mr-1"></i>
-                    Reset to Default
-                </button>
-            </form>
-        </div>
-        {% endif %}
-        
-        <div class="bg-teal-50 border border-teal-200 rounded-lg p-4 mt-4">
-            <h3 class="font-medium text-teal-800 mb-2">
-                <i class="fas fa-code mr-1"></i>
-                Available Placeholders
-            </h3>
-            <div class="grid md:grid-cols-2 gap-4 text-sm text-teal-700">
-                {% raw %}
-                <ul class="space-y-1">
-                    <li><code class="bg-white px-1 rounded">{{EMPLOYEE_NAME}}</code> - Full name</li>
-                    <li><code class="bg-white px-1 rounded">{{EMPLOYEE_TITLE}}</code> - Job title</li>
-                    <li><code class="bg-white px-1 rounded">{{EMPLOYEE_ROLE}}</code> - Role</li>
-                    <li><code class="bg-white px-1 rounded">{{FIRM_NAME}}</code> - Firm name</li>
-                    <li><code class="bg-white px-1 rounded">{{FIRM_CITY}}</code> - Firm city</li>
-                    <li><code class="bg-white px-1 rounded">{{FIRM_STATE}}</code> - Firm state</li>
-                    <li><code class="bg-white px-1 rounded">{{YEARS_EXPERIENCE_TOTAL}}</code> - Total years</li>
-                </ul>
-                <ul class="space-y-1">
-                    <li><code class="bg-white px-1 rounded">{{YEARS_EXPERIENCE_FIRM}}</code> - Years at firm</li>
-                    <li><code class="bg-white px-1 rounded">{{EDUCATION}}</code> - Education</li>
-                    <li><code class="bg-white px-1 rounded">{{REGISTRATIONS}}</code> - Registrations</li>
-                    <li><code class="bg-white px-1 rounded">{{BIO}}</code> - Professional summary</li>
-                    <li><code class="bg-white px-1 rounded">{{TRAINING}}</code> - Training</li>
-                    <li><code class="bg-white px-1 rounded">{{OTHER_QUALIFICATIONS}}</code> - Other qualifications</li>
-                    <li><code class="bg-white px-1 rounded">{{PROJECT_EXPERIENCE}}</code> - All projects combined</li>
-                    <li><code class="bg-white px-1 rounded">{{PROJECT_EXPERIENCE_1}}</code> - Project #1 (full block)</li>
-                    <li><code class="bg-white px-1 rounded">{{PROJECT_EXPERIENCE_1_TITLE}}</code> - Project #1 title</li>
-                    <li><code class="bg-white px-1 rounded">{{PROJECT_EXPERIENCE_1_ROLE}}</code> - Project #1 role</li>
-                    <li><code class="bg-white px-1 rounded">{{PROJECT_EXPERIENCE_1_LOCATION}}</code> - Project #1 location</li>
-                    <li><code class="bg-white px-1 rounded">{{PROJECT_EXPERIENCE_1_YEAR}}</code> - Project #1 year</li>
-                    <li><code class="bg-white px-1 rounded">{{PROJECT_EXPERIENCE_1_DESCRIPTION}}</code> - Project #1 description</li>
-                    <li class="text-gray-500 italic text-xs">Use _2, _3, etc. for additional projects (matches resume order numbers)</li>
-                </ul>
-                {% endraw %}
-            </div>
-        </div>
-    </div>
+    {% call(caller) template_card(
+        title="Company Template",
+        icon="building",
+        color="indigo",
+        description="Create your own company-branded project template with placeholders. Export, customize with your branding, and import back.",
+        export_url="/settings/company-template/export",
+        import_url="/settings/company-template/import",
+        reset_url="/settings/company-template/reset",
+        has_custom=has_company_template,
+        active_label="Custom company template is active",
+        active_desc="Your customized company template is being used for project downloads."
+    ) %}{% raw %}
+    <ul class="space-y-1">
+        <li><code class="bg-white px-1 rounded">{{PROJECT_TITLE}}</code> - Project name</li>
+        <li><code class="bg-white px-1 rounded">{{PROJECT_LOCATION}}</code> - Location</li>
+        <li><code class="bg-white px-1 rounded">{{PROJECT_COST}}</code> - Project cost</li>
+        <li><code class="bg-white px-1 rounded">{{BRIEF_DESCRIPTION}}</code> - Description</li>
+        <li><code class="bg-white px-1 rounded">{{DELIVERY_METHOD}}</code> - Delivery method</li>
+        <li><code class="bg-white px-1 rounded">{{YEAR_COMPLETED_PROFESSIONAL}}</code></li>
+        <li><code class="bg-white px-1 rounded">{{YEAR_COMPLETED_CONSTRUCTION}}</code></li>
+    </ul>
+    <ul class="space-y-1">
+        <li><code class="bg-white px-1 rounded">{{OWNER_NAME}}</code> - Owner/client name</li>
+        <li><code class="bg-white px-1 rounded">{{OWNER_CONTACT}}</code> - Contact name</li>
+        <li><code class="bg-white px-1 rounded">{{OWNER_PHONE}}</code> - Contact phone</li>
+        <li><code class="bg-white px-1 rounded">{{OWNER_EMAIL}}</code> - Contact email</li>
+        <li><code class="bg-white px-1 rounded">{{FIRM_NAME}}</code> - Firm name</li>
+        <li><code class="bg-white px-1 rounded">{{FIRM_CITY}}</code> - Firm city</li>
+        <li><code class="bg-white px-1 rounded">{{FIRM_STATE}}</code> - Firm state</li>
+        <li><code class="bg-white px-1 rounded">{{FIRM_ROLE}}</code> - Firm role (e.g. Prime)</li>
+        <li><code class="bg-white px-1 rounded">{{KEY_PERSONNEL}}</code> - Team list</li>
+    </ul>
+    {% endraw %}{% endcall %}
 
-    <div class="bg-white rounded-lg shadow p-6 mt-8">
-        <h2 class="text-xl font-semibold text-gray-800 mb-6">
-            <i class="fas fa-file-alt text-blue-600 mr-2"></i>
-            SF330 Section E Resume Template
-        </h2>
-        
-        <p class="text-gray-600 mb-6">
-            Customize the SF330 Section E (Resume) template used for federal standard resume downloads. This template follows the 
-            official SF330 form layout. Export, customize, and re-import using {% raw %}<code class="bg-gray-100 px-1 rounded">{{PLACEHOLDER_NAME}}</code>{% endraw %} syntax.
-        </p>
-        
-        <div class="grid md:grid-cols-2 gap-6">
-            <div class="border rounded-lg p-4">
-                <h3 class="font-medium text-gray-800 mb-2">
-                    <i class="fas fa-download text-blue-600 mr-2"></i>
-                    Export SF330 Resume Template
-                </h3>
-                <p class="text-sm text-gray-600 mb-4">Download the SF330 Section E template with all available placeholders.</p>
-                <a href="/settings/sf330-resume-template/export" class="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
-                    <i class="fas fa-file-export mr-2"></i>
-                    Download Template
-                </a>
-            </div>
-            
-            <div class="border rounded-lg p-4">
-                <h3 class="font-medium text-gray-800 mb-2">
-                    <i class="fas fa-upload text-green-600 mr-2"></i>
-                    Import Custom Template
-                </h3>
-                <p class="text-sm text-gray-600 mb-4">Upload your customized SF330 Section E template.</p>
-                <form method="POST" action="/settings/sf330-resume-template/import" enctype="multipart/form-data">
-                    <input type="file" name="template" accept=".docx" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 mb-3">
-                    <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
-                        <i class="fas fa-file-import mr-2"></i>
-                        Import Template
-                    </button>
-                </form>
-            </div>
-        </div>
-        
-        {% if has_sf330_resume_template %}
-        <div class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
-            <div>
-                <span class="text-blue-800 font-medium">
-                    <i class="fas fa-check-circle mr-2"></i>
-                    Custom SF330 resume template is active
-                </span>
-                <p class="text-sm text-blue-700 mt-1">Your customized SF330 template is being used for Section E resume downloads.</p>
-            </div>
-            <form method="POST" action="/settings/sf330-resume-template/reset" class="ml-4">
-                <button type="submit" class="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 transition">
-                    <i class="fas fa-undo mr-1"></i>
-                    Reset to Default
-                </button>
-            </form>
-        </div>
-        {% endif %}
-        
-        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
-            <h3 class="font-medium text-blue-800 mb-2">
-                <i class="fas fa-code mr-1"></i>
-                Available Placeholders
-            </h3>
-            <div class="grid md:grid-cols-2 gap-4 text-sm text-blue-700">
-                {% raw %}
-                <ul class="space-y-1">
-                    <li><code class="bg-white px-1 rounded">{{EMPLOYEE_NAME}}</code> - Full name</li>
-                    <li><code class="bg-white px-1 rounded">{{EMPLOYEE_ROLE}}</code> - Role in contract</li>
-                    <li><code class="bg-white px-1 rounded">{{YEARS_EXPERIENCE_TOTAL}}</code> - Total years</li>
-                    <li><code class="bg-white px-1 rounded">{{YEARS_EXPERIENCE_FIRM}}</code> - Years at firm</li>
-                    <li><code class="bg-white px-1 rounded">{{FIRM_NAME}}</code> - Firm name</li>
-                    <li><code class="bg-white px-1 rounded">{{FIRM_CITY}}</code> - Firm city</li>
-                    <li><code class="bg-white px-1 rounded">{{FIRM_STATE}}</code> - Firm state</li>
-                    <li><code class="bg-white px-1 rounded">{{EDUCATION}}</code> - Education</li>
-                </ul>
-                <ul class="space-y-1">
-                    <li><code class="bg-white px-1 rounded">{{REGISTRATIONS}}</code> - Registrations</li>
-                    <li><code class="bg-white px-1 rounded">{{BIO}}</code> - Professional summary</li>
-                    <li><code class="bg-white px-1 rounded">{{TRAINING}}</code> - Training</li>
-                    <li><code class="bg-white px-1 rounded">{{OTHER_QUALIFICATIONS}}</code> - Other qualifications</li>
-                    <li><code class="bg-white px-1 rounded">{{PROJECT_EXPERIENCE_1_TITLE}}</code> - Project #1 title</li>
-                    <li><code class="bg-white px-1 rounded">{{PROJECT_EXPERIENCE_1_LOCATION}}</code> - Project #1 location</li>
-                    <li><code class="bg-white px-1 rounded">{{PROJECT_EXPERIENCE_1_YEAR}}</code> - Project #1 year</li>
-                    <li><code class="bg-white px-1 rounded">{{PROJECT_EXPERIENCE_1_ROLE}}</code> - Project #1 role</li>
-                    <li><code class="bg-white px-1 rounded">{{PROJECT_EXPERIENCE_1_DESCRIPTION}}</code> - Project #1 description</li>
-                    <li class="text-gray-500 italic text-xs">Use _2, _3, _4, _5 for additional projects (a-e)</li>
-                </ul>
-                {% endraw %}
-            </div>
-        </div>
-    </div>
+    {% call(caller) template_card(
+        title="Resume Template",
+        icon="id-card",
+        color="teal",
+        description="Create your own company-branded resume template. Export, customize with your branding, and import back.",
+        export_url="/settings/resume-template/export",
+        import_url="/settings/resume-template/import",
+        reset_url="/settings/resume-template/reset",
+        has_custom=has_resume_template,
+        active_label="Custom resume template is active",
+        active_desc="Your customized resume template is being used for resume downloads."
+    ) %}{% raw %}
+    <ul class="space-y-1">
+        <li><code class="bg-white px-1 rounded">{{EMPLOYEE_NAME}}</code> - Full name</li>
+        <li><code class="bg-white px-1 rounded">{{EMPLOYEE_TITLE}}</code> - Job title</li>
+        <li><code class="bg-white px-1 rounded">{{EMPLOYEE_ROLE}}</code> - Role</li>
+        <li><code class="bg-white px-1 rounded">{{FIRM_NAME}}</code> - Firm name</li>
+        <li><code class="bg-white px-1 rounded">{{FIRM_CITY}}</code> - Firm city</li>
+        <li><code class="bg-white px-1 rounded">{{FIRM_STATE}}</code> - Firm state</li>
+        <li><code class="bg-white px-1 rounded">{{YEARS_EXPERIENCE_TOTAL}}</code> - Total years</li>
+    </ul>
+    <ul class="space-y-1">
+        <li><code class="bg-white px-1 rounded">{{YEARS_EXPERIENCE_FIRM}}</code> - Years at firm</li>
+        <li><code class="bg-white px-1 rounded">{{EDUCATION}}</code> - Education</li>
+        <li><code class="bg-white px-1 rounded">{{REGISTRATIONS}}</code> - Registrations</li>
+        <li><code class="bg-white px-1 rounded">{{BIO}}</code> - Professional summary</li>
+        <li><code class="bg-white px-1 rounded">{{TRAINING}}</code> - Training</li>
+        <li><code class="bg-white px-1 rounded">{{OTHER_QUALIFICATIONS}}</code> - Other qualifications</li>
+        <li><code class="bg-white px-1 rounded">{{PROJECT_EXPERIENCE}}</code> - All projects combined</li>
+        <li><code class="bg-white px-1 rounded">{{PROJECT_EXPERIENCE_1}}</code> - Project #1 (full block)</li>
+        <li><code class="bg-white px-1 rounded">{{PROJECT_EXPERIENCE_1_TITLE}}</code> - Project #1 title</li>
+        <li><code class="bg-white px-1 rounded">{{PROJECT_EXPERIENCE_1_ROLE}}</code> - Project #1 role</li>
+        <li><code class="bg-white px-1 rounded">{{PROJECT_EXPERIENCE_1_LOCATION}}</code> - Project #1 location</li>
+        <li><code class="bg-white px-1 rounded">{{PROJECT_EXPERIENCE_1_YEAR}}</code> - Project #1 year</li>
+        <li><code class="bg-white px-1 rounded">{{PROJECT_EXPERIENCE_1_DESCRIPTION}}</code> - Project #1 description</li>
+        <li class="text-gray-500 italic text-xs">Use _2, _3, etc. for additional projects</li>
+    </ul>
+    {% endraw %}{% endcall %}
 
-    <div class="bg-white rounded-lg shadow p-6 mt-8">
-        <h2 class="text-xl font-semibold text-gray-800 mb-6">
-            <i class="fas fa-th text-purple-600 mr-2"></i>
-            SF330 Section G Matrix Template
-        </h2>
-        
-        <p class="text-gray-600 mb-6">
-            Customize the SF330 Section G (Key Personnel Participation in Example Projects) matrix template.
-            The template automatically expands to fit any number of personnel. Export, customize formatting, and re-import using 
-            {% raw %}<code class="bg-gray-100 px-1 rounded">{{PLACEHOLDER_NAME}}</code>{% endraw %} syntax.
-        </p>
-        
-        <div class="grid md:grid-cols-2 gap-6">
-            <div class="border rounded-lg p-4">
-                <h3 class="font-medium text-gray-800 mb-2">
-                    <i class="fas fa-download text-purple-600 mr-2"></i>
-                    Export Section G Template
-                </h3>
-                <p class="text-sm text-gray-600 mb-4">Download the Section G matrix template with all available placeholders.</p>
-                <a href="/settings/section-g-template/export" class="inline-block px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
-                    <i class="fas fa-file-export mr-2"></i>
-                    Download Template
-                </a>
-            </div>
-            
-            <div class="border rounded-lg p-4">
-                <h3 class="font-medium text-gray-800 mb-2">
-                    <i class="fas fa-upload text-green-600 mr-2"></i>
-                    Import Custom Template
-                </h3>
-                <p class="text-sm text-gray-600 mb-4">Upload your customized Section G matrix template.</p>
-                <form method="POST" action="/settings/section-g-template/import" enctype="multipart/form-data">
-                    <input type="file" name="template" accept=".docx" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 mb-3">
-                    <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
-                        <i class="fas fa-file-import mr-2"></i>
-                        Import Template
-                    </button>
-                </form>
-            </div>
-        </div>
-        
-        {% if has_section_g_template %}
-        <div class="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg flex items-center justify-between">
-            <div>
-                <span class="text-purple-800 font-medium">
-                    <i class="fas fa-check-circle mr-2"></i>
-                    Custom Section G template is active
-                </span>
-                <p class="text-sm text-purple-700 mt-1">Your customized template is being used for Section G matrix downloads.</p>
-            </div>
-            <form method="POST" action="/settings/section-g-template/reset" class="ml-4">
-                <button type="submit" class="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 transition">
-                    <i class="fas fa-undo mr-1"></i>
-                    Reset to Default
-                </button>
-            </form>
-        </div>
-        {% endif %}
-        
-        <div class="bg-purple-50 border border-purple-200 rounded-lg p-4 mt-4">
-            <h3 class="font-medium text-purple-800 mb-2">
-                <i class="fas fa-code mr-1"></i>
-                Available Placeholders
-            </h3>
-            <div class="grid md:grid-cols-2 gap-4 text-sm text-purple-700">
-                {% raw %}
-                <ul class="space-y-1">
-                    <li><code class="bg-white px-1 rounded">{{EMPLOYEE_NAME_1}}</code> - Employee #1 name</li>
-                    <li><code class="bg-white px-1 rounded">{{EMPLOYEE_ROLE_1}}</code> - Employee #1 role</li>
-                    <li><code class="bg-white px-1 rounded">{{EMPLOYEE_PROJECT_1_1}}</code> - Employee #1, Project #1 mark</li>
-                    <li><code class="bg-white px-1 rounded">{{EMPLOYEE_PROJECT_1_2}}</code> - Employee #1, Project #2 mark</li>
-                    <li class="text-gray-500 italic text-xs">Use _2 through _13 for additional employees</li>
-                    <li class="text-gray-500 italic text-xs">Use _1 through _10 for project columns</li>
-                </ul>
-                <ul class="space-y-1">
-                    <li><code class="bg-white px-1 rounded">{{PROJECT_TITLE_1}}</code> - Project #1 title</li>
-                    <li><code class="bg-white px-1 rounded">{{PROJECT_TITLE_2}}</code> - Project #2 title</li>
-                    <li class="text-gray-500 italic text-xs">Use _1 through _10 for project titles</li>
-                    <li class="mt-2 text-gray-500 italic text-xs">Template rows expand automatically beyond 13 employees</li>
-                </ul>
-                {% endraw %}
-            </div>
-        </div>
-    </div>
+    {% call(caller) template_card(
+        title="SF330 Section E Resume Template",
+        icon="file-alt",
+        color="blue",
+        description="Customize the SF330 Section E (Resume) template for federal standard resume downloads. Follows the official SF330 form layout.",
+        export_url="/settings/sf330-resume-template/export",
+        import_url="/settings/sf330-resume-template/import",
+        reset_url="/settings/sf330-resume-template/reset",
+        has_custom=has_sf330_resume_template,
+        active_label="Custom SF330 resume template is active",
+        active_desc="Your customized SF330 template is being used for Section E resume downloads."
+    ) %}{% raw %}
+    <ul class="space-y-1">
+        <li><code class="bg-white px-1 rounded">{{EMPLOYEE_NAME}}</code> - Full name</li>
+        <li><code class="bg-white px-1 rounded">{{EMPLOYEE_ROLE}}</code> - Role in contract</li>
+        <li><code class="bg-white px-1 rounded">{{YEARS_EXPERIENCE_TOTAL}}</code> - Total years</li>
+        <li><code class="bg-white px-1 rounded">{{YEARS_EXPERIENCE_FIRM}}</code> - Years at firm</li>
+        <li><code class="bg-white px-1 rounded">{{FIRM_NAME}}</code> - Firm name</li>
+        <li><code class="bg-white px-1 rounded">{{FIRM_CITY}}</code> - Firm city</li>
+        <li><code class="bg-white px-1 rounded">{{FIRM_STATE}}</code> - Firm state</li>
+        <li><code class="bg-white px-1 rounded">{{EDUCATION}}</code> - Education</li>
+    </ul>
+    <ul class="space-y-1">
+        <li><code class="bg-white px-1 rounded">{{REGISTRATIONS}}</code> - Registrations</li>
+        <li><code class="bg-white px-1 rounded">{{BIO}}</code> - Professional summary</li>
+        <li><code class="bg-white px-1 rounded">{{TRAINING}}</code> - Training</li>
+        <li><code class="bg-white px-1 rounded">{{OTHER_QUALIFICATIONS}}</code> - Other qualifications</li>
+        <li><code class="bg-white px-1 rounded">{{PROJECT_EXPERIENCE_1_TITLE}}</code> - Project #1 title</li>
+        <li><code class="bg-white px-1 rounded">{{PROJECT_EXPERIENCE_1_LOCATION}}</code> - Project #1 location</li>
+        <li><code class="bg-white px-1 rounded">{{PROJECT_EXPERIENCE_1_YEAR}}</code> - Project #1 year</li>
+        <li><code class="bg-white px-1 rounded">{{PROJECT_EXPERIENCE_1_ROLE}}</code> - Project #1 role</li>
+        <li><code class="bg-white px-1 rounded">{{PROJECT_EXPERIENCE_1_DESCRIPTION}}</code> - Project #1 description</li>
+        <li class="text-gray-500 italic text-xs">Use _2, _3, _4, _5 for additional projects (a-e)</li>
+    </ul>
+    {% endraw %}{% endcall %}
+
+    {% call(caller) template_card(
+        title="SF330 Section G Matrix Template",
+        icon="th",
+        color="purple",
+        description="Customize the Section G (Key Personnel Participation) matrix template. Automatically expands to fit any number of personnel.",
+        export_url="/settings/section-g-template/export",
+        import_url="/settings/section-g-template/import",
+        reset_url="/settings/section-g-template/reset",
+        has_custom=has_section_g_template,
+        active_label="Custom Section G template is active",
+        active_desc="Your customized template is being used for Section G matrix downloads."
+    ) %}{% raw %}
+    <ul class="space-y-1">
+        <li><code class="bg-white px-1 rounded">{{EMPLOYEE_NAME_1}}</code> - Employee #1 name</li>
+        <li><code class="bg-white px-1 rounded">{{EMPLOYEE_ROLE_1}}</code> - Employee #1 role</li>
+        <li><code class="bg-white px-1 rounded">{{EMPLOYEE_PROJECT_1_1}}</code> - Employee #1, Project #1 mark</li>
+        <li><code class="bg-white px-1 rounded">{{EMPLOYEE_PROJECT_1_2}}</code> - Employee #1, Project #2 mark</li>
+        <li class="text-gray-500 italic text-xs">Use _2 through _13 for additional employees</li>
+        <li class="text-gray-500 italic text-xs">Use _1 through _10 for project columns</li>
+    </ul>
+    <ul class="space-y-1">
+        <li><code class="bg-white px-1 rounded">{{PROJECT_TITLE_1}}</code> - Project #1 title</li>
+        <li><code class="bg-white px-1 rounded">{{PROJECT_TITLE_2}}</code> - Project #2 title</li>
+        <li class="text-gray-500 italic text-xs">Use _1 through _10 for project titles</li>
+        <li class="mt-2 text-gray-500 italic text-xs">Template rows expand automatically beyond 13 employees</li>
+    </ul>
+    {% endraw %}{% endcall %}
 </div>
 {% endblock %}
