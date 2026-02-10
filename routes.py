@@ -793,23 +793,27 @@ def download_employee_resume(id):
 
 @app.route('/employee/<int:id>/download-sf330')
 def download_employee_sf330_resume(id):
-    """Download employee resume in SF330 Section E format"""
+    """Download employee resume in SF330 Section E format with unlimited projects"""
+    import re
+    import copy
+    from docx import Document
+    from docx.oxml.ns import qn
+    from lxml import etree
+
     employee = Employee.query.get_or_404(id)
     firm = Firm.query.get(employee.firm_id) if employee.firm_id else None
-    
+
     doc = None
     try:
         client = get_storage_client()
         template_bytes = client.download_as_bytes('templates/sf330_resume_template_custom.docx')
         if template_bytes:
-            from docx import Document
             doc = Document(io.BytesIO(template_bytes))
     except:
         pass
-    
+
     if doc is None:
         try:
-            from docx import Document
             default_path = os.path.join(os.path.dirname(__file__), 'attached_assets', 'sf330_section_e_template.docx')
             if os.path.exists(default_path):
                 doc = Document(default_path)
@@ -818,11 +822,119 @@ def download_employee_sf330_resume(id):
         except Exception as e:
             flash(f'SF330 Section E template not found: {str(e)}', 'error')
             return redirect(url_for('employee_detail', id=id))
-    
+
     numbered_experiences = EmployeeProjectExperience.query.filter_by(employee_id=id).filter(
         EmployeeProjectExperience.resume_order.isnot(None)
     ).order_by(EmployeeProjectExperience.resume_order.asc()).all()
-    
+
+    num_projects = len(numbered_experiences)
+
+    def _get_alpha_label(idx):
+        result = ''
+        n = idx
+        while True:
+            result = chr(ord('a') + n % 26) + result
+            n = n // 26 - 1
+            if n < 0:
+                break
+        return result + '.'
+
+    def _get_cell_text(tc_element):
+        text = ''
+        for p in tc_element.findall(qn('w:p')):
+            for r in p.findall(qn('w:r')):
+                for t in r.findall(qn('w:t')):
+                    text += (t.text or '')
+        return text
+
+    def _replace_text_in_row(row_el, old_text, new_text):
+        for tc in row_el.findall(qn('w:tc')):
+            for p_el in tc.findall(qn('w:p')):
+                runs = p_el.findall(qn('w:r'))
+                if not runs:
+                    continue
+                full = ''
+                for r in runs:
+                    for t in r.findall(qn('w:t')):
+                        full += (t.text or '')
+                if old_text not in full:
+                    continue
+                new_full = full.replace(old_text, new_text)
+                first_set = False
+                for r in runs:
+                    for t in r.findall(qn('w:t')):
+                        if not first_set:
+                            t.text = new_full
+                            t.set(qn('xml:space'), 'preserve')
+                            first_set = True
+                        else:
+                            t.text = ''
+                            t.set(qn('xml:space'), 'preserve')
+
+    table = doc.tables[0] if doc.tables else None
+    if table is not None and num_projects != 5:
+        tbl_element = table._tbl
+        all_tr = list(tbl_element.findall(qn('w:tr')))
+
+        block_starts = []
+        for i, tr in enumerate(all_tr):
+            first_tc = tr.find(qn('w:tc'))
+            if first_tc is not None:
+                text = _get_cell_text(first_tc).strip()
+                label = text.rstrip('.')
+                if label and len(label) <= 2 and label.isalpha() and label.islower():
+                    block_starts.append(i)
+
+        if len(block_starts) >= 2:
+            rows_per_block = block_starts[1] - block_starts[0]
+            template_block_count = len(block_starts)
+            last_block_start_idx = block_starts[-1]
+            last_block_project_num = template_block_count
+
+            last_block_end = last_block_start_idx + rows_per_block
+            footer_tr_elements = all_tr[last_block_end:]
+            insert_before = footer_tr_elements[0] if footer_tr_elements else None
+
+            if num_projects > template_block_count:
+                template_block_rows = all_tr[last_block_start_idx:last_block_end]
+                old_label_text = _get_cell_text(template_block_rows[0].find(qn('w:tc'))).strip()
+
+                for extra_idx in range(template_block_count, num_projects):
+                    project_num = extra_idx + 1
+                    new_label = _get_alpha_label(extra_idx)
+
+                    for row_el in template_block_rows:
+                        new_row = copy.deepcopy(row_el)
+                        _replace_text_in_row(
+                            new_row,
+                            f'PROJECT_EXPERIENCE_{last_block_project_num}',
+                            f'PROJECT_EXPERIENCE_{project_num}'
+                        )
+                        first_tc = new_row.find(qn('w:tc'))
+                        if first_tc is not None:
+                            cell_text = _get_cell_text(first_tc).strip()
+                            if cell_text == old_label_text:
+                                for p_el in first_tc.findall(qn('w:p')):
+                                    for r in p_el.findall(qn('w:r')):
+                                        for t in r.findall(qn('w:t')):
+                                            if t.text and t.text.strip().rstrip('.') == old_label_text.rstrip('.'):
+                                                t.text = t.text.replace(old_label_text.rstrip('.'), new_label.rstrip('.')).replace(old_label_text, new_label)
+
+                        if insert_before is not None:
+                            tbl_element.insert(list(tbl_element).index(insert_before), new_row)
+                        else:
+                            tbl_element.append(new_row)
+
+            elif num_projects < template_block_count:
+                for block_idx in range(template_block_count - 1, max(num_projects - 1, -1), -1):
+                    if block_idx >= len(block_starts):
+                        continue
+                    block_start = block_starts[block_idx]
+                    rows_to_remove = all_tr[block_start:block_start + rows_per_block]
+                    for tr in rows_to_remove:
+                        if tr.getparent() is not None:
+                            tbl_element.remove(tr)
+
     project_exp_str = ''
     individual_project_placeholders = {}
     if numbered_experiences:
@@ -845,10 +957,10 @@ def download_employee_sf330_resume(id):
             individual_project_placeholders[f'{{{{PROJECT_EXPERIENCE_{idx}_YEAR}}}}'] = exp.year_completed or ''
             individual_project_placeholders[f'{{{{PROJECT_EXPERIENCE_{idx}_DESCRIPTION}}}}'] = exp.active_description or ''
         project_exp_str = '\n\n'.join(exp_lines)
-    
+
     employee_location_parts = [employee.city or '', employee.state or '']
     employee_location = ', '.join(p for p in employee_location_parts if p)
-    
+
     placeholders = {
         '{{EMPLOYEE_NAME}}': employee.display_name or employee.name or '',
         '{{EMPLOYEE_FIRST_NAME}}': employee.first_name or '',
@@ -872,11 +984,8 @@ def download_employee_sf330_resume(id):
         '{{PROJECT_EXPERIENCE}}': project_exp_str,
     }
     placeholders.update(individual_project_placeholders)
-    
+
     def _set_sf330_run_text_with_breaks(run, text):
-        """Set run text, converting newlines to proper Word line break elements."""
-        from docx.oxml.ns import qn
-        from lxml import etree
         r_element = run._element
         for child in list(r_element):
             if child.tag == qn('w:t'):
@@ -915,17 +1024,16 @@ def download_employee_sf330_resume(id):
                             para.runs[0].text = new_text
                         for i in range(1, len(para.runs)):
                             para.runs[i].text = ''
-    
+
     for para in doc.paragraphs:
         replace_sf330_placeholders_in_para(para, placeholders)
-    
-    for table in doc.tables:
-        for row in table.rows:
+
+    for tbl in doc.tables:
+        for row in tbl.rows:
             for cell in row.cells:
                 for para in cell.paragraphs:
                     replace_sf330_placeholders_in_para(para, placeholders)
-    
-    import re
+
     project_exp_pattern = re.compile(r'\{\{PROJECT_EXPERIENCE_\d+(_[A-Z]+)?\}\}')
     def collect_empty_sf330_paras(paragraphs):
         to_remove = []
@@ -942,24 +1050,24 @@ def download_employee_sf330_resume(id):
             else:
                 in_project_zone = False
         return to_remove
-    
+
     paras_to_remove = collect_empty_sf330_paras(doc.paragraphs)
-    for table in doc.tables:
-        for row in table.rows:
+    for tbl in doc.tables:
+        for row in tbl.rows:
             for cell in row.cells:
                 paras_to_remove.extend(collect_empty_sf330_paras(cell.paragraphs))
     for para in paras_to_remove:
         p_element = para._element
         p_element.getparent().remove(p_element)
-    
+
     safe_name = employee.display_name or employee.name or 'Employee'
     safe_name = ''.join(c for c in safe_name if c.isalnum() or c in ' _-')[:50].strip()
     filename = f"SF330_Section_E_{safe_name.replace(' ', '_')}.docx"
-    
+
     buffer = io.BytesIO()
     doc.save(buffer)
     buffer.seek(0)
-    
+
     return send_file(
         buffer,
         as_attachment=True,
