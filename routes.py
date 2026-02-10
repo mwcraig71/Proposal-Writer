@@ -4287,6 +4287,7 @@ def download_all_resumes(id):
     from docx.oxml.ns import qn
     from lxml import etree
     from werkzeug.utils import secure_filename
+    import copy
     import io
     import os
     import re
@@ -4509,6 +4510,114 @@ def download_all_resumes(id):
             else:
                 doc = create_default_resume_template()
             
+            if format_type == 'sf330' and doc.tables:
+                num_projects = len(relevant_projects)
+                table = doc.tables[0]
+                if num_projects != 5:
+                    tbl_element = table._tbl
+                    all_tr = list(tbl_element.findall(qn('w:tr')))
+
+                    def _get_cell_text_prop(tc_element):
+                        text = ''
+                        for p in tc_element.findall(qn('w:p')):
+                            for r in p.findall(qn('w:r')):
+                                for t in r.findall(qn('w:t')):
+                                    text += (t.text or '')
+                        return text
+
+                    def _replace_text_in_row_prop(row_el, old_text, new_text):
+                        for tc in row_el.findall(qn('w:tc')):
+                            for p_el in tc.findall(qn('w:p')):
+                                runs = p_el.findall(qn('w:r'))
+                                if not runs:
+                                    continue
+                                full = ''
+                                for r in runs:
+                                    for t in r.findall(qn('w:t')):
+                                        full += (t.text or '')
+                                if old_text not in full:
+                                    continue
+                                new_full = full.replace(old_text, new_text)
+                                first_set = False
+                                for r in runs:
+                                    for t in r.findall(qn('w:t')):
+                                        if not first_set:
+                                            t.text = new_full
+                                            t.set(qn('xml:space'), 'preserve')
+                                            first_set = True
+                                        else:
+                                            t.text = ''
+                                            t.set(qn('xml:space'), 'preserve')
+
+                    def _get_alpha_label_prop(idx):
+                        result = ''
+                        n = idx
+                        while True:
+                            result = chr(ord('a') + n % 26) + result
+                            n = n // 26 - 1
+                            if n < 0:
+                                break
+                        return result + '.'
+
+                    block_starts = []
+                    for i, tr in enumerate(all_tr):
+                        first_tc = tr.find(qn('w:tc'))
+                        if first_tc is not None:
+                            text = _get_cell_text_prop(first_tc).strip()
+                            label = text.rstrip('.')
+                            if label and len(label) <= 2 and label.isalpha() and label.islower():
+                                block_starts.append(i)
+
+                    if len(block_starts) >= 2:
+                        rows_per_block = block_starts[1] - block_starts[0]
+                        template_block_count = len(block_starts)
+                        last_block_start_idx = block_starts[-1]
+                        last_block_project_num = template_block_count
+
+                        last_block_end = last_block_start_idx + rows_per_block
+                        footer_tr_elements = all_tr[last_block_end:]
+                        insert_before = footer_tr_elements[0] if footer_tr_elements else None
+
+                        if num_projects > template_block_count:
+                            template_block_rows = all_tr[last_block_start_idx:last_block_end]
+                            old_label_text = _get_cell_text_prop(template_block_rows[0].find(qn('w:tc'))).strip()
+
+                            for extra_idx in range(template_block_count, num_projects):
+                                project_num = extra_idx + 1
+                                new_label = _get_alpha_label_prop(extra_idx)
+
+                                for row_el in template_block_rows:
+                                    new_row = copy.deepcopy(row_el)
+                                    _replace_text_in_row_prop(
+                                        new_row,
+                                        f'PROJECT_EXPERIENCE_{last_block_project_num}',
+                                        f'PROJECT_EXPERIENCE_{project_num}'
+                                    )
+                                    first_tc = new_row.find(qn('w:tc'))
+                                    if first_tc is not None:
+                                        cell_text = _get_cell_text_prop(first_tc).strip()
+                                        if cell_text == old_label_text:
+                                            for p_el in first_tc.findall(qn('w:p')):
+                                                for r in p_el.findall(qn('w:r')):
+                                                    for t in r.findall(qn('w:t')):
+                                                        if t.text and t.text.strip().rstrip('.') == old_label_text.rstrip('.'):
+                                                            t.text = t.text.replace(old_label_text.rstrip('.'), new_label.rstrip('.')).replace(old_label_text, new_label)
+
+                                    if insert_before is not None:
+                                        tbl_element.insert(list(tbl_element).index(insert_before), new_row)
+                                    else:
+                                        tbl_element.append(new_row)
+
+                        elif num_projects < template_block_count:
+                            for block_idx in range(template_block_count - 1, max(num_projects - 1, -1), -1):
+                                if block_idx >= len(block_starts):
+                                    continue
+                                block_start = block_starts[block_idx]
+                                rows_to_remove = all_tr[block_start:block_start + rows_per_block]
+                                for tr in rows_to_remove:
+                                    if tr.getparent() is not None:
+                                        tbl_element.remove(tr)
+
             replace_placeholders_in_doc(doc, placeholders)
             clean_unused_project_placeholders(doc)
             
@@ -4688,7 +4797,7 @@ def generate_proposal_word(id):
         class ExpWrapper:
             pass
         exp_list = []
-        for e in experiences[:5]:
+        for e in experiences:
             exp = ExpWrapper()
             exp.title = e.project_title
             exp.location = e.location

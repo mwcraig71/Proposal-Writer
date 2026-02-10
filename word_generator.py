@@ -109,74 +109,268 @@ def generate_section_a_c(proposal, firms):
 
 def generate_section_e(employee, proposal, project_experiences):
     """
-    Generate Section E (Resume) for one employee
+    Generate Section E (Resume) for one employee using SF330 Section E template.
+    Supports unlimited project entries by dynamically cloning/removing project blocks.
     Returns: Document object
     """
-    doc = Document(os.path.join(TEMPLATE_DIR, 'section_e.docx'))
-    table = doc.tables[0]
-    
-    # Row 0: Header
-    # Row 1: Name | Role | Years Experience
-    set_cell_text(table, 1, 0, employee.name or '')
-    
-    role = ""
+    from docx.oxml.ns import qn
+
+    template_source = None
+    try:
+        from replit.object_storage import Client as StorageClient
+        client = StorageClient()
+        template_bytes = client.download_as_bytes('templates/sf330_resume_template_custom.docx')
+        if template_bytes:
+            template_source = io.BytesIO(template_bytes)
+    except:
+        pass
+    if template_source is None:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        for path in [
+            os.path.join(base_dir, 'attached_assets', 'sf330_section_e_template.docx'),
+            os.path.join(base_dir, 'attached_assets', '330_Section_E_Standards_template_1770398969209.docx'),
+        ]:
+            if os.path.exists(path):
+                template_source = path
+                break
+    if template_source is None:
+        template_source = os.path.join(TEMPLATE_DIR, 'section_e.docx')
+
+    if isinstance(template_source, io.BytesIO):
+        template_source.seek(0)
+        doc = Document(template_source)
+    else:
+        doc = Document(template_source)
+
+    num_projects = len(project_experiences)
+
+    def _get_cell_text_e(tc_element):
+        text = ''
+        for p in tc_element.findall(qn('w:p')):
+            for r in p.findall(qn('w:r')):
+                for t in r.findall(qn('w:t')):
+                    text += (t.text or '')
+        return text
+
+    def _replace_text_in_row_e(row_el, old_text, new_text):
+        for tc in row_el.findall(qn('w:tc')):
+            for p_el in tc.findall(qn('w:p')):
+                runs = p_el.findall(qn('w:r'))
+                if not runs:
+                    continue
+                full = ''
+                for r in runs:
+                    for t in r.findall(qn('w:t')):
+                        full += (t.text or '')
+                if old_text not in full:
+                    continue
+                new_full = full.replace(old_text, new_text)
+                first_set = False
+                for r in runs:
+                    for t in r.findall(qn('w:t')):
+                        if not first_set:
+                            t.text = new_full
+                            t.set(qn('xml:space'), 'preserve')
+                            first_set = True
+                        else:
+                            t.text = ''
+                            t.set(qn('xml:space'), 'preserve')
+
+    def _get_alpha_label_e(idx):
+        result = ''
+        n = idx
+        while True:
+            result = chr(ord('a') + n % 26) + result
+            n = n // 26 - 1
+            if n < 0:
+                break
+        return result + '.'
+
+    table = doc.tables[0] if doc.tables else None
+    if table is not None and num_projects != 5:
+        tbl_element = table._tbl
+        all_tr = list(tbl_element.findall(qn('w:tr')))
+
+        block_starts = []
+        for i, tr in enumerate(all_tr):
+            first_tc = tr.find(qn('w:tc'))
+            if first_tc is not None:
+                text = _get_cell_text_e(first_tc).strip()
+                label = text.rstrip('.')
+                if label and len(label) <= 2 and label.isalpha() and label.islower():
+                    block_starts.append(i)
+
+        if len(block_starts) >= 2:
+            rows_per_block = block_starts[1] - block_starts[0]
+            template_block_count = len(block_starts)
+            last_block_start_idx = block_starts[-1]
+            last_block_project_num = template_block_count
+
+            last_block_end = last_block_start_idx + rows_per_block
+            footer_tr_elements = all_tr[last_block_end:]
+            insert_before = footer_tr_elements[0] if footer_tr_elements else None
+
+            if num_projects > template_block_count:
+                template_block_rows = all_tr[last_block_start_idx:last_block_end]
+                old_label_text = _get_cell_text_e(template_block_rows[0].find(qn('w:tc'))).strip()
+
+                for extra_idx in range(template_block_count, num_projects):
+                    project_num = extra_idx + 1
+                    new_label = _get_alpha_label_e(extra_idx)
+
+                    for row_el in template_block_rows:
+                        new_row = copy.deepcopy(row_el)
+                        _replace_text_in_row_e(
+                            new_row,
+                            f'PROJECT_EXPERIENCE_{last_block_project_num}',
+                            f'PROJECT_EXPERIENCE_{project_num}'
+                        )
+                        first_tc = new_row.find(qn('w:tc'))
+                        if first_tc is not None:
+                            cell_text = _get_cell_text_e(first_tc).strip()
+                            if cell_text == old_label_text:
+                                for p_el in first_tc.findall(qn('w:p')):
+                                    for r in p_el.findall(qn('w:r')):
+                                        for t in r.findall(qn('w:t')):
+                                            if t.text and t.text.strip().rstrip('.') == old_label_text.rstrip('.'):
+                                                t.text = t.text.replace(old_label_text.rstrip('.'), new_label.rstrip('.')).replace(old_label_text, new_label)
+
+                        if insert_before is not None:
+                            tbl_element.insert(list(tbl_element).index(insert_before), new_row)
+                        else:
+                            tbl_element.append(new_row)
+
+            elif num_projects < template_block_count:
+                for block_idx in range(template_block_count - 1, max(num_projects - 1, -1), -1):
+                    if block_idx >= len(block_starts):
+                        continue
+                    block_start = block_starts[block_idx]
+                    rows_to_remove = all_tr[block_start:block_start + rows_per_block]
+                    for tr in rows_to_remove:
+                        if tr.getparent() is not None:
+                            tbl_element.remove(tr)
+
+    def _replace_placeholder_in_element(element, placeholder, value):
+        for p_el in element.findall(qn('w:p')):
+            runs = p_el.findall(qn('w:r'))
+            if not runs:
+                continue
+            full = ''
+            for r in runs:
+                for t in r.findall(qn('w:t')):
+                    full += (t.text or '')
+            if placeholder not in full:
+                continue
+            new_full = full.replace(placeholder, value)
+            first_set = False
+            for r in runs:
+                for t in r.findall(qn('w:t')):
+                    if not first_set:
+                        t.text = new_full
+                        t.set(qn('xml:space'), 'preserve')
+                        first_set = True
+                    else:
+                        t.text = ''
+                        t.set(qn('xml:space'), 'preserve')
+
+    role = ''
     if hasattr(employee, 'proposal_role'):
-        role = employee.proposal_role
-    set_cell_text(table, 1, 2, role)
-    
-    # Years experience
-    years_total = employee.years_experience or ""
-    years_firm = employee.years_with_firm or ""
-    set_cell_text(table, 1, 4, str(years_total))
-    set_cell_text(table, 1, 5, str(years_firm))
-    
-    # Row 2: Firm Name and Location
-    if proposal.firm:
-        firm_loc = f"{proposal.firm.name}, {proposal.firm.city}, {proposal.firm.state}"
-        set_cell_text(table, 2, 0, firm_loc)
-    
-    # Row 3: Education
-    set_cell_text(table, 3, 0, employee.education or '')
-    
-    # Row 3 right side: Professional Registration
-    set_cell_text(table, 3, 3, employee.registrations or '')
-    
-    # Row 4: Other Professional Qualifications
-    other_quals = ""
-    if employee.training:
+        role = employee.proposal_role or ''
+
+    other_quals = ''
+    if hasattr(employee, 'training') and employee.training:
         other_quals += employee.training
-    if employee.other_qualifications:
+    if hasattr(employee, 'other_qualifications') and employee.other_qualifications:
         if other_quals:
-            other_quals += "\n"
+            other_quals += '\n'
         other_quals += employee.other_qualifications
-    set_cell_text(table, 4, 0, other_quals)
-    
-    # Rows 5-29: Relevant Projects (5 projects, each takes ~5 rows)
-    project_row_starts = [7, 12, 17, 22, 27]  # Approximate row starts for projects a-e
-    
-    for idx, exp in enumerate(project_experiences[:5]):
-        if idx < len(project_row_starts):
-            start_row = project_row_starts[idx]
-            
-            # Project title and location
-            title_loc = exp.title or ''
-            if exp.location:
-                title_loc += f", {exp.location}"
-            
-            if start_row < len(table.rows):
-                set_cell_text(table, start_row, 0, title_loc)
-                
-                # Year completed
-                set_cell_text(table, start_row, 4, str(exp.year_completed or ''))
-                
-                # Brief description
-                desc_row = start_row + 1
-                if desc_row < len(table.rows):
-                    description = exp.description or ''
-                    if exp.role:
-                        description += f"\nRole: {exp.role}"
-                    set_cell_text(table, desc_row, 0, description)
-    
+
+    firm_name = ''
+    firm_location = ''
+    if proposal.firm:
+        firm_name = proposal.firm.name or ''
+        parts = [proposal.firm.city or '', proposal.firm.state or '']
+        firm_location = ', '.join(p for p in parts if p)
+
+    placeholders = {
+        '{{EMPLOYEE_NAME}}': employee.name or '',
+        '{{EMPLOYEE_ROLE}}': role,
+        '{{YEARS_EXPERIENCE_TOTAL}}': str(employee.years_experience or '') if hasattr(employee, 'years_experience') else '',
+        '{{YEARS_EXPERIENCE_FIRM}}': str(employee.years_with_firm or '') if hasattr(employee, 'years_with_firm') else '',
+        '{{FIRM_NAME}}': firm_name,
+        '{{FIRM_LOCATION}}': firm_location,
+        '{{FIRM_NAME_LOCATION}}': f"{firm_name}, {firm_location}" if firm_location else firm_name,
+        '{{EDUCATION}}': employee.education or '',
+        '{{REGISTRATIONS}}': employee.registrations or '',
+        '{{OTHER_QUALIFICATIONS}}': other_quals,
+    }
+
+    for idx, exp in enumerate(project_experiences):
+        proj_num = idx + 1
+        title = exp.title or ''
+        location = exp.location or ''
+        year = str(exp.year_completed or '')
+        description = exp.description or ''
+        exp_role = exp.role or ''
+
+        placeholders[f'{{{{PROJECT_EXPERIENCE_{proj_num}_TITLE}}}}'] = title
+        placeholders[f'{{{{PROJECT_EXPERIENCE_{proj_num}_LOCATION}}}}'] = location
+        placeholders[f'{{{{PROJECT_EXPERIENCE_{proj_num}_YEAR}}}}'] = year
+        placeholders[f'{{{{PROJECT_EXPERIENCE_{proj_num}_DESCRIPTION}}}}'] = description
+        placeholders[f'{{{{PROJECT_EXPERIENCE_{proj_num}_ROLE}}}}'] = exp_role
+        full_block = title
+        if location:
+            full_block += f", {location}"
+        if year:
+            full_block += f" ({year})"
+        if exp_role:
+            full_block += f"\nRole: {exp_role}"
+        if description:
+            full_block += f"\n{description}"
+        placeholders[f'{{{{PROJECT_EXPERIENCE_{proj_num}}}}}'] = full_block
+
+    if table is not None:
+        tbl_element = table._tbl
+        for tr in tbl_element.findall(qn('w:tr')):
+            for tc in tr.findall(qn('w:tc')):
+                for placeholder, value in placeholders.items():
+                    _replace_placeholder_in_element(tc, placeholder, str(value))
+
+    for para in doc.paragraphs:
+        for placeholder, value in placeholders.items():
+            runs = para._element.findall(qn('w:r'))
+            if not runs:
+                continue
+            full = ''
+            for r in runs:
+                for t in r.findall(qn('w:t')):
+                    full += (t.text or '')
+            if placeholder not in full:
+                continue
+            new_full = full.replace(placeholder, str(value))
+            first_set = False
+            for r in runs:
+                for t in r.findall(qn('w:t')):
+                    if not first_set:
+                        t.text = new_full
+                        t.set(qn('xml:space'), 'preserve')
+                        first_set = True
+                    else:
+                        t.text = ''
+                        t.set(qn('xml:space'), 'preserve')
+
+    import re
+    project_exp_pattern = re.compile(r'\{\{PROJECT_EXPERIENCE_\d+(_[A-Z]+)?\}\}')
+    if table is not None:
+        tbl_element = table._tbl
+        for tr in tbl_element.findall(qn('w:tr')):
+            for tc in tr.findall(qn('w:tc')):
+                for p_el in tc.findall(qn('w:p')):
+                    for r in p_el.findall(qn('w:r')):
+                        for t in r.findall(qn('w:t')):
+                            if t.text and project_exp_pattern.search(t.text):
+                                t.text = project_exp_pattern.sub('', t.text)
+
     return doc
 
 
