@@ -876,16 +876,25 @@ def download_employee_sf330_resume(id):
         tbl_element = table._tbl
         all_tr = list(tbl_element.findall(qn('w:tr')))
 
-        block_starts = []
+        label_rows = []
         for i, tr in enumerate(all_tr):
             first_tc = tr.find(qn('w:tc'))
             if first_tc is not None:
                 text = _get_cell_text(first_tc).strip()
                 label = text.rstrip('.')
                 if label and len(label) <= 2 and label.isalpha() and label.islower():
-                    block_starts.append(i)
+                    label_rows.append(i)
 
-        if len(block_starts) >= 2:
+        if len(label_rows) >= 2:
+            label_in_block_offset = 0
+            if label_rows[0] > 0:
+                prev_text = ''
+                for tc in all_tr[label_rows[0] - 1].findall(qn('w:tc')):
+                    prev_text += _get_cell_text(tc)
+                if '(1)' in prev_text:
+                    label_in_block_offset = 1
+
+            block_starts = [lr - label_in_block_offset for lr in label_rows]
             rows_per_block = block_starts[1] - block_starts[0]
             template_block_count = len(block_starts)
             last_block_start_idx = block_starts[-1]
@@ -897,7 +906,8 @@ def download_employee_sf330_resume(id):
 
             if num_projects > template_block_count:
                 template_block_rows = all_tr[last_block_start_idx:last_block_end]
-                old_label_text = _get_cell_text(template_block_rows[0].find(qn('w:tc'))).strip()
+                label_row_in_block = template_block_rows[label_in_block_offset]
+                old_label_text = _get_cell_text(label_row_in_block.find(qn('w:tc'))).strip()
 
                 for extra_idx in range(template_block_count, num_projects):
                     project_num = extra_idx + 1
@@ -4559,16 +4569,25 @@ def download_all_resumes(id):
                                 break
                         return result + '.'
 
-                    block_starts = []
+                    label_rows = []
                     for i, tr in enumerate(all_tr):
                         first_tc = tr.find(qn('w:tc'))
                         if first_tc is not None:
                             text = _get_cell_text_prop(first_tc).strip()
                             label = text.rstrip('.')
                             if label and len(label) <= 2 and label.isalpha() and label.islower():
-                                block_starts.append(i)
+                                label_rows.append(i)
 
-                    if len(block_starts) >= 2:
+                    if len(label_rows) >= 2:
+                        label_in_block_offset = 0
+                        if label_rows[0] > 0:
+                            prev_text = ''
+                            for tc in all_tr[label_rows[0] - 1].findall(qn('w:tc')):
+                                prev_text += _get_cell_text_prop(tc)
+                            if '(1)' in prev_text:
+                                label_in_block_offset = 1
+
+                        block_starts = [lr - label_in_block_offset for lr in label_rows]
                         rows_per_block = block_starts[1] - block_starts[0]
                         template_block_count = len(block_starts)
                         last_block_start_idx = block_starts[-1]
@@ -4580,7 +4599,8 @@ def download_all_resumes(id):
 
                         if num_projects > template_block_count:
                             template_block_rows = all_tr[last_block_start_idx:last_block_end]
-                            old_label_text = _get_cell_text_prop(template_block_rows[0].find(qn('w:tc'))).strip()
+                            label_row_in_block = template_block_rows[label_in_block_offset]
+                            old_label_text = _get_cell_text_prop(label_row_in_block.find(qn('w:tc'))).strip()
 
                             for extra_idx in range(template_block_count, num_projects):
                                 project_num = extra_idx + 1
