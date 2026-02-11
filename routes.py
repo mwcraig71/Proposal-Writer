@@ -1335,6 +1335,7 @@ def generate_bio_with_ai(id):
     
     project_ids = data.get('project_ids', [])
     direction = data.get('direction', '')
+    word_count = data.get('word_count', 200)
     
     selected_projects = []
     if project_ids:
@@ -1365,7 +1366,7 @@ def generate_bio_with_ai(id):
     }
     
     try:
-        generated_bio = generate_employee_bio(employee_info, selected_projects, direction)
+        generated_bio = generate_employee_bio(employee_info, selected_projects, direction, word_count=word_count)
         return jsonify({'success': True, 'bio': generated_bio})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
@@ -1708,6 +1709,7 @@ def generate_alternate_experience_description(exp_id):
     direction = data.get('direction', '')
     include_firm_desc = data.get('include_firm_description', True)
     include_staff_desc = data.get('include_staff_description', True)
+    word_count = data.get('word_count', 200)
     
     employee_name = exp.employee.name if exp.employee else 'Unknown'
     
@@ -1726,7 +1728,8 @@ def generate_alternate_experience_description(exp_id):
             location=exp.location or '',
             owner_name=exp.owner_name or '',
             linked_project_description=linked_project_desc,
-            direction=direction
+            direction=direction,
+            word_count=word_count
         )
         return jsonify({'success': True, 'description': description})
     except Exception as e:
@@ -1887,12 +1890,13 @@ def rewrite_experience_description():
     data = request.json
     custom_instructions = data.get('custom_instructions', '')
     description_text = data.get('description', '')
+    word_count = data.get('word_count', 200)
     
     if not description_text:
         return jsonify({'error': 'No description to rewrite'}), 400
     
     from gemini_service import rewrite_description
-    rewritten = rewrite_description(description_text, custom_instructions)
+    rewritten = rewrite_description(description_text, custom_instructions, word_count=word_count)
     
     return jsonify({'success': True, 'rewritten': rewritten})
 
@@ -2814,44 +2818,18 @@ def delete_alternate_description(project_id, alt_id):
 
 
 @app.route('/api/rewrite-description', methods=['POST'])
-def rewrite_description():
+def rewrite_project_description():
     data = request.json
     description = data.get('description', '')
     custom_instructions = data.get('custom_instructions', '')
+    word_count = data.get('word_count', 200)
     
     if not description:
         return jsonify({'success': False, 'error': 'No description provided'})
     
-    global_style = AISettings.get_value('ai_writing_style', '')
-    global_tone = AISettings.get_value('ai_writing_tone', '')
-    
-    style_guidance = ""
-    if global_style:
-        style_guidance += f"\nGlobal style preference: {global_style}"
-    if global_tone:
-        style_guidance += f"\nGlobal tone preference: {global_tone}"
-    if custom_instructions:
-        style_guidance += f"\nAdditional instructions for this rewrite: {custom_instructions}"
-    
-    prompt = f"""You are a senior structural engineer with extensive experience in bridge inspection and rehabilitation.
-Rewrite the following project description in a professional, technical tone appropriate for a federal SF330 proposal.
-Focus on structural engineering aspects, bridge inspection methodologies, load ratings, condition assessments, and any rehabilitation or repair work.
-Keep the same factual content but enhance the language to demonstrate technical expertise.
-Keep the description concise (under 300 words) and suitable for Block 24 of SF330 Section F.
-{style_guidance}
-
-Original description:
-{description}
-
-Rewritten description (return ONLY the rewritten text, no explanations):"""
-    
+    from gemini_service import rewrite_description as ai_rewrite
     try:
-        from gemini_service import client
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt
-        )
-        rewritten = response.text.strip()
+        rewritten = ai_rewrite(description, custom_instructions, word_count=word_count)
         return jsonify({'success': True, 'rewritten': rewritten})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})

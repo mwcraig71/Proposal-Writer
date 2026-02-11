@@ -515,6 +515,15 @@
             <h3 class="text-xl font-semibold mb-4">AI Rewrite Description</h3>
             <div class="space-y-4">
                 <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Description Length</label>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs text-gray-500 w-10">35</span>
+                        <input type="range" id="rewrite-word-count" min="35" max="2000" step="5" value="200" class="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600" oninput="document.getElementById('rewrite-word-count-display').textContent = this.value + ' words'">
+                        <span class="text-xs text-gray-500 w-12">2000</span>
+                    </div>
+                    <p class="text-sm text-purple-600 font-medium text-center mt-1" id="rewrite-word-count-display">200 words</p>
+                </div>
+                <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Custom Instructions (Optional)</label>
                     <textarea id="rewrite-instructions" rows="3" class="w-full p-2 border rounded-lg" placeholder="e.g., Make it more technical, focus on bridge inspection..."></textarea>
                 </div>
@@ -677,6 +686,15 @@
                 </div>
             </div>
             <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Description Length</label>
+                <div class="flex items-center gap-3">
+                    <span class="text-xs text-gray-500 w-10">35</span>
+                    <input type="range" id="ai-desc-word-count" min="35" max="2000" step="5" value="200" class="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600" oninput="document.getElementById('ai-desc-word-count-display').textContent = this.value + ' words'">
+                    <span class="text-xs text-gray-500 w-12">2000</span>
+                </div>
+                <p class="text-sm text-purple-600 font-medium text-center mt-1" id="ai-desc-word-count-display">200 words</p>
+            </div>
+            <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700 mb-2">Direction / Instructions</label>
                 <p class="text-xs text-gray-500 mb-2">Guide the AI on style, focus, or specific points to emphasize</p>
                 <textarea id="ai-desc-direction" rows="3" class="w-full p-2 border rounded-lg" placeholder="Example: Focus on structural analysis aspects. Emphasize load rating experience. Keep it concise for SF330."></textarea>
@@ -759,6 +777,15 @@
                 <button type="button" onclick="toggleAllProjects()" class="text-sm text-blue-600 hover:text-blue-800 mt-2">
                     <i class="fas fa-check-double mr-1"></i> Toggle All
                 </button>
+            </div>
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Bio Length</label>
+                <div class="flex items-center gap-3">
+                    <span class="text-xs text-gray-500 w-10">35</span>
+                    <input type="range" id="ai-bio-word-count" min="35" max="2000" step="5" value="200" class="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600" oninput="document.getElementById('ai-bio-word-count-display').textContent = this.value + ' words'">
+                    <span class="text-xs text-gray-500 w-12">2000</span>
+                </div>
+                <p class="text-sm text-purple-600 font-medium text-center mt-1" id="ai-bio-word-count-display">200 words</p>
             </div>
             <div class="mb-6">
                 <label class="block text-sm font-medium text-gray-700 mb-2">Direction / Instructions</label>
@@ -1316,7 +1343,8 @@ async function generateAIBio() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 project_ids: selectedProjects.map(p => p.id),
-                direction: direction
+                direction: direction,
+                word_count: parseInt(document.getElementById('ai-bio-word-count').value)
             })
         });
         
@@ -1832,7 +1860,7 @@ async function doAIRewrite() {
         const response = await fetch('/api/experience/rewrite-description', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ description, custom_instructions: instructions })
+            body: JSON.stringify({ description, custom_instructions: instructions, word_count: parseInt(document.getElementById('rewrite-word-count').value) })
         });
         const result = await response.json();
         if (result.rewritten) {
@@ -2147,7 +2175,7 @@ async function rewriteAltDesc(id) {
         const response = await fetch('/api/experience/rewrite-description', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ description, custom_instructions: instructions })
+            body: JSON.stringify({ description, custom_instructions: instructions, word_count: parseInt(document.getElementById('rewrite-word-count').value) })
         });
         const result = await response.json();
         if (result.rewritten) {
@@ -2233,7 +2261,7 @@ async function generateAIDescription() {
         const response = await fetch(`/api/experience/${expId}/generate-alternate-description`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ direction, include_firm_description: includeFirmDesc, include_staff_description: includeStaffDesc })
+            body: JSON.stringify({ direction, include_firm_description: includeFirmDesc, include_staff_description: includeStaffDesc, word_count: parseInt(document.getElementById('ai-desc-word-count').value) })
         });
         const result = await response.json();
         

@@ -839,7 +839,7 @@ Return ONLY valid JSON, no markdown or explanations."""
         }
 
 
-def rewrite_description(description: str, custom_instructions: str = '') -> str:
+def rewrite_description(description: str, custom_instructions: str = '', word_count: int = 200) -> str:
     """Rewrite a description using AI with global settings and custom instructions."""
     from models import AISettings
     
@@ -852,6 +852,7 @@ Rewrite the following description according to these specifications:
 
 WRITING STYLE: {style}
 WRITING TONE: {tone}
+TARGET LENGTH: Approximately {word_count} words
 
 {f'CUSTOM INSTRUCTIONS: {custom_instructions}' if custom_instructions else ''}
 
@@ -863,6 +864,7 @@ Rewrite this text while:
 2. Using active voice and emphasizing expertise
 3. Making it concise yet comprehensive
 4. Suitable for federal A/E qualification submissions
+5. Targeting approximately {word_count} words in length
 
 Return ONLY the rewritten text, no explanations or formatting markers."""
 
@@ -1008,7 +1010,8 @@ def generate_alternate_project_writeup(
     location: str = '',
     owner_name: str = '',
     linked_project_description: str = None,
-    direction: str = ''
+    direction: str = '',
+    word_count: int = 200
 ) -> str:
     """Generate an alternate project writeup description using AI."""
     from models import AISettings
@@ -1048,7 +1051,7 @@ Generate a new project description that:
 1. Highlights the employee's specific role and contributions
 2. Is written in a professional SF330-appropriate style
 3. Focuses on technical achievements and quantifiable results where possible
-4. Is concise but comprehensive (typically 2-4 sentences)
+4. Targets approximately {word_count} words in length
 5. Can be used as an alternate version with different emphasis than the original
 
 Return ONLY the project description text, no explanations or formatting markers."""
@@ -1358,7 +1361,7 @@ Format this as a clear, actionable outline that can guide the writing of cover l
     retry=retry_if_exception(is_rate_limit_error),
     reraise=True
 )
-def generate_employee_bio(employee_info: dict, selected_projects: list, direction: str = "") -> str:
+def generate_employee_bio(employee_info: dict, selected_projects: list, direction: str = "", word_count: int = 200) -> str:
     """Generate a professional bio for an employee based on their info, selected projects, and user direction.
     
     Args:
@@ -1410,7 +1413,7 @@ WRITING GUIDELINES:
 5. If projects are provided, weave relevant project experience into the narrative
 6. Include quantifiable achievements when possible (number of bridges inspected, structures load-rated, etc.)
 7. Maintain a professional but engaging tone suitable for federal proposals
-8. Keep the bio to 1-2 paragraphs (150-250 words) unless directed otherwise
+8. Target approximately {word_count} words in length
 9. End with key differentiators or advanced capabilities
 
 EXAMPLE STYLE:
