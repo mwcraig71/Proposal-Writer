@@ -1375,7 +1375,7 @@ def generate_bio_with_ai(id):
 @app.route('/employees/<int:id>/format-education', methods=['POST'])
 def format_education_ai(id):
     """Use AI to format education into SF330-compatible format"""
-    from gemini_service import client
+    from gemini_service import ai_generate
     
     employee = Employee.query.get_or_404(id)
     data = request.json
@@ -1409,11 +1409,7 @@ Now format this data:
 Return ONLY the formatted text, no explanations or extra text."""
 
     try:
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=prompt
-        )
-        formatted = response.text.strip()
+        formatted = ai_generate(prompt).strip()
         return jsonify({'success': True, 'formatted': formatted})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
@@ -1422,7 +1418,7 @@ Return ONLY the formatted text, no explanations or extra text."""
 @app.route('/employees/<int:id>/format-registrations', methods=['POST'])
 def format_registrations_ai(id):
     """Use AI to format professional registrations into SF330-compatible format"""
-    from gemini_service import client
+    from gemini_service import ai_generate
     
     employee = Employee.query.get_or_404(id)
     data = request.json
@@ -1461,11 +1457,7 @@ Now format this data:
 Return ONLY the formatted text, no explanations or extra text."""
 
     try:
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=prompt
-        )
-        formatted = response.text.strip()
+        formatted = ai_generate(prompt).strip()
         return jsonify({'success': True, 'formatted': formatted})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
@@ -1474,7 +1466,7 @@ Return ONLY the formatted text, no explanations or extra text."""
 @app.route('/employees/<int:id>/format-training', methods=['POST'])
 def format_training_ai(id):
     """Use AI to format training/certifications into SF330-compatible format"""
-    from gemini_service import client
+    from gemini_service import ai_generate
     
     employee = Employee.query.get_or_404(id)
     data = request.json
@@ -1512,11 +1504,7 @@ Now format this data:
 Return ONLY the formatted text, no explanations or extra text."""
 
     try:
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=prompt
-        )
-        formatted = response.text.strip()
+        formatted = ai_generate(prompt).strip()
         return jsonify({'success': True, 'formatted': formatted})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
@@ -2822,14 +2810,13 @@ def rewrite_project_description():
     data = request.json
     description = data.get('description', '')
     custom_instructions = data.get('custom_instructions', '')
-    word_count = data.get('word_count', 200)
     
     if not description:
         return jsonify({'success': False, 'error': 'No description provided'})
     
     from gemini_service import rewrite_description as ai_rewrite
     try:
-        rewritten = ai_rewrite(description, custom_instructions, word_count=word_count)
+        rewritten = ai_rewrite(description, custom_instructions)
         return jsonify({'success': True, 'rewritten': rewritten})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
@@ -7749,7 +7736,7 @@ def api_employees_bulk_assign_projects():
 @app.route('/api/employees/ai-response', methods=['POST'])
 def api_employees_ai_response():
     """Generate AI response based on selected employees"""
-    from gemini_service import client
+    from gemini_service import ai_generate
     
     try:
         data = request.get_json()
@@ -7839,14 +7826,11 @@ Staff Information:
 Please write a response of approximately {word_limit} words. Be professional, highlight the team's combined qualifications, and write in a way suitable for government proposals or professional documents."""
 
     try:
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=full_prompt
-        )
+        result_text = ai_generate(full_prompt)
         
         return jsonify({
             'success': True,
-            'response': response.text
+            'response': result_text
         })
     except Exception as e:
         return jsonify({
@@ -7936,7 +7920,7 @@ def api_projects_bulk_assign_staff():
 @app.route('/api/projects/ai-response', methods=['POST'])
 def api_projects_ai_response():
     """Generate AI response based on selected projects"""
-    from gemini_service import client
+    from gemini_service import ai_generate
     
     try:
         data = request.get_json()
@@ -8009,18 +7993,12 @@ Focus on presenting the projects professionally and highlighting their relevance
 Be specific and use actual data from the project information provided."""
 
     try:
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt,
-            config={
-                "system_instruction": system_prompt,
-                "max_output_tokens": word_limit * 3
-            }
-        )
+        full_prompt = f"{system_prompt}\n\n{prompt}"
+        result_text = ai_generate(full_prompt)
         
         return jsonify({
             'success': True,
-            'response': response.text
+            'response': result_text
         })
     except Exception as e:
         return jsonify({
@@ -8032,7 +8010,7 @@ Be specific and use actual data from the project information provided."""
 @app.route('/api/proposals/<int:proposal_id>/ai-response', methods=['POST'])
 def api_proposal_ai_response(proposal_id):
     """Generate AI response based on all proposal data with chunked processing for large proposals"""
-    from gemini_service import client
+    from gemini_service import ai_generate
     
     try:
         data = request.get_json()
@@ -8191,17 +8169,11 @@ Based on this proposal data, respond to the user's request. Write approximately 
 Be specific, professional, and use actual data from the proposal."""
 
         try:
-            response = client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=prompt,
-                config={
-                    "system_instruction": system_prompt,
-                    "max_output_tokens": word_limit * 3
-                }
-            )
+            full_prompt = f"{system_prompt}\n\n{prompt}"
+            result_text = ai_generate(full_prompt)
             return jsonify({
                 'success': True,
-                'response': response.text,
+                'response': result_text,
                 'chunked': False
             })
         except Exception as e:
@@ -8220,11 +8192,7 @@ Be specific, professional, and use actual data from the proposal."""
 
 Provide a focused summary in 150-200 words."""
 
-                summary_response = client.models.generate_content(
-                    model="gemini-2.5-flash",
-                    contents=summary_prompt
-                )
-                summaries[section_name] = summary_response.text
+                summaries[section_name] = ai_generate(summary_prompt)
             else:
                 summaries[section_name] = section_content
         
@@ -8245,15 +8213,11 @@ User request: {prompt}
 
 Write a response of approximately {word_limit} words. Be specific, professional, and reference actual data from the summaries."""
 
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=final_prompt,
-            config={"max_output_tokens": word_limit * 3}
-        )
+        result_text = ai_generate(final_prompt)
         
         return jsonify({
             'success': True,
-            'response': response.text,
+            'response': result_text,
             'chunked': True
         })
         
@@ -8267,7 +8231,7 @@ Write a response of approximately {word_limit} words. Be specific, professional,
 @app.route('/api/proposals/<int:proposal_id>/ai-chat', methods=['POST'])
 def api_proposal_ai_chat(proposal_id):
     """Chatbot endpoint for proposal AI assistant with conversation history"""
-    from gemini_service import client
+    from gemini_service import ai_generate
     
     try:
         data = request.get_json()
@@ -8470,11 +8434,7 @@ UEI: {firm.uei or 'N/A'}
             summaries = {}
             for section_name, section_content in sections.items():
                 if len(section_content) > 500:
-                    summary_response = client.models.generate_content(
-                        model="gemini-2.5-flash",
-                        contents=f"Summarize concisely, keeping key facts:\n\n{section_content[:6000]}"
-                    )
-                    summaries[section_name] = summary_response.text
+                    summaries[section_name] = ai_generate(f"Summarize concisely, keeping key facts:\n\n{section_content[:6000]}")
                 else:
                     summaries[section_name] = section_content
             proposal_context = "\n\n".join([f"=== {k.upper().replace('_', ' ')} ===\n{v}" for k, v in summaries.items()])
@@ -8506,18 +8466,12 @@ Be helpful, specific, and professional. Use actual data from the proposal. Provi
     full_prompt = f"{conversation_context}\nUser: {message}\n\nAssistant:"
 
     try:
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=full_prompt,
-            config={
-                "system_instruction": system_prompt,
-                "max_output_tokens": 8000  # Allow long responses
-            }
-        )
+        combined_prompt = f"{system_prompt}\n\n{full_prompt}"
+        result_text = ai_generate(combined_prompt)
         
         return jsonify({
             'success': True,
-            'response': response.text
+            'response': result_text
         })
     except Exception as e:
         return jsonify({
@@ -9029,7 +8983,7 @@ def unlink_response_from_proposal(proposal_id, response_id):
 @app.route('/api/responses/<int:id>/rewrite', methods=['POST'])
 def rewrite_response_with_ai(id):
     """Rewrite a response using AI"""
-    from gemini_service import client
+    from gemini_service import ai_generate
     
     response = Response.query.get(id)
     if not response:
@@ -9058,12 +9012,8 @@ Original Response:
 Rewritten Response:"""
     
     try:
-        result = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt,
-            config={"max_output_tokens": 4000}
-        )
-        return jsonify({'success': True, 'rewritten': result.text})
+        result_text = ai_generate(prompt)
+        return jsonify({'success': True, 'rewritten': result_text})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -9386,7 +9336,7 @@ def download_reference_pdf(id):
 @login_required
 def upload_and_parse_reference_pdf():
     """Upload a PDF and use AI to extract reference data"""
-    from gemini_service import client
+    from gemini_service import ai_generate
     from datetime import datetime as dt
     
     if 'file' not in request.files:
@@ -9442,12 +9392,7 @@ Document text:
 """ + text[:15000]
     
     try:
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt
-        )
-        
-        response_text = response.text.strip()
+        response_text = ai_generate(prompt, json_mode=True).strip()
         if response_text.startswith('```'):
             response_text = response_text.split('\n', 1)[1]
             response_text = response_text.rsplit('```', 1)[0]
