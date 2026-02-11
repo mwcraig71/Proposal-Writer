@@ -1176,6 +1176,9 @@ def update_project_experience(id, exp_id):
 @app.route('/employees/<int:id>/project-experience/<int:exp_id>', methods=['DELETE'])
 def delete_project_experience(id, exp_id):
     exp = EmployeeProjectExperience.query.filter_by(id=exp_id, employee_id=id).first_or_404()
+    ProposalEmployeeRelevantProject.query.filter_by(experience_id=exp_id).delete()
+    ExperienceAlternateDescription.query.filter_by(experience_id=exp_id).delete()
+    exp.selected_alt_description_id = None
     db.session.delete(exp)
     db.session.commit()
     return jsonify({'success': True})
