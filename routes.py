@@ -2882,13 +2882,14 @@ def rewrite_project_description():
     data = request.json
     description = data.get('description', '')
     custom_instructions = data.get('custom_instructions', '')
+    word_count = data.get('word_count', 200)
     
     if not description:
         return jsonify({'success': False, 'error': 'No description provided'})
     
     from gemini_service import rewrite_description as ai_rewrite
     try:
-        rewritten = ai_rewrite(description, custom_instructions)
+        rewritten = ai_rewrite(description, custom_instructions, word_count=word_count)
         return jsonify({'success': True, 'rewritten': rewritten})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
