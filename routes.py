@@ -3800,6 +3800,7 @@ def generate_proposal_outline(id):
     proposal = Proposal.query.get_or_404(id)
     data = request.json
     custom_instructions = data.get('custom_instructions', '')
+    word_count = max(35, min(10000, int(data.get('word_count', 2000))))
     
     from models import FirmAlternateDescription, ProposalLinkedResponse, ProposalLinkedReference
     from gemini_service import generate_proposal_outline_ai
@@ -3865,7 +3866,8 @@ def generate_proposal_outline(id):
             org_chart_data=proposal.org_chart_data or '',
             org_chart_notes=proposal.org_chart_notes or '',
             linked_responses=linked_responses,
-            linked_references=linked_references
+            linked_references=linked_references,
+            word_count=word_count
         )
         
         proposal.proposal_outline = outline
@@ -3895,6 +3897,7 @@ def generate_cover_letter(id):
     proposal = Proposal.query.get_or_404(id)
     data = request.json
     custom_instructions = data.get('custom_instructions', '')
+    word_count = max(35, min(10000, int(data.get('word_count', 2000))))
     
     from models import AISettings, FirmAlternateDescription
     from gemini_service import generate_cover_letter_ai
@@ -3952,7 +3955,8 @@ def generate_cover_letter(id):
         reference_proposals=reference_proposals_text,
         org_chart_data=proposal.org_chart_data or '',
         org_chart_notes=proposal.org_chart_notes or '',
-        proposal_outline=proposal.proposal_outline or ''
+        proposal_outline=proposal.proposal_outline or '',
+        word_count=word_count
     )
     
     proposal.cover_letter = result.get('cover_letter', '')
@@ -8094,6 +8098,7 @@ def api_proposal_ai_response(proposal_id):
     
     prompt = data.get('prompt', '').strip()
     length = data.get('length', 'short')
+    word_count = data.get('word_count', None)
     
     if not prompt:
         return jsonify({'success': False, 'error': 'Please enter a prompt'}), 400
@@ -8102,8 +8107,11 @@ def api_proposal_ai_response(proposal_id):
     if not proposal:
         return jsonify({'success': False, 'error': 'Proposal not found'}), 404
     
-    word_limits = {'short': 250, 'medium': 500, 'long': 1000}
-    word_limit = word_limits.get(length, 250)
+    if word_count is not None:
+        word_limit = max(35, min(10000, int(word_count)))
+    else:
+        word_limits = {'short': 250, 'medium': 500, 'long': 1000}
+        word_limit = word_limits.get(length, 250)
     
     # Collect all proposal data
     def collect_proposal_data():
@@ -8315,6 +8323,7 @@ def api_proposal_ai_chat(proposal_id):
     
     message = data.get('message', '').strip()
     history = data.get('history', [])
+    word_count = max(35, min(10000, int(data.get('word_count', 2000))))
     
     if not message:
         return jsonify({'success': False, 'error': 'Please enter a message'}), 400
@@ -8522,6 +8531,8 @@ UEI: {firm.uei or 'N/A'}
 PROPOSAL DATA:
 {proposal_context}
 {style_instructions}
+
+TARGET RESPONSE LENGTH: Approximately {word_count} words.
 
 Be helpful, specific, and professional. Use actual data from the proposal. Provide thorough, detailed responses."""
 

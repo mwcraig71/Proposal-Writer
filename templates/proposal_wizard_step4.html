@@ -240,6 +240,16 @@
     <p class="text-gray-600 mb-4">Generate a strategic proposal outline based on the RFP requirements and all linked proposal data. This outline will guide the cover letter and written sections.</p>
     
     <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-2">Response Length</label>
+        <div class="flex items-center gap-3">
+            <span class="text-xs text-gray-500 w-10">35</span>
+            <input type="range" id="outline-word-count" min="35" max="10000" step="5" value="2000" class="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" oninput="document.getElementById('outline-word-count-display').textContent = this.value + ' words'">
+            <span class="text-xs text-gray-500 w-14">10000</span>
+        </div>
+        <p class="text-sm text-indigo-600 font-medium text-center mt-1" id="outline-word-count-display">2000 words</p>
+    </div>
+    
+    <div class="mb-4">
         <label class="block text-sm font-medium text-gray-700 mb-1">Custom Instructions (optional)</label>
         <textarea id="outline-instructions" rows="3" class="w-full p-2 border rounded-lg" placeholder="e.g., Emphasize PM's 15 years experience with TXDOT, highlight our load rating expertise, focus on our track record with this client...">{{ proposal.proposal_outline_instructions or '' }}</textarea>
     </div>
@@ -271,6 +281,16 @@
         <i class="fas fa-file-alt text-purple-600 mr-2"></i> AI Cover Letter & Written Sections
     </h2>
     <p class="text-gray-600 mb-4">Generate a cover letter and written sections using the RFP, firm, personnel, project data, and the proposal outline above.</p>
+    
+    <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-2">Response Length</label>
+        <div class="flex items-center gap-3">
+            <span class="text-xs text-gray-500 w-10">35</span>
+            <input type="range" id="cover-word-count" min="35" max="10000" step="5" value="2000" class="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600" oninput="document.getElementById('cover-word-count-display').textContent = this.value + ' words'">
+            <span class="text-xs text-gray-500 w-14">10000</span>
+        </div>
+        <p class="text-sm text-purple-600 font-medium text-center mt-1" id="cover-word-count-display">2000 words</p>
+    </div>
     
     <div class="mb-4">
         <label class="block text-sm font-medium text-gray-700 mb-1">Custom Instructions (optional)</label>
@@ -366,6 +386,16 @@
             </div>
         </div>
         
+        <div class="mb-3">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Response Length</label>
+            <div class="flex items-center gap-3">
+                <span class="text-xs text-gray-500 w-10">35</span>
+                <input type="range" id="chat-word-count" min="35" max="10000" step="5" value="2000" class="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" oninput="document.getElementById('chat-word-count-display').textContent = this.value + ' words'">
+                <span class="text-xs text-gray-500 w-14">10000</span>
+            </div>
+            <p class="text-sm text-blue-600 font-medium text-center mt-1" id="chat-word-count-display">2000 words</p>
+        </div>
+        
         <div class="flex gap-2">
             <textarea id="proposal-ai-prompt" rows="2" class="flex-1 p-3 border rounded-lg resize-none" placeholder="Ask a question or request content about this proposal..." onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();sendChatMessage();}"></textarea>
             <button onclick="sendChatMessage()" id="proposal-ai-send-btn" class="px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center">
@@ -426,7 +456,7 @@ async function generateOutline() {
         const response = await fetch('/proposals/{{ proposal.id }}/generate-outline', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({custom_instructions: instructions})
+            body: JSON.stringify({custom_instructions: instructions, word_count: parseInt(document.getElementById('outline-word-count').value)})
         });
         const result = await response.json();
         
@@ -508,7 +538,7 @@ async function generateCoverLetter() {
         const response = await fetch('/proposals/{{ proposal.id }}/generate-cover-letter', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({custom_instructions: instructions})
+            body: JSON.stringify({custom_instructions: instructions, word_count: parseInt(document.getElementById('cover-word-count').value)})
         });
         const result = await response.json();
         
@@ -678,7 +708,7 @@ async function sendChatMessage() {
         const response = await fetch('/api/proposals/{{ proposal.id }}/ai-chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: prompt, history: chatHistory.slice(-10) })
+            body: JSON.stringify({ message: prompt, history: chatHistory.slice(-10), word_count: parseInt(document.getElementById('chat-word-count').value) })
         });
         
         const data = await response.json();

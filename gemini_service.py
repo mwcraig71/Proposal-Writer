@@ -1080,7 +1080,8 @@ def generate_cover_letter_ai(
     reference_proposals: str = '',
     org_chart_data: str = '',
     org_chart_notes: str = '',
-    proposal_outline: str = ''
+    proposal_outline: str = '',
+    word_count: int = 2000
 ) -> dict:
     """Generate a cover letter and written sections using RFP + firm + staff + project data."""
     
@@ -1171,6 +1172,8 @@ WRITING SPECIFICATIONS:
 - Tone: {tone or 'Formal but accessible'}
 {f'- Custom Instructions: {custom_instructions}' if custom_instructions else ''}
 
+TARGET TOTAL LENGTH: Approximately {word_count} words across all sections combined.
+
 Generate the following:
 
 1. COVER LETTER: A professional cover letter (1 page) that:
@@ -1221,7 +1224,8 @@ def generate_proposal_outline_ai(
     org_chart_data: str = '',
     org_chart_notes: str = '',
     linked_responses: list = None,
-    linked_references: list = None
+    linked_references: list = None,
+    word_count: int = 2000
 ) -> str:
     """Generate a proposal outline based on RFP requirements and all linked proposal data."""
     
@@ -1347,6 +1351,8 @@ Generate a comprehensive PROPOSAL OUTLINE that includes:
    - What makes this team uniquely qualified
    - Potential weaknesses to mitigate
    - Evaluation criteria alignment
+
+TARGET LENGTH: Approximately {word_count} words.
 
 Format this as a clear, actionable outline that can guide the writing of cover letter and written sections. Use bullet points and clear headings."""
 
