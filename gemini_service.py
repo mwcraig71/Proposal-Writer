@@ -871,6 +871,89 @@ Return ONLY the rewritten text, no explanations or formatting markers."""
     return (response_text or "").strip()
 
 
+def ai_create_project_experience(
+    project_info: dict,
+    employee_info: dict,
+    role_type: str,
+    custom_text: str = ''
+) -> dict:
+    """Generate a complete project experience entry from a firm project using AI."""
+    from models import AISettings
+    
+    style = AISettings.get_value('writing_style', 'professional and technical')
+    tone = AISettings.get_value('writing_tone', 'formal but accessible')
+    
+    role_descriptions = {
+        'team_leader': f"{employee_info.get('name', 'This person')} served as the Team Leader for inspections on this project, directing field inspection teams, coordinating inspection schedules, and ensuring quality control compliance.",
+        'assistant_team_leader': f"{employee_info.get('name', 'This person')} served as the Assistant Team Leader, assisting with inspections, supporting the lead inspector, and contributing to quality assurance activities on this project.",
+        'pm': f"{employee_info.get('name', 'This person')} served as the Project Manager, overseeing all aspects of the project including scope, schedule, budget, quality control, and client coordination.",
+        'dpm': f"{employee_info.get('name', 'This person')} served as the Deputy Project Manager, supporting the PM in overseeing project operations and ensuring deliverables met client expectations.",
+        'principal': f"{employee_info.get('name', 'This person')} served as the Principal-in-Charge, providing executive oversight of the project and staff, ensuring all aspects of the client's needs were met and maintaining quality standards."
+    }
+    
+    role_context = role_descriptions.get(role_type, '')
+    role_labels = {
+        'team_leader': 'Team Leader',
+        'assistant_team_leader': 'Assistant Team Leader',
+        'pm': 'Project Manager',
+        'dpm': 'Deputy Project Manager',
+        'principal': 'Principal-in-Charge'
+    }
+    role_label = role_labels.get(role_type, custom_text[:50] if custom_text else 'Staff')
+    
+    prompt = f"""You are a professional technical writer specializing in A/E qualification documentation for federal SF330 forms.
+
+Generate a project experience description for an employee based on a firm's project information and the employee's role.
+
+WRITING STYLE: {style}
+WRITING TONE: {tone}
+
+EMPLOYEE INFORMATION:
+- Name: {employee_info.get('name', 'Unknown')}
+- Title: {employee_info.get('title', 'Not specified')}
+- Bio: {employee_info.get('bio', 'Not available')[:500]}
+
+PROJECT INFORMATION:
+- Title: {project_info.get('title', 'Unknown')}
+- Location: {project_info.get('location', 'Not specified')}
+- Owner/Client: {project_info.get('owner', 'Not specified')}
+- Cost: {project_info.get('cost', 'Not specified')}
+- Year Completed: {project_info.get('year', 'Not specified')}
+- Project Description: {project_info.get('description', 'No description available')}
+
+ROLE ON PROJECT: {role_label}
+ROLE CONTEXT: {role_context}
+
+{f'ADDITIONAL CONTEXT FROM USER: {custom_text}' if custom_text else ''}
+
+Write a brief_description (2-4 sentences) for this employee's project experience entry. The description should:
+1. Focus on the employee's specific role and contributions on this project
+2. Reference specific technical aspects from the project description
+3. Use third person, referring to the employee by their full name or last name (e.g., "{employee_info.get('name', 'the employee').split()[-1] if employee_info.get('name') else 'the employee'}" or their full name)
+4. Be suitable for SF330 Section E resume format
+5. Be concise but substantive, typically 2-4 sentences
+
+Return your response as JSON with this exact format:
+{{"role_performed": "{role_label}", "brief_description": "The generated description text..."}}
+
+Return ONLY valid JSON, no markdown or code blocks."""
+
+    response_text = ai_generate(prompt, json_mode=True)
+    
+    import json
+    try:
+        result = json.loads(response_text)
+        return {
+            'role_performed': result.get('role_performed', role_label),
+            'brief_description': result.get('brief_description', '')
+        }
+    except (json.JSONDecodeError, TypeError):
+        return {
+            'role_performed': role_label,
+            'brief_description': (response_text or '').strip()
+        }
+
+
 def enhance_personnel_writeup(
     personnel_writeup: str,
     project_description: str,

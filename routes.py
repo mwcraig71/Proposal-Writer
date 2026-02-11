@@ -1155,6 +1155,68 @@ def add_project_experience(id):
     return jsonify({'success': True, 'id': exp.id})
 
 
+@app.route('/employees/<int:id>/ai-create-experience', methods=['POST'])
+@login_required
+def ai_create_experience(id):
+    employee = Employee.query.get_or_404(id)
+    data = request.json
+    project_id = data.get('project_id')
+    role_type = data.get('role_type', '')
+    custom_text = data.get('custom_text', '')
+    
+    if not project_id:
+        return jsonify({'error': 'No project specified'}), 400
+    
+    project = Project.query.get_or_404(project_id)
+    firm = Firm.query.get(employee.firm_id) if employee.firm_id else None
+    
+    project_info = {
+        'title': project.title or '',
+        'location': project.location or '',
+        'owner': project.owner_name or '',
+        'cost': project.project_cost or '',
+        'year': project.year_completed or '',
+        'description': project.brief_description or ''
+    }
+    
+    employee_info = {
+        'name': employee.name or '',
+        'title': employee.title or '',
+        'bio': employee.bio or ''
+    }
+    
+    try:
+        from gemini_service import ai_create_project_experience
+        result = ai_create_project_experience(project_info, employee_info, role_type, custom_text)
+        
+        exp = EmployeeProjectExperience(
+            employee_id=employee.id,
+            linked_project_id=project.id,
+            project_title=project.title or '',
+            location=project.location or '',
+            owner_name=project.owner_name or '',
+            project_cost=project.project_cost or '',
+            year_completed=project.year_completed or '',
+            role_performed=result.get('role_performed', ''),
+            brief_description=result.get('brief_description', ''),
+            firm_name=firm.name if firm else '',
+            is_current_firm=True
+        )
+        db.session.add(exp)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'id': exp.id,
+            'role_performed': exp.role_performed,
+            'brief_description': exp.brief_description,
+            'project_title': exp.project_title
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/employees/<int:id>/project-experience/<int:exp_id>', methods=['PUT'])
 def update_project_experience(id, exp_id):
     exp = EmployeeProjectExperience.query.filter_by(id=exp_id, employee_id=id).first_or_404()

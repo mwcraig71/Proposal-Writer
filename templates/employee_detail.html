@@ -305,8 +305,17 @@
         <ul class="space-y-2">
             {% for project in projects %}
             <li class="p-3 bg-gray-50 rounded-lg">
-                <a href="/projects/{{ project.id }}" class="text-blue-600 hover:underline font-medium">{{ project.title }}</a>
-                <p class="text-sm text-gray-500">{{ project.location }}</p>
+                <div class="flex justify-between items-start">
+                    <div>
+                        <a href="/projects/{{ project.id }}" class="text-blue-600 hover:underline font-medium">{{ project.title }}</a>
+                        <p class="text-sm text-gray-500">{{ project.location }}</p>
+                    </div>
+                    <button onclick="showAICreateExpModal({{ project.id }}, '{{ project.title|e }}')" 
+                            class="text-sm bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 transition flex items-center gap-1 shrink-0 ml-2"
+                            title="AI Create Project Experience">
+                        <i class="fas fa-robot"></i> <i class="fas fa-plus text-xs"></i>
+                    </button>
+                </div>
             </li>
             {% endfor %}
         </ul>
@@ -813,6 +822,66 @@
                 </button>
                 <button type="button" onclick="closeLinkProjectModal()" class="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-100 transition">
                     Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="ai-create-exp-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+        <div class="p-6 border-b bg-gradient-to-r from-indigo-50 to-purple-50 rounded-t-xl">
+            <div class="flex justify-between items-center">
+                <h3 class="text-xl font-semibold text-gray-800"><i class="fas fa-robot text-indigo-600 mr-2"></i>AI Create Project Experience</h3>
+                <button onclick="closeAICreateExpModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <p class="text-sm text-gray-600 mt-1">For: <span id="ai-create-project-name" class="font-medium text-indigo-700"></span></p>
+        </div>
+        <div class="p-6">
+            <input type="hidden" id="ai-create-project-id">
+            <div class="mb-5">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Select Role</label>
+                <div class="grid grid-cols-2 gap-2" id="role-quick-picks">
+                    <button type="button" onclick="selectRole('team_leader')" class="role-pick-btn p-2.5 text-sm border-2 border-gray-200 rounded-lg hover:border-indigo-400 hover:bg-indigo-50 transition text-left" data-role="team_leader">
+                        <span class="font-semibold text-indigo-700"><i class="fas fa-hard-hat mr-1"></i> Team Leader</span>
+                        <p class="text-xs text-gray-500 mt-0.5">Led inspections on this project</p>
+                    </button>
+                    <button type="button" onclick="selectRole('assistant_team_leader')" class="role-pick-btn p-2.5 text-sm border-2 border-gray-200 rounded-lg hover:border-indigo-400 hover:bg-indigo-50 transition text-left" data-role="assistant_team_leader">
+                        <span class="font-semibold text-indigo-700"><i class="fas fa-user-friends mr-1"></i> Asst. Team Leader</span>
+                        <p class="text-xs text-gray-500 mt-0.5">Assisted with inspections</p>
+                    </button>
+                    <button type="button" onclick="selectRole('pm')" class="role-pick-btn p-2.5 text-sm border-2 border-gray-200 rounded-lg hover:border-indigo-400 hover:bg-indigo-50 transition text-left" data-role="pm">
+                        <span class="font-semibold text-indigo-700"><i class="fas fa-tasks mr-1"></i> Project Manager</span>
+                        <p class="text-xs text-gray-500 mt-0.5">Oversaw all project aspects</p>
+                    </button>
+                    <button type="button" onclick="selectRole('dpm')" class="role-pick-btn p-2.5 text-sm border-2 border-gray-200 rounded-lg hover:border-indigo-400 hover:bg-indigo-50 transition text-left" data-role="dpm">
+                        <span class="font-semibold text-indigo-700"><i class="fas fa-user-tie mr-1"></i> Deputy PM</span>
+                        <p class="text-xs text-gray-500 mt-0.5">Supported PM in oversight</p>
+                    </button>
+                    <button type="button" onclick="selectRole('principal')" class="role-pick-btn p-2.5 text-sm border-2 border-gray-200 rounded-lg hover:border-indigo-400 hover:bg-indigo-50 transition text-left col-span-2" data-role="principal">
+                        <span class="font-semibold text-indigo-700"><i class="fas fa-crown mr-1"></i> Principal-in-Charge</span>
+                        <p class="text-xs text-gray-500 mt-0.5">Oversight of project & staff, ensuring client needs met</p>
+                    </button>
+                </div>
+            </div>
+            <div class="mb-5">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Additional Context <span class="text-gray-400 font-normal">(optional)</span></label>
+                <textarea id="ai-create-custom-text" rows="3" class="w-full p-3 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400" placeholder="Add specific details about their role, responsibilities, or any special contributions..."></textarea>
+            </div>
+            <div id="ai-create-result" class="hidden mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                <h4 class="font-medium text-green-800 mb-1"><i class="fas fa-check-circle mr-1"></i> Experience Created</h4>
+                <p class="text-sm text-green-700"><strong>Role:</strong> <span id="ai-create-result-role"></span></p>
+                <p class="text-sm text-green-700 mt-1" id="ai-create-result-desc"></p>
+            </div>
+            <div id="ai-create-error" class="hidden mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <p class="text-sm text-red-700"><i class="fas fa-exclamation-circle mr-1"></i> <span id="ai-create-error-text"></span></p>
+            </div>
+        </div>
+        <div class="p-6 border-t bg-gray-50 rounded-b-xl">
+            <div class="flex space-x-3">
+                <button type="button" onclick="closeAICreateExpModal()" class="flex-1 px-4 py-2.5 border rounded-lg hover:bg-gray-100 transition">Cancel</button>
+                <button type="button" id="ai-create-generate-btn" onclick="generateAIExperience()" class="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                    <i class="fas fa-robot mr-2"></i> Generate Experience
                 </button>
             </div>
         </div>
@@ -2419,6 +2488,88 @@ function selectAIMergedValue(fieldKey, radio) {
     const container = document.getElementById(`ai-merged-${fieldKey}`);
     const text = container.querySelector('p, span:last-child')?.textContent || '';
     mergeFieldSelections[fieldKey] = {source: 'ai', value: text};
+}
+
+let selectedRoleType = null;
+
+function showAICreateExpModal(projectId, projectTitle) {
+    document.getElementById('ai-create-project-id').value = projectId;
+    document.getElementById('ai-create-project-name').textContent = projectTitle;
+    document.getElementById('ai-create-custom-text').value = '';
+    document.getElementById('ai-create-result').classList.add('hidden');
+    document.getElementById('ai-create-error').classList.add('hidden');
+    document.getElementById('ai-create-generate-btn').disabled = true;
+    selectedRoleType = null;
+    document.querySelectorAll('.role-pick-btn').forEach(b => {
+        b.classList.remove('border-indigo-500', 'bg-indigo-50', 'ring-2', 'ring-indigo-300');
+        b.classList.add('border-gray-200');
+    });
+    document.getElementById('ai-create-exp-modal').classList.remove('hidden');
+}
+
+function closeAICreateExpModal() {
+    document.getElementById('ai-create-exp-modal').classList.add('hidden');
+}
+
+function selectRole(roleType) {
+    selectedRoleType = roleType;
+    document.querySelectorAll('.role-pick-btn').forEach(b => {
+        if (b.dataset.role === roleType) {
+            b.classList.remove('border-gray-200');
+            b.classList.add('border-indigo-500', 'bg-indigo-50', 'ring-2', 'ring-indigo-300');
+        } else {
+            b.classList.remove('border-indigo-500', 'bg-indigo-50', 'ring-2', 'ring-indigo-300');
+            b.classList.add('border-gray-200');
+        }
+    });
+    document.getElementById('ai-create-generate-btn').disabled = false;
+}
+
+async function generateAIExperience() {
+    const projectId = document.getElementById('ai-create-project-id').value;
+    const customText = document.getElementById('ai-create-custom-text').value;
+    const btn = document.getElementById('ai-create-generate-btn');
+    
+    if (!selectedRoleType) {
+        alert('Please select a role first.');
+        return;
+    }
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Generating...';
+    document.getElementById('ai-create-result').classList.add('hidden');
+    document.getElementById('ai-create-error').classList.add('hidden');
+    
+    try {
+        const response = await fetch(`/employees/${employeeId}/ai-create-experience`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                project_id: parseInt(projectId),
+                role_type: selectedRoleType,
+                custom_text: customText
+            })
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+            document.getElementById('ai-create-result-role').textContent = result.role_performed;
+            document.getElementById('ai-create-result-desc').textContent = result.brief_description;
+            document.getElementById('ai-create-result').classList.remove('hidden');
+            btn.innerHTML = '<i class="fas fa-check mr-2"></i> Created! Reloading...';
+            setTimeout(() => window.location.reload(), 1500);
+        } else {
+            document.getElementById('ai-create-error-text').textContent = result.error || 'Failed to generate experience';
+            document.getElementById('ai-create-error').classList.remove('hidden');
+            btn.innerHTML = '<i class="fas fa-robot mr-2"></i> Generate Experience';
+            btn.disabled = false;
+        }
+    } catch (error) {
+        document.getElementById('ai-create-error-text').textContent = error.message;
+        document.getElementById('ai-create-error').classList.remove('hidden');
+        btn.innerHTML = '<i class="fas fa-robot mr-2"></i> Generate Experience';
+        btn.disabled = false;
+    }
 }
 
 async function saveMergedProject() {
