@@ -5138,6 +5138,9 @@ def api_ai_combine():
 def settings():
     ai_style = AISettings.get_value('ai_writing_style', '')
     ai_tone = AISettings.get_value('ai_writing_tone', '')
+    ai_provider = AISettings.get_value('ai_provider', 'gemini')
+    ai_model = AISettings.get_value('ai_model', 'gemini-2.5-flash')
+    from gemini_service import AVAILABLE_MODELS
     
     # Check if a custom template exists in object storage
     has_custom_template = False
@@ -5181,6 +5184,7 @@ def settings():
         pass
     
     return render_template('settings.html', ai_style=ai_style, ai_tone=ai_tone, 
+                           ai_provider=ai_provider, ai_model=ai_model, available_models=AVAILABLE_MODELS,
                            has_custom_template=has_custom_template, has_company_template=has_company_template,
                            has_resume_template=has_resume_template, has_sf330_resume_template=has_sf330_resume_template,
                            has_section_g_template=has_section_g_template)
@@ -5190,9 +5194,13 @@ def settings():
 def save_settings():
     ai_style = request.form.get('ai_writing_style', '')
     ai_tone = request.form.get('ai_writing_tone', '')
+    ai_provider = request.form.get('ai_provider', 'gemini')
+    ai_model = request.form.get('ai_model', 'gemini-2.5-flash')
     
     AISettings.set_value('ai_writing_style', ai_style)
     AISettings.set_value('ai_writing_tone', ai_tone)
+    AISettings.set_value('ai_provider', ai_provider)
+    AISettings.set_value('ai_model', ai_model)
     
     flash('AI settings saved successfully!', 'success')
     return redirect(url_for('settings'))

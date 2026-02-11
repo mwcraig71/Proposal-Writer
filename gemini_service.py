@@ -3,18 +3,102 @@ import json
 from typing import Optional
 from google import genai
 from google.genai import types
+from openai import OpenAI
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception
 
 AI_INTEGRATIONS_GEMINI_API_KEY = os.environ.get("AI_INTEGRATIONS_GEMINI_API_KEY")
 AI_INTEGRATIONS_GEMINI_BASE_URL = os.environ.get("AI_INTEGRATIONS_GEMINI_BASE_URL")
 
-client = genai.Client(
+gemini_client = genai.Client(
     api_key=AI_INTEGRATIONS_GEMINI_API_KEY,
     http_options={
         'api_version': '',
         'base_url': AI_INTEGRATIONS_GEMINI_BASE_URL   
     }
 )
+
+AI_INTEGRATIONS_OPENAI_API_KEY = os.environ.get("AI_INTEGRATIONS_OPENAI_API_KEY")
+AI_INTEGRATIONS_OPENAI_BASE_URL = os.environ.get("AI_INTEGRATIONS_OPENAI_BASE_URL")
+
+openai_client = OpenAI(
+    api_key=AI_INTEGRATIONS_OPENAI_API_KEY,
+    base_url=AI_INTEGRATIONS_OPENAI_BASE_URL
+)
+
+AVAILABLE_MODELS = {
+    "gemini": [
+        {"id": "gemini-2.5-flash", "name": "Gemini 2.5 Flash", "description": "Fast and efficient"},
+        {"id": "gemini-2.5-pro", "name": "Gemini 2.5 Pro", "description": "Most capable Gemini model"},
+    ],
+    "openai": [
+        {"id": "gpt-5.2", "name": "GPT-5.2", "description": "Most capable model"},
+        {"id": "gpt-5.1", "name": "GPT-5.1", "description": "High capability"},
+        {"id": "gpt-5", "name": "GPT-5", "description": "Great for most tasks"},
+        {"id": "gpt-5-mini", "name": "GPT-5 Mini", "description": "Cost effective"},
+        {"id": "gpt-5-nano", "name": "GPT-5 Nano", "description": "Fastest and most cost effective"},
+        {"id": "gpt-4.1", "name": "GPT-4.1", "description": "Legacy model"},
+        {"id": "gpt-4.1-mini", "name": "GPT-4.1 Mini", "description": "Legacy compact model"},
+        {"id": "gpt-4o", "name": "GPT-4o", "description": "Legacy multimodal model"},
+        {"id": "gpt-4o-mini", "name": "GPT-4o Mini", "description": "Legacy compact multimodal"},
+        {"id": "o4-mini", "name": "o4-mini", "description": "Reasoning model for complex tasks"},
+        {"id": "o3", "name": "o3", "description": "Deep reasoning model"},
+        {"id": "o3-mini", "name": "o3-mini", "description": "Compact reasoning model"},
+    ]
+}
+
+DEFAULT_PROVIDER = "gemini"
+DEFAULT_MODEL = "gemini-2.5-flash"
+
+
+def get_ai_settings():
+    try:
+        from models import AISettings
+        provider = AISettings.get_value('ai_provider', DEFAULT_PROVIDER)
+        model = AISettings.get_value('ai_model', DEFAULT_MODEL)
+        if provider not in ('gemini', 'openai'):
+            provider = DEFAULT_PROVIDER
+        valid_ids = [m['id'] for m in AVAILABLE_MODELS.get(provider, [])]
+        if model not in valid_ids and valid_ids:
+            model = valid_ids[0]
+        return provider, model
+    except Exception:
+        return DEFAULT_PROVIDER, DEFAULT_MODEL
+
+
+def ai_generate(prompt: str, json_mode: bool = False) -> str:
+    provider, model = get_ai_settings()
+    
+    if provider == 'openai':
+        return _openai_generate(prompt, model, json_mode)
+    else:
+        return _gemini_generate(prompt, model, json_mode)
+
+
+def _gemini_generate(prompt: str, model: str, json_mode: bool = False) -> str:
+    config = None
+    if json_mode:
+        config = types.GenerateContentConfig(
+            response_mime_type="application/json"
+        )
+    response = gemini_client.models.generate_content(
+        model=model,
+        contents=prompt,
+        config=config
+    )
+    return response.text or ""
+
+
+def _openai_generate(prompt: str, model: str, json_mode: bool = False) -> str:
+    kwargs = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "max_completion_tokens": 8192,
+    }
+    if json_mode:
+        kwargs["response_format"] = {"type": "json_object"}
+    
+    response = openai_client.chat.completions.create(**kwargs)
+    return response.choices[0].message.content or ""
 
 
 def is_rate_limit_error(exception: BaseException) -> bool:
@@ -25,6 +109,7 @@ def is_rate_limit_error(exception: BaseException) -> bool:
         or "quota" in error_msg.lower() 
         or "rate limit" in error_msg.lower()
         or (hasattr(exception, 'status') and exception.status == 429)
+        or (hasattr(exception, 'status_code') and exception.status_code == 429)
     )
 
 
@@ -179,15 +264,9 @@ Text to parse:
 
 Return ONLY the JSON object, no markdown formatting or explanation."""
 
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json"
-        )
-    )
+    response_text = ai_generate(prompt, json_mode=True)
     
-    result = json.loads(response.text or "{}")
+    result = json.loads(response_text or "{}")
     return result
 
 
@@ -212,15 +291,9 @@ Text to parse:
 
 Return ONLY the JSON object, no markdown formatting or explanation."""
 
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json"
-        )
-    )
+    response_text = ai_generate(prompt, json_mode=True)
     
-    result = json.loads(response.text or "{}")
+    result = json.loads(response_text or "{}")
     return result
 
 
@@ -282,15 +355,9 @@ Text to parse:
 
 Return ONLY the JSON object, no markdown formatting or explanation."""
 
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json"
-        )
-    )
+    response_text = ai_generate(prompt, json_mode=True)
     
-    result = json.loads(response.text or '{"projects": []}')
+    result = json.loads(response_text or '{"projects": []}')
     return result
 
 
@@ -317,12 +384,9 @@ Text to analyze (first 2000 characters):
 
 Return ONLY the type string, nothing else."""
 
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt
-    )
+    response_text = ai_generate(prompt)
     
-    result = (response.text or "unknown").strip().lower()
+    result = (response_text or "unknown").strip().lower()
     if result not in ["employee", "project", "projects", "firm", "unknown"]:
         return "unknown"
     return result
@@ -367,15 +431,9 @@ Text to parse:
 
 Return ONLY the JSON object, no markdown formatting or explanation."""
 
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json"
-        )
-    )
+    response_text = ai_generate(prompt, json_mode=True)
     
-    result = json.loads(response.text or "{}")
+    result = json.loads(response_text or "{}")
     return result
 
 
@@ -422,15 +480,9 @@ RFP/RFQ text to parse:
 
 Return ONLY the JSON object, no markdown formatting or explanation."""
 
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json"
-        )
-    )
+    response_text = ai_generate(prompt, json_mode=True)
     
-    result = json.loads(response.text or "{}")
+    result = json.loads(response_text or "{}")
     return result
 
 
@@ -459,12 +511,9 @@ VERSION 2:
 
 Write a professionally combined version that captures the best of both. Return ONLY the rewritten text, no explanations or formatting markers."""
 
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt
-    )
+    response_text = ai_generate(prompt)
     
-    return (response.text or "").strip()
+    return (response_text or "").strip()
 
 
 def find_matching_employee(name: str) -> Optional[int]:
@@ -533,16 +582,10 @@ Extract the following fields if present (return null for missing fields):
 
 Return a valid JSON object with the extracted data. Use null for any field where information is not clearly stated on the website."""
 
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json"
-        )
-    )
+    response_text = ai_generate(prompt, json_mode=True)
     
     try:
-        result = json.loads(response.text)
+        result = json.loads(response_text)
         return result
     except json.JSONDecodeError:
         return {}
@@ -592,16 +635,10 @@ IMPORTANT:
 3. Capture the full description for each project
 4. Look for patterns like "Client:", "Owner:", dates in parentheses, dollar amounts"""
 
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json"
-        )
-    )
+    response_text = ai_generate(prompt, json_mode=True)
     
     try:
-        result = json.loads(response.text)
+        result = json.loads(response_text)
         return result
     except json.JSONDecodeError:
         return {"projects": []}
@@ -662,16 +699,10 @@ IMPORTANT:
 4. For registrations, format as: "License Type #Number, State" - one per line
 5. Capture full bio/experience text for each person"""
 
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json"
-        )
-    )
+    response_text = ai_generate(prompt, json_mode=True)
     
     try:
-        result = json.loads(response.text)
+        result = json.loads(response_text)
         return result
     except json.JSONDecodeError:
         return {"personnel": []}
@@ -737,12 +768,9 @@ Rules:
 
 Return ONLY the merged value, no explanations."""
 
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt
-    )
+    response_text = ai_generate(prompt)
     
-    return (response.text or "").strip()
+    return (response_text or "").strip()
 
 
 @retry(
@@ -794,14 +822,11 @@ Create ONE merged project entry. Return a JSON object with these fields:
 
 Return ONLY valid JSON, no markdown or explanations."""
 
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt
-    )
+    response_text = ai_generate(prompt)
     
     import json
     import re
-    text = (response.text or "").strip()
+    text = (response_text or "").strip()
     text = re.sub(r'^```json\s*', '', text)
     text = re.sub(r'\s*```$', '', text)
     
@@ -841,12 +866,9 @@ Rewrite this text while:
 
 Return ONLY the rewritten text, no explanations or formatting markers."""
 
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt
-    )
+    response_text = ai_generate(prompt)
     
-    return (response.text or "").strip()
+    return (response_text or "").strip()
 
 
 def enhance_personnel_writeup(
@@ -889,12 +911,9 @@ Enhance the personnel writeup by:
 
 Return ONLY the enhanced writeup text, no explanations or formatting markers."""
 
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt
-    )
+    response_text = ai_generate(prompt)
     
-    return (response.text or "").strip()
+    return (response_text or "").strip()
 
 
 def generate_alternate_project_writeup(
@@ -950,12 +969,9 @@ Generate a new project description that:
 
 Return ONLY the project description text, no explanations or formatting markers."""
 
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt
-    )
+    response_text = ai_generate(prompt)
     
-    return (response.text or "").strip()
+    return (response_text or "").strip()
 
 
 @retry(
@@ -1089,20 +1105,14 @@ Return valid JSON with this structure:
     "written_sections": "Additional narrative sections..."
 }}"""
 
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json"
-        )
-    )
+    response_text = ai_generate(prompt, json_mode=True)
     
     try:
-        result = json.loads(response.text or "{}")
+        result = json.loads(response_text or "{}")
         return result
     except json.JSONDecodeError:
         return {
-            "cover_letter": response.text or "",
+            "cover_letter": response_text or "",
             "written_sections": ""
         }
 
@@ -1253,12 +1263,9 @@ Generate a comprehensive PROPOSAL OUTLINE that includes:
 
 Format this as a clear, actionable outline that can guide the writing of cover letter and written sections. Use bullet points and clear headings."""
 
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt
-    )
+    response_text = ai_generate(prompt)
     
-    return response.text or ""
+    return response_text or ""
 
 
 @retry(
@@ -1329,9 +1336,6 @@ Michael is widely recognized for his expertise in complex cable-stayed structure
 
 Generate ONLY the bio text, no additional commentary or formatting."""
 
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt
-    )
+    response_text = ai_generate(prompt)
     
-    return response.text.strip() if response.text else ""
+    return response_text.strip() if response_text else ""

@@ -12,7 +12,7 @@ The agent should prioritize iterative development and ask for confirmation befor
 The frontend utilizes Jinja2 templates styled with Tailwind CSS for a responsive and modern user interface. The system features a wizard-style interface for proposal building, an interactive organizational chart builder using React/Vite with `@xyflow/react`, and customizable interfaces for data management. User interactions are designed to be intuitive, with features like drag-and-drop for staff assignment and visual feedback.
 
 ### Technical Implementations
-The core application is built with Python Flask, employing SQLAlchemy ORM for database interactions. Google Gemini AI is integrated for document parsing and content generation, accessible via Replit AI Integrations.
+The core application is built with Python Flask, employing SQLAlchemy ORM for database interactions. AI is integrated for document parsing and content generation via a centralized wrapper supporting multiple providers (Google Gemini and OpenAI) with user-selectable models through the Settings page.
 - **AI-Powered Document Parsing:** Uploaded PDF/DOCX/XLSX files are processed by AI to extract structured data for resumes, project sheets, and firm profiles. This includes personnel details, project specifics, and certification records.
 - **Data Management:** A robust system for CRUD operations on Firms, Employees, Projects, Client Contacts, Certifications, and Marketing Photos. Data is standardized for consistency.
 - **Proposal Builder:** A multi-step wizard guides users through creating SF330 submissions, including selecting personnel, projects, and generating a Section G Matrix.
