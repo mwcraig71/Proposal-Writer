@@ -877,20 +877,29 @@
                 <label class="block text-sm font-medium text-gray-700 mb-2">Additional Context <span class="text-gray-400 font-normal">(optional)</span></label>
                 <textarea id="ai-create-custom-text" rows="3" class="w-full p-3 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400" placeholder="Add specific details about their role, responsibilities, or any special contributions..."></textarea>
             </div>
-            <div id="ai-create-result" class="hidden mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                <h4 class="font-medium text-green-800 mb-1"><i class="fas fa-check-circle mr-1"></i> Experience Created</h4>
-                <p class="text-sm text-green-700"><strong>Role:</strong> <span id="ai-create-result-role"></span></p>
-                <p class="text-sm text-green-700 mt-1" id="ai-create-result-desc"></p>
+            <div id="ai-create-result" class="hidden mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <h4 class="font-medium text-blue-800 mb-2"><i class="fas fa-eye mr-1"></i> Preview</h4>
+                <p class="text-sm text-blue-700 mb-1"><strong>Role:</strong> <span id="ai-create-result-role"></span></p>
+                <p class="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed" id="ai-create-result-desc"></p>
             </div>
             <div id="ai-create-error" class="hidden mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
                 <p class="text-sm text-red-700"><i class="fas fa-exclamation-circle mr-1"></i> <span id="ai-create-error-text"></span></p>
             </div>
         </div>
         <div class="p-6 border-t bg-gray-50 rounded-b-xl">
-            <div class="flex space-x-3">
+            <div id="ai-create-initial-buttons" class="flex space-x-3">
                 <button type="button" onclick="closeAICreateExpModal()" class="flex-1 px-4 py-2.5 border rounded-lg hover:bg-gray-100 transition">Cancel</button>
                 <button type="button" id="ai-create-generate-btn" onclick="generateAIExperience()" class="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-                    <i class="fas fa-robot mr-2"></i> Generate Experience
+                    <i class="fas fa-robot mr-2"></i> Generate
+                </button>
+            </div>
+            <div id="ai-create-preview-buttons" class="hidden flex space-x-3">
+                <button type="button" onclick="closeAICreateExpModal()" class="px-4 py-2.5 border rounded-lg hover:bg-gray-100 transition">Cancel</button>
+                <button type="button" id="ai-create-retry-btn" onclick="generateAIExperience()" class="flex-1 px-4 py-2.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition">
+                    <i class="fas fa-redo mr-2"></i> Try Again
+                </button>
+                <button type="button" id="ai-create-save-btn" onclick="saveAIExperience()" class="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
+                    <i class="fas fa-save mr-2"></i> Save
                 </button>
             </div>
         </div>
@@ -2501,14 +2510,21 @@ function selectAIMergedValue(fieldKey, radio) {
 
 let selectedRoleType = null;
 
+let pendingExperience = null;
+
 function showAICreateExpModal(projectId, projectTitle) {
     document.getElementById('ai-create-project-id').value = projectId;
     document.getElementById('ai-create-project-name').textContent = projectTitle;
     document.getElementById('ai-create-custom-text').value = '';
+    document.getElementById('ai-create-word-count').value = 400;
+    document.getElementById('word-count-display').textContent = '400 words';
     document.getElementById('ai-create-result').classList.add('hidden');
     document.getElementById('ai-create-error').classList.add('hidden');
     document.getElementById('ai-create-generate-btn').disabled = true;
+    document.getElementById('ai-create-initial-buttons').classList.remove('hidden');
+    document.getElementById('ai-create-preview-buttons').classList.add('hidden');
     selectedRoleType = null;
+    pendingExperience = null;
     document.querySelectorAll('.role-pick-btn').forEach(b => {
         b.classList.remove('border-indigo-500', 'bg-indigo-50', 'ring-2', 'ring-indigo-300');
         b.classList.add('border-gray-200');
@@ -2518,6 +2534,7 @@ function showAICreateExpModal(projectId, projectTitle) {
 
 function closeAICreateExpModal() {
     document.getElementById('ai-create-exp-modal').classList.add('hidden');
+    pendingExperience = null;
 }
 
 function selectRole(roleType) {
@@ -2537,15 +2554,21 @@ function selectRole(roleType) {
 async function generateAIExperience() {
     const projectId = document.getElementById('ai-create-project-id').value;
     const customText = document.getElementById('ai-create-custom-text').value;
-    const btn = document.getElementById('ai-create-generate-btn');
     
     if (!selectedRoleType) {
         alert('Please select a role first.');
         return;
     }
     
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Generating...';
+    const genBtn = document.getElementById('ai-create-generate-btn');
+    const retryBtn = document.getElementById('ai-create-retry-btn');
+    const activeBtn = pendingExperience ? retryBtn : genBtn;
+    
+    activeBtn.disabled = true;
+    activeBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Generating...';
+    if (pendingExperience) {
+        document.getElementById('ai-create-save-btn').disabled = true;
+    }
     document.getElementById('ai-create-result').classList.add('hidden');
     document.getElementById('ai-create-error').classList.add('hidden');
     
@@ -2557,28 +2580,78 @@ async function generateAIExperience() {
                 project_id: parseInt(projectId),
                 role_type: selectedRoleType,
                 custom_text: customText,
-                word_count: parseInt(document.getElementById('ai-create-word-count').value)
+                word_count: parseInt(document.getElementById('ai-create-word-count').value),
+                preview_only: true
             })
         });
         const result = await response.json();
         
         if (result.success) {
+            pendingExperience = result;
             document.getElementById('ai-create-result-role').textContent = result.role_performed;
             document.getElementById('ai-create-result-desc').textContent = result.brief_description;
             document.getElementById('ai-create-result').classList.remove('hidden');
-            btn.innerHTML = '<i class="fas fa-check mr-2"></i> Created! Reloading...';
-            setTimeout(() => window.location.reload(), 1500);
+            document.getElementById('ai-create-initial-buttons').classList.add('hidden');
+            document.getElementById('ai-create-preview-buttons').classList.remove('hidden');
+            retryBtn.innerHTML = '<i class="fas fa-redo mr-2"></i> Try Again';
+            retryBtn.disabled = false;
+            document.getElementById('ai-create-save-btn').disabled = false;
         } else {
             document.getElementById('ai-create-error-text').textContent = result.error || 'Failed to generate experience';
             document.getElementById('ai-create-error').classList.remove('hidden');
-            btn.innerHTML = '<i class="fas fa-robot mr-2"></i> Generate Experience';
-            btn.disabled = false;
+            activeBtn.innerHTML = pendingExperience ? '<i class="fas fa-redo mr-2"></i> Try Again' : '<i class="fas fa-robot mr-2"></i> Generate';
+            activeBtn.disabled = false;
+            if (pendingExperience) document.getElementById('ai-create-save-btn').disabled = false;
         }
     } catch (error) {
         document.getElementById('ai-create-error-text').textContent = error.message;
         document.getElementById('ai-create-error').classList.remove('hidden');
-        btn.innerHTML = '<i class="fas fa-robot mr-2"></i> Generate Experience';
-        btn.disabled = false;
+        activeBtn.innerHTML = pendingExperience ? '<i class="fas fa-redo mr-2"></i> Try Again' : '<i class="fas fa-robot mr-2"></i> Generate';
+        activeBtn.disabled = false;
+        if (pendingExperience) document.getElementById('ai-create-save-btn').disabled = false;
+    }
+}
+
+async function saveAIExperience() {
+    if (!pendingExperience) return;
+    
+    const saveBtn = document.getElementById('ai-create-save-btn');
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Saving...';
+    document.getElementById('ai-create-retry-btn').disabled = true;
+    
+    try {
+        const response = await fetch(`/employees/${employeeId}/ai-create-experience`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                project_id: parseInt(document.getElementById('ai-create-project-id').value),
+                role_type: selectedRoleType,
+                custom_text: document.getElementById('ai-create-custom-text').value,
+                word_count: parseInt(document.getElementById('ai-create-word-count').value),
+                preview_only: false,
+                save_data: {
+                    role_performed: pendingExperience.role_performed,
+                    brief_description: pendingExperience.brief_description
+                }
+            })
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+            saveBtn.innerHTML = '<i class="fas fa-check mr-2"></i> Saved!';
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            alert('Error saving: ' + (result.error || 'Unknown error'));
+            saveBtn.innerHTML = '<i class="fas fa-save mr-2"></i> Save';
+            saveBtn.disabled = false;
+            document.getElementById('ai-create-retry-btn').disabled = false;
+        }
+    } catch (error) {
+        alert('Error saving: ' + error.message);
+        saveBtn.innerHTML = '<i class="fas fa-save mr-2"></i> Save';
+        saveBtn.disabled = false;
+        document.getElementById('ai-create-retry-btn').disabled = false;
     }
 }
 

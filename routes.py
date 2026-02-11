@@ -1164,32 +1164,44 @@ def ai_create_experience(id):
     role_type = data.get('role_type', '')
     custom_text = data.get('custom_text', '')
     word_count = data.get('word_count', 400)
+    preview_only = data.get('preview_only', False)
+    save_data = data.get('save_data', None)
     
     if not project_id:
         return jsonify({'error': 'No project specified'}), 400
     
     project = Project.query.get_or_404(project_id)
     firm = Firm.query.get(employee.firm_id) if employee.firm_id else None
-    
     year = project.year_completed_professional or project.year_completed_construction or ''
-    project_info = {
-        'title': project.title or '',
-        'location': project.location or '',
-        'owner': project.owner_name or '',
-        'cost': project.project_cost or '',
-        'year': year,
-        'description': project.brief_description or ''
-    }
     
-    employee_info = {
-        'name': employee.name or '',
-        'title': employee.title or '',
-        'bio': employee.bio or ''
-    }
+    if preview_only and not save_data:
+        project_info = {
+            'title': project.title or '',
+            'location': project.location or '',
+            'owner': project.owner_name or '',
+            'cost': project.project_cost or '',
+            'year': year,
+            'description': project.brief_description or ''
+        }
+        employee_info = {
+            'name': employee.name or '',
+            'title': employee.title or '',
+            'bio': employee.bio or ''
+        }
+        try:
+            from gemini_service import ai_create_project_experience
+            result = ai_create_project_experience(project_info, employee_info, role_type, custom_text, word_count)
+            return jsonify({
+                'success': True,
+                'role_performed': result.get('role_performed', ''),
+                'brief_description': result.get('brief_description', '')
+            })
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
     
     try:
-        from gemini_service import ai_create_project_experience
-        result = ai_create_project_experience(project_info, employee_info, role_type, custom_text, word_count)
+        role_performed = save_data.get('role_performed', '') if save_data else ''
+        brief_description = save_data.get('brief_description', '') if save_data else ''
         
         exp = EmployeeProjectExperience(
             employee_id=employee.id,
@@ -1199,8 +1211,8 @@ def ai_create_experience(id):
             owner_name=project.owner_name or '',
             project_cost=project.project_cost or '',
             year_completed=year,
-            role_performed=result.get('role_performed', ''),
-            brief_description=result.get('brief_description', ''),
+            role_performed=role_performed,
+            brief_description=brief_description,
             firm_name=firm.name if firm else '',
             is_current_firm=True
         )
