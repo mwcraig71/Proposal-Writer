@@ -556,6 +556,34 @@
     </div>
 </div>
 
+<div id="copy-merge-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl max-w-5xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div class="p-6">
+            <div class="flex justify-between items-center mb-2">
+                <h3 class="text-xl font-semibold"><i class="fas fa-code-branch text-orange-600 mr-2"></i>Merge Project Experience</h3>
+                <button onclick="closeCopyMergeModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div id="copy-merge-employee-name" class="text-sm text-gray-600 mb-4"></div>
+            <p class="text-sm text-gray-500 mb-4">This employee already has an experience for this project. For each field, choose which version to keep or use AI to combine them.</p>
+            
+            <div id="copy-merge-fields-container" class="space-y-4">
+            </div>
+            
+            <div class="flex justify-end space-x-3 mt-6 pt-4 border-t">
+                <span id="copy-merge-remaining" class="text-sm text-gray-500 mr-auto self-center"></span>
+                <button type="button" onclick="skipCopyMergeConflict()" class="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-50">
+                    <i class="fas fa-forward mr-1"></i> Skip
+                </button>
+                <button type="button" onclick="saveCopyMergeConflict()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                    <i class="fas fa-check mr-1"></i> Save Merged
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div id="merge-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
     <div class="bg-white rounded-lg shadow-xl max-w-5xl w-full mx-4 max-h-[90vh] overflow-y-auto">
         <div class="p-6">
@@ -1895,6 +1923,11 @@ function closeCopyModal() {
     document.getElementById('copy-modal').classList.add('hidden');
 }
 
+let copyMergeConflicts = [];
+let copyMergeSource = null;
+let copyMergeCurrentIndex = 0;
+let copyMergeFieldSelections = {};
+
 async function doCopyToEmployees() {
     const expId = document.getElementById('copy-exp-id').value;
     const checkboxes = document.querySelectorAll('.emp-checkbox:checked');
@@ -1913,13 +1946,229 @@ async function doCopyToEmployees() {
         });
         const result = await response.json();
         if (result.success) {
-            alert(`Copied to ${result.copied_count} employee(s)`);
             closeCopyModal();
+            if (result.conflicts && result.conflicts.length > 0) {
+                copyMergeConflicts = result.conflicts;
+                copyMergeSource = result.source;
+                copyMergeCurrentIndex = 0;
+                const msg = result.copied_count > 0 
+                    ? `Copied to ${result.copied_count} employee(s). ${result.conflicts.length} employee(s) already have this project — let's resolve those now.`
+                    : `${result.conflicts.length} employee(s) already have this project. Let's merge the experiences.`;
+                alert(msg);
+                showCopyMergeConflict();
+            } else {
+                alert(`Copied to ${result.copied_count} employee(s)`);
+            }
         } else {
             alert('Error copying');
         }
     } catch (error) {
         alert('Error: ' + error.message);
+    }
+}
+
+function showCopyMergeConflict() {
+    if (copyMergeCurrentIndex >= copyMergeConflicts.length) {
+        closeCopyMergeModal();
+        alert('All conflicts resolved!');
+        window.location.reload();
+        return;
+    }
+    
+    const conflict = copyMergeConflicts[copyMergeCurrentIndex];
+    const existing = conflict.existing;
+    const source = copyMergeSource;
+    
+    document.getElementById('copy-merge-employee-name').innerHTML = 
+        `<i class="fas fa-user mr-1"></i> Merging for: <strong>${escapeHtml(conflict.employee_name)}</strong> — <span class="text-orange-600">${escapeHtml(source.project_title)}</span>`;
+    document.getElementById('copy-merge-remaining').textContent = 
+        `Conflict ${copyMergeCurrentIndex + 1} of ${copyMergeConflicts.length}`;
+    
+    const container = document.getElementById('copy-merge-fields-container');
+    const fields = [
+        {key: 'project_title', label: 'Project Title', type: 'text'},
+        {key: 'location', label: 'Location', type: 'text'},
+        {key: 'owner_name', label: 'Owner', type: 'text'},
+        {key: 'project_cost', label: 'Cost', type: 'text'},
+        {key: 'year_completed', label: 'Year', type: 'text'},
+        {key: 'role_performed', label: 'Role', type: 'text'},
+        {key: 'firm_name', label: 'Firm', type: 'text'},
+        {key: 'brief_description', label: 'Description', type: 'textarea'}
+    ];
+    
+    copyMergeFieldSelections = {};
+    let html = '';
+    
+    fields.forEach(field => {
+        const existingVal = existing[field.key] || '';
+        const sourceVal = source[field.key] || '';
+        const isDifferent = existingVal !== sourceVal;
+        
+        if (!isDifferent) {
+            copyMergeFieldSelections[field.key] = existingVal;
+            return;
+        }
+        
+        html += `<div class="border rounded-lg p-4">
+            <div class="flex justify-between items-center mb-2">
+                <label class="font-semibold text-gray-700">${field.label}</label>
+                ${field.type === 'textarea' && existingVal && sourceVal ? `<button onclick="aiMergeCopyField('${field.key}')" class="text-purple-600 hover:text-purple-800 text-sm">
+                    <i class="fas fa-magic mr-1"></i> AI Merge
+                </button>` : ''}
+            </div>
+            <div class="space-y-2" id="copy-field-options-${field.key}">`;
+        
+        if (existingVal) {
+            if (field.type === 'textarea') {
+                html += `<label class="flex items-start p-2 border rounded hover:bg-blue-50 cursor-pointer">
+                    <input type="radio" name="copy-merge-${field.key}" value="existing" checked class="mt-1 mr-3" onchange="selectCopyMergeField('${field.key}', 'existing')">
+                    <div class="flex-1">
+                        <span class="text-xs text-blue-600 font-medium"><i class="fas fa-user mr-1"></i>${conflict.employee_name}'s Version</span>
+                        <p class="text-sm text-gray-700 whitespace-pre-wrap mt-1">${escapeHtml(existingVal)}</p>
+                    </div>
+                </label>`;
+            } else {
+                html += `<label class="flex items-center p-2 border rounded hover:bg-blue-50 cursor-pointer">
+                    <input type="radio" name="copy-merge-${field.key}" value="existing" checked class="mr-3" onchange="selectCopyMergeField('${field.key}', 'existing')">
+                    <span class="text-xs text-blue-600 font-medium mr-2"><i class="fas fa-user mr-1"></i>${conflict.employee_name}:</span>
+                    <span class="text-gray-700">${escapeHtml(existingVal)}</span>
+                </label>`;
+            }
+        }
+        
+        if (sourceVal) {
+            if (field.type === 'textarea') {
+                html += `<label class="flex items-start p-2 border rounded hover:bg-green-50 cursor-pointer">
+                    <input type="radio" name="copy-merge-${field.key}" value="source" ${!existingVal ? 'checked' : ''} class="mt-1 mr-3" onchange="selectCopyMergeField('${field.key}', 'source')">
+                    <div class="flex-1">
+                        <span class="text-xs text-green-600 font-medium"><i class="fas fa-copy mr-1"></i>Copied Version ({{ employee.name }})</span>
+                        <p class="text-sm text-gray-700 whitespace-pre-wrap mt-1">${escapeHtml(sourceVal)}</p>
+                    </div>
+                </label>`;
+            } else {
+                html += `<label class="flex items-center p-2 border rounded hover:bg-green-50 cursor-pointer">
+                    <input type="radio" name="copy-merge-${field.key}" value="source" ${!existingVal ? 'checked' : ''} class="mr-3" onchange="selectCopyMergeField('${field.key}', 'source')">
+                    <span class="text-xs text-green-600 font-medium mr-2"><i class="fas fa-copy mr-1"></i>Copied:</span>
+                    <span class="text-gray-700">${escapeHtml(sourceVal)}</span>
+                </label>`;
+            }
+        }
+        
+        html += `<div id="copy-ai-merged-${field.key}" class="hidden"></div>`;
+        html += `</div></div>`;
+        
+        copyMergeFieldSelections[field.key] = existingVal || sourceVal;
+    });
+    
+    if (!html) {
+        html = '<p class="text-gray-500 text-center py-4">Both versions are identical — no differences to merge.</p>';
+    }
+    
+    container.innerHTML = html;
+    document.getElementById('copy-merge-modal').classList.remove('hidden');
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function closeCopyMergeModal() {
+    document.getElementById('copy-merge-modal').classList.add('hidden');
+}
+
+function selectCopyMergeField(fieldKey, which) {
+    const conflict = copyMergeConflicts[copyMergeCurrentIndex];
+    if (which === 'existing') {
+        copyMergeFieldSelections[fieldKey] = conflict.existing[fieldKey] || '';
+    } else if (which === 'source') {
+        copyMergeFieldSelections[fieldKey] = copyMergeSource[fieldKey] || '';
+    }
+}
+
+async function aiMergeCopyField(fieldKey) {
+    const conflict = copyMergeConflicts[copyMergeCurrentIndex];
+    const values = [conflict.existing[fieldKey], copyMergeSource[fieldKey]].filter(v => v);
+    if (values.length < 2) return;
+    
+    const btn = event.target.closest('button');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Merging...';
+    btn.disabled = true;
+    
+    try {
+        const response = await fetch('/api/ai-merge-field', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ field_key: fieldKey, values: values })
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+            const container = document.getElementById(`copy-ai-merged-${fieldKey}`);
+            const isTextarea = fieldKey === 'brief_description';
+            
+            container.innerHTML = `<label class="flex items-${isTextarea ? 'start' : 'center'} p-2 border-2 border-purple-300 bg-purple-50 rounded hover:bg-purple-100 cursor-pointer">
+                <input type="radio" name="copy-merge-${fieldKey}" value="ai" class="${isTextarea ? 'mt-1 ' : ''}mr-3" onchange="selectCopyMergeFieldAI('${fieldKey}')">
+                <div class="flex-1">
+                    <span class="text-xs text-purple-600 font-medium"><i class="fas fa-magic mr-1"></i>AI Merged</span>
+                    <${isTextarea ? 'p class="text-sm text-gray-700 whitespace-pre-wrap mt-1"' : 'span class="ml-2 text-gray-700"'}>${result.merged_value}</${isTextarea ? 'p' : 'span'}>
+                </div>
+            </label>`;
+            container.classList.remove('hidden');
+            
+            container.querySelector('input[type="radio"]').checked = true;
+            copyMergeFieldSelections[fieldKey] = result.merged_value;
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        alert('Error merging: ' + error.message);
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+
+function selectCopyMergeFieldAI(fieldKey) {
+    const container = document.getElementById(`copy-ai-merged-${fieldKey}`);
+    const text = container.querySelector('p, span:last-child')?.textContent || '';
+    copyMergeFieldSelections[fieldKey] = text;
+}
+
+function skipCopyMergeConflict() {
+    copyMergeCurrentIndex++;
+    showCopyMergeConflict();
+}
+
+async function saveCopyMergeConflict() {
+    const conflict = copyMergeConflicts[copyMergeCurrentIndex];
+    const existingId = conflict.existing.id;
+    
+    const btn = event.target.closest('button');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Saving...';
+    
+    try {
+        const response = await fetch(`/api/experience/${existingId}/resolve-conflict`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ merged_data: copyMergeFieldSelections })
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+            copyMergeCurrentIndex++;
+            showCopyMergeConflict();
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check mr-1"></i> Save Merged';
     }
 }
 

@@ -1817,19 +1817,53 @@ def search_projects():
 
 @app.route('/api/experience/<int:exp_id>/copy-to-employees', methods=['POST'])
 def copy_experience_to_employees(exp_id):
-    """Copy a project experience to other employees"""
+    """Copy a project experience to other employees, returning conflicts for merge"""
     exp = EmployeeProjectExperience.query.get_or_404(exp_id)
     data = request.json
     employee_ids = data.get('employee_ids', [])
     
     copied_count = 0
+    conflicts = []
+    source_data = {
+        'id': exp.id,
+        'project_title': exp.project_title,
+        'location': exp.location or '',
+        'owner_name': exp.owner_name or '',
+        'project_cost': exp.project_cost or '',
+        'year_completed': exp.year_completed or '',
+        'role_performed': exp.role_performed or '',
+        'brief_description': exp.brief_description or '',
+        'firm_name': exp.firm_name or '',
+        'is_current_firm': exp.is_current_firm,
+        'linked_project_id': exp.linked_project_id
+    }
+    
     for emp_id in employee_ids:
         if emp_id != exp.employee_id:
             existing = EmployeeProjectExperience.query.filter_by(
                 employee_id=emp_id,
                 project_title=exp.project_title
             ).first()
-            if not existing:
+            if existing:
+                employee = Employee.query.get(emp_id)
+                conflicts.append({
+                    'employee_id': emp_id,
+                    'employee_name': employee.name if employee else f'Employee {emp_id}',
+                    'existing': {
+                        'id': existing.id,
+                        'project_title': existing.project_title,
+                        'location': existing.location or '',
+                        'owner_name': existing.owner_name or '',
+                        'project_cost': existing.project_cost or '',
+                        'year_completed': existing.year_completed or '',
+                        'role_performed': existing.role_performed or '',
+                        'brief_description': existing.brief_description or '',
+                        'firm_name': existing.firm_name or '',
+                        'is_current_firm': existing.is_current_firm,
+                        'linked_project_id': existing.linked_project_id
+                    }
+                })
+            else:
                 new_exp = EmployeeProjectExperience(
                     employee_id=emp_id,
                     project_title=exp.project_title,
@@ -1840,13 +1874,51 @@ def copy_experience_to_employees(exp_id):
                     role_performed=exp.role_performed,
                     brief_description=exp.brief_description,
                     firm_name=exp.firm_name,
-                    is_current_firm=exp.is_current_firm
+                    is_current_firm=exp.is_current_firm,
+                    linked_project_id=exp.linked_project_id
                 )
                 db.session.add(new_exp)
                 copied_count += 1
     
     db.session.commit()
-    return jsonify({'success': True, 'copied_count': copied_count})
+    return jsonify({
+        'success': True, 
+        'copied_count': copied_count,
+        'conflicts': conflicts,
+        'source': source_data
+    })
+
+
+@app.route('/api/experience/<int:exp_id>/resolve-conflict', methods=['POST'])
+def resolve_experience_conflict(exp_id):
+    """Update an existing experience with merged data from cross-employee copy"""
+    existing_exp = EmployeeProjectExperience.query.get_or_404(exp_id)
+    data = request.json
+    merged_data = data.get('merged_data', {})
+    
+    try:
+        if 'project_title' in merged_data:
+            existing_exp.project_title = merged_data['project_title']
+        if 'location' in merged_data:
+            existing_exp.location = merged_data['location']
+        if 'owner_name' in merged_data:
+            existing_exp.owner_name = merged_data['owner_name']
+        if 'project_cost' in merged_data:
+            existing_exp.project_cost = merged_data['project_cost']
+        if 'year_completed' in merged_data:
+            existing_exp.year_completed = merged_data['year_completed']
+        if 'role_performed' in merged_data:
+            existing_exp.role_performed = merged_data['role_performed']
+        if 'brief_description' in merged_data:
+            existing_exp.brief_description = merged_data['brief_description']
+        if 'firm_name' in merged_data:
+            existing_exp.firm_name = merged_data['firm_name']
+        
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)})
 
 
 @app.route('/api/experience/<int:exp_id>/add-to-projects', methods=['POST'])
