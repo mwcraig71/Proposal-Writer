@@ -1735,7 +1735,8 @@ def search_projects():
         'location': p.location or '',
         'year_completed': p.year_completed_professional or '',
         'project_cost': p.project_cost or '',
-        'owner_name': p.owner_name or ''
+        'owner_name': p.owner_name or '',
+        'brief_description': p.brief_description or ''
     } for p in projects])
 
 
