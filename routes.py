@@ -608,6 +608,7 @@ def employee_detail(id):
         'project_cost': exp.project_cost,
         'linked_project_id': exp.linked_project_id,
         'linked_project_title': exp.linked_project.title if exp.linked_project else None,
+        'linked_project_description': exp.linked_project.brief_description if exp.linked_project else None,
         'selected_alt_description_id': exp.selected_alt_description_id,
         'resume_order': exp.resume_order,
         'active_description_label': exp.active_description_label,
@@ -1629,17 +1630,21 @@ def generate_alternate_experience_description(exp_id):
     exp = EmployeeProjectExperience.query.get_or_404(exp_id)
     data = request.json or {}
     direction = data.get('direction', '')
+    include_firm_desc = data.get('include_firm_description', True)
+    include_staff_desc = data.get('include_staff_description', True)
     
     employee_name = exp.employee.name if exp.employee else 'Unknown'
     
     linked_project_desc = None
-    if exp.linked_project_id and exp.linked_project:
+    if include_firm_desc and exp.linked_project_id and exp.linked_project:
         linked_project_desc = exp.linked_project.brief_description
+    
+    current_description = (exp.brief_description or '') if include_staff_desc else ''
     
     try:
         description = generate_alternate_project_writeup(
             project_title=exp.project_title or '',
-            current_description=exp.brief_description or '',
+            current_description=current_description,
             role=exp.role_performed or '',
             employee_name=employee_name,
             location=exp.location or '',

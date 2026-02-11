@@ -603,6 +603,11 @@
                     <label class="block text-sm font-medium text-gray-700 mb-1">Label *</label>
                     <input type="text" id="new-alt-desc-label" class="w-full p-2 border rounded-lg" placeholder="e.g., Bridge Focus, Technical Details">
                 </div>
+                <div id="fill-from-project-btn" class="hidden mb-3">
+                    <button type="button" onclick="fillFromLinkedProject()" class="w-full py-2 bg-indigo-50 border border-indigo-300 text-indigo-700 rounded-lg hover:bg-indigo-100 transition text-sm">
+                        <i class="fas fa-link mr-1"></i> Fill with Firm Project Description
+                    </button>
+                </div>
                 <div class="mb-3">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
                     <textarea id="new-alt-desc-text" rows="4" class="w-full p-2 border rounded-lg" placeholder="Enter the project description..."></textarea>
@@ -647,6 +652,20 @@
             <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700 mb-2">Label for New Description *</label>
                 <input type="text" id="ai-desc-label" class="w-full p-2 border rounded-lg" placeholder="e.g., Technical Focus, Management Emphasis">
+            </div>
+            <div id="ai-desc-sources" class="hidden mb-4 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
+                <label class="block text-sm font-medium text-indigo-800 mb-2"><i class="fas fa-database mr-1"></i>Source Material for AI</label>
+                <p class="text-xs text-gray-500 mb-3">Choose what information to send to AI for generating the description</p>
+                <div class="space-y-2">
+                    <label class="flex items-center">
+                        <input type="checkbox" id="ai-include-firm-desc" class="mr-2 rounded border-gray-300 text-indigo-600" checked>
+                        <span class="text-sm text-gray-700">Include firm project description</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="checkbox" id="ai-include-staff-desc" class="mr-2 rounded border-gray-300 text-indigo-600" checked>
+                        <span class="text-sm text-gray-700">Include current staff member writeup</span>
+                    </label>
+                </div>
             </div>
             <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700 mb-2">Direction / Instructions</label>
@@ -1849,10 +1868,29 @@ async function selectDescription() {
 }
 
 function showAddAltDescForm() {
+    const expId = document.getElementById('alt-exp-id').value;
+    const exp = projectExperiences.find(e => e.id == expId);
     document.getElementById('add-alt-desc-form').classList.remove('hidden');
     document.getElementById('new-alt-desc-label').value = '';
     document.getElementById('new-alt-desc-text').value = '';
+    const fillBtn = document.getElementById('fill-from-project-btn');
+    if (exp && exp.linked_project_description) {
+        fillBtn.classList.remove('hidden');
+    } else {
+        fillBtn.classList.add('hidden');
+    }
     document.getElementById('new-alt-desc-label').focus();
+}
+
+function fillFromLinkedProject() {
+    const expId = document.getElementById('alt-exp-id').value;
+    const exp = projectExperiences.find(e => e.id == expId);
+    if (exp && exp.linked_project_description) {
+        document.getElementById('new-alt-desc-text').value = exp.linked_project_description;
+        if (!document.getElementById('new-alt-desc-label').value.trim()) {
+            document.getElementById('new-alt-desc-label').value = 'Firm Project Description';
+        }
+    }
 }
 
 function hideAddAltDescForm() {
@@ -2058,6 +2096,7 @@ function showAIGenerateDescModal() {
     if (exp.role_performed) context += `<br><strong>Role:</strong> ${exp.role_performed}`;
     if (exp.location) context += `<br><strong>Location:</strong> ${exp.location}`;
     if (exp.brief_description) context += `<br><strong>Current Description:</strong> ${exp.brief_description.substring(0, 150)}${exp.brief_description.length > 150 ? '...' : ''}`;
+    if (exp.linked_project_description) context += `<br><strong>Firm Project:</strong> ${exp.linked_project_description.substring(0, 150)}${exp.linked_project_description.length > 150 ? '...' : ''}`;
     
     document.getElementById('ai-desc-context').innerHTML = context;
     document.getElementById('ai-desc-label').value = '';
@@ -2066,6 +2105,15 @@ function showAIGenerateDescModal() {
     document.getElementById('ai-desc-preview').classList.add('hidden');
     document.getElementById('save-ai-desc-btn').classList.add('hidden');
     document.getElementById('generate-desc-btn').classList.remove('hidden');
+    
+    const sourcesDiv = document.getElementById('ai-desc-sources');
+    if (exp.linked_project_description) {
+        sourcesDiv.classList.remove('hidden');
+        document.getElementById('ai-include-firm-desc').checked = true;
+        document.getElementById('ai-include-staff-desc').checked = true;
+    } else {
+        sourcesDiv.classList.add('hidden');
+    }
     
     document.getElementById('ai-generate-desc-modal').classList.remove('hidden');
 }
@@ -2084,6 +2132,11 @@ async function generateAIDescription() {
         return;
     }
     
+    const firmEl = document.getElementById('ai-include-firm-desc');
+    const staffEl = document.getElementById('ai-include-staff-desc');
+    const includeFirmDesc = firmEl ? firmEl.checked : true;
+    const includeStaffDesc = staffEl ? staffEl.checked : true;
+    
     const btn = document.getElementById('generate-desc-btn');
     const originalText = btn.innerHTML;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Generating...';
@@ -2093,7 +2146,7 @@ async function generateAIDescription() {
         const response = await fetch(`/api/experience/${expId}/generate-alternate-description`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ direction })
+            body: JSON.stringify({ direction, include_firm_description: includeFirmDesc, include_staff_description: includeStaffDesc })
         });
         const result = await response.json();
         
