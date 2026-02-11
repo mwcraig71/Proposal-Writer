@@ -1163,6 +1163,7 @@ def ai_create_experience(id):
     project_id = data.get('project_id')
     role_type = data.get('role_type', '')
     custom_text = data.get('custom_text', '')
+    word_count = data.get('word_count', 400)
     
     if not project_id:
         return jsonify({'error': 'No project specified'}), 400
@@ -1188,7 +1189,7 @@ def ai_create_experience(id):
     
     try:
         from gemini_service import ai_create_project_experience
-        result = ai_create_project_experience(project_info, employee_info, role_type, custom_text)
+        result = ai_create_project_experience(project_info, employee_info, role_type, custom_text, word_count)
         
         exp = EmployeeProjectExperience(
             employee_id=employee.id,

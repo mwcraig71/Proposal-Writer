@@ -875,7 +875,8 @@ def ai_create_project_experience(
     project_info: dict,
     employee_info: dict,
     role_type: str,
-    custom_text: str = ''
+    custom_text: str = '',
+    word_count: int = 400
 ) -> dict:
     """Generate a complete project experience entry from a firm project using AI."""
     from models import AISettings
@@ -926,12 +927,12 @@ ROLE CONTEXT: {role_context}
 
 {f'ADDITIONAL CONTEXT FROM USER: {custom_text}' if custom_text else ''}
 
-Write a brief_description (2-4 sentences) for this employee's project experience entry. The description should:
+Write a brief_description of approximately {word_count} words for this employee's project experience entry. The description should:
 1. Focus on the employee's specific role and contributions on this project
 2. Reference specific technical aspects from the project description
 3. Use third person, referring to the employee by their full name or last name (e.g., "{employee_info.get('name', 'the employee').split()[-1] if employee_info.get('name') else 'the employee'}" or their full name)
 4. Be suitable for SF330 Section E resume format
-5. Be concise but substantive, typically 2-4 sentences
+5. Target approximately {word_count} words in length
 
 Return your response as JSON with this exact format:
 {{"role_performed": "{role_label}", "brief_description": "The generated description text..."}}
