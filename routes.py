@@ -1170,12 +1170,13 @@ def ai_create_experience(id):
     project = Project.query.get_or_404(project_id)
     firm = Firm.query.get(employee.firm_id) if employee.firm_id else None
     
+    year = project.year_completed_professional or project.year_completed_construction or ''
     project_info = {
         'title': project.title or '',
         'location': project.location or '',
         'owner': project.owner_name or '',
         'cost': project.project_cost or '',
-        'year': project.year_completed or '',
+        'year': year,
         'description': project.brief_description or ''
     }
     
@@ -1196,7 +1197,7 @@ def ai_create_experience(id):
             location=project.location or '',
             owner_name=project.owner_name or '',
             project_cost=project.project_cost or '',
-            year_completed=project.year_completed or '',
+            year_completed=year,
             role_performed=result.get('role_performed', ''),
             brief_description=result.get('brief_description', ''),
             firm_name=firm.name if firm else '',
