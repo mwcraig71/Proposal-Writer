@@ -1074,6 +1074,23 @@ document.querySelectorAll('.delete-alt-btn').forEach(btn => {
     });
 });
 
+document.querySelectorAll('.alt-description, .alt-label').forEach(el => {
+    el.addEventListener('blur', async function() {
+        const card = this.closest('[data-alt-id]');
+        if (!card) return;
+        const altId = card.dataset.altId;
+        const label = card.querySelector('.alt-label').value;
+        const description = card.querySelector('.alt-description').value;
+        try {
+            await fetch(`/projects/{{ project.id }}/alternate-descriptions/${altId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ label, description })
+            });
+        } catch (e) {}
+    });
+});
+
 let pendingRewriteBtn = null;
 let pendingRewriteTextarea = null;
 
@@ -1123,6 +1140,17 @@ document.getElementById('confirm-rewrite').addEventListener('click', async funct
             pendingRewriteTextarea.value = result.rewritten;
             pendingRewriteTextarea.classList.add('ring-2', 'ring-purple-500');
             setTimeout(() => { pendingRewriteTextarea.classList.remove('ring-2', 'ring-purple-500'); }, 2000);
+            
+            const card = pendingRewriteTextarea.closest('[data-alt-id]');
+            if (card) {
+                const altId = card.dataset.altId;
+                const label = card.querySelector('.alt-label').value;
+                await fetch(`/projects/{{ project.id }}/alternate-descriptions/${altId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ label, description: result.rewritten })
+                });
+            }
         } else {
             alert('AI rewrite failed: ' + result.error);
         }
