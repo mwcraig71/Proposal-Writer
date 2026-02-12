@@ -828,15 +828,21 @@ function OrgChartFlow() {
           <Background variant="dots" gap={12} size={1} />
           <Panel position="top-left" className="bg-white p-3 rounded shadow max-w-sm">
             <div className="flex flex-col gap-2">
-              <a
-                href="/"
-                className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 mb-1 font-medium"
+              <button
+                onClick={() => {
+                  if (window.history.length > 1) {
+                    window.history.back();
+                  } else {
+                    window.location.href = window.location.origin;
+                  }
+                }}
+                className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 mb-1 font-medium cursor-pointer bg-transparent border-none p-0"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
                 Back to SF330
-              </a>
+              </button>
               <div className="flex items-center gap-1">
                 <select
                   value={selectedSavedChartId}
