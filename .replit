@@ -33,25 +33,25 @@ args = "Org Chart Dev Server"
 name = "SF330 Web Server"
 author = "agent"
 
+[workflows.workflow.metadata]
+outputType = "webview"
+
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python main.py"
 waitForPort = 5000
 
-[workflows.workflow.metadata]
-outputType = "webview"
-
 [[workflows.workflow]]
 name = "Org Chart Dev Server"
 author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "cd orgchart && npm run dev"
 waitForPort = 5173
-
-[workflows.workflow.metadata]
-outputType = "console"
 
 [[ports]]
 localPort = 5000
