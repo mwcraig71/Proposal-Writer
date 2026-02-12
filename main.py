@@ -7,8 +7,18 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET") or "dev-secret-key-change-in-production"
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-    "pool_recycle": 300,
+    "pool_recycle": 120,
     "pool_pre_ping": True,
+    "pool_size": 5,
+    "max_overflow": 10,
+    "pool_timeout": 30,
+    "connect_args": {
+        "connect_timeout": 10,
+        "keepalives": 1,
+        "keepalives_idle": 30,
+        "keepalives_interval": 10,
+        "keepalives_count": 5,
+    },
 }
 app.config["MAX_CONTENT_LENGTH"] = 100 * 1024 * 1024  # 100MB max upload
 
@@ -46,6 +56,10 @@ def handle_500_error(e):
         </body>
         </html>
     ''', error=str(e), trace=error_trace), 500
+
+@app.teardown_appcontext
+def shutdown_session(exception=None):
+    db.session.remove()
 
 from routes import *
 
