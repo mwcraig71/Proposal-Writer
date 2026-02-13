@@ -17,7 +17,14 @@ export default function KeyStaff() {
   const [staff, setStaff] = useState(DEFAULT_STAFF.map(s => ({ ...s })));
   const [sizePreset, setSizePreset] = useState('medium');
   const [widthOverride, setWidthOverride] = useState(SIZE_PRESETS.medium.baseWidth);
-  const [fontScale, setFontScale] = useState(100);
+  const [fontScale, setFontScale] = useState(() => {
+    const saved = localStorage.getItem('resumeGraphicFontScale');
+    return saved ? parseInt(saved, 10) : 150;
+  });
+  const handleFontScaleChange = (val) => {
+    setFontScale(val);
+    localStorage.setItem('resumeGraphicFontScale', val);
+  };
   const [saving, setSaving] = useState(false);
   const [graphicName, setGraphicName] = useState('');
 
@@ -33,7 +40,7 @@ export default function KeyStaff() {
       setStaff(g.data?.staff || DEFAULT_STAFF.map(s => ({ ...s })));
       setSizePreset(g.data?.sizePreset || 'medium');
       setWidthOverride(g.data?.widthOverride || SIZE_PRESETS[g.data?.sizePreset || 'medium'].baseWidth);
-      setFontScale(g.data?.fontScale || 100);
+      setFontScale(g.data?.fontScale || 150);
       setGraphicName(g.name || '');
     } catch (e) {
       alert('Failed to load graphic: ' + e.message);
@@ -94,7 +101,7 @@ export default function KeyStaff() {
     setStaff(DEFAULT_STAFF.map(s => ({ ...s })));
     setSizePreset('medium');
     setWidthOverride(SIZE_PRESETS.medium.baseWidth);
-    setFontScale(100);
+    handleFontScaleChange(150);
     setGraphicName('');
   }
 
@@ -206,7 +213,7 @@ export default function KeyStaff() {
             widthOverride={widthOverride}
             setWidthOverride={setWidthOverride}
             fontScale={fontScale}
-            setFontScale={setFontScale}
+            setFontScale={handleFontScaleChange}
           />
           <div className="bg-slate-200 rounded-lg p-4 overflow-auto">
             <KeyStaffPreview
