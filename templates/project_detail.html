@@ -121,9 +121,12 @@
                 <textarea name="relevance_writeup" rows="4" class="w-full p-2 border rounded-lg">{{ project.relevance_writeup or '' }}</textarea>
             </div>
             
-            <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">
-                <i class="fas fa-save mr-2"></i> Save Changes
-            </button>
+            <div class="flex items-center gap-3">
+                <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">
+                    <i class="fas fa-save mr-2"></i> Save Changes
+                </button>
+                <span id="autosave-status" class="text-sm text-gray-400 hidden"><i class="fas fa-check-circle text-green-500 mr-1"></i> Auto-saved</span>
+            </div>
         </form>
         
         <div class="mt-8 border-t pt-6">
@@ -919,10 +922,11 @@ function updateParentContractOptions() {
     // Filter parent contracts by firm if needed (optional enhancement)
 }
 
-document.getElementById('project-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const formData = new FormData(e.target);
+let autosaveTimer = null;
+
+async function saveProjectForm(showAlert) {
+    const form = document.getElementById('project-form');
+    const formData = new FormData(form);
     const data = Object.fromEntries(formData.entries());
     data.is_with_other_firm = document.getElementById('is_with_other_firm').checked;
     
@@ -935,12 +939,37 @@ document.getElementById('project-form').addEventListener('submit', async (e) => 
         
         const result = await response.json();
         if (result.success) {
-            alert('Changes saved successfully!');
-        } else {
+            if (showAlert) {
+                alert('Changes saved successfully!');
+            } else {
+                const status = document.getElementById('autosave-status');
+                status.classList.remove('hidden');
+                setTimeout(() => status.classList.add('hidden'), 2000);
+            }
+        } else if (showAlert) {
             alert('Error saving changes');
         }
     } catch (error) {
-        alert('Error: ' + error.message);
+        if (showAlert) alert('Error: ' + error.message);
+    }
+}
+
+document.getElementById('project-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (autosaveTimer) clearTimeout(autosaveTimer);
+    await saveProjectForm(true);
+});
+
+document.getElementById('project-form').querySelectorAll('input, textarea, select').forEach(el => {
+    el.addEventListener('change', () => {
+        if (autosaveTimer) clearTimeout(autosaveTimer);
+        autosaveTimer = setTimeout(() => saveProjectForm(false), 1000);
+    });
+    if (el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && el.type === 'text')) {
+        el.addEventListener('blur', () => {
+            if (autosaveTimer) clearTimeout(autosaveTimer);
+            saveProjectForm(false);
+        });
     }
 });
 
