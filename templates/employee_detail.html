@@ -16,12 +16,12 @@
                 <i class="fas fa-chevron-down ml-2 text-xs"></i>
             </button>
             <div id="resume-dd-menu" class="hidden absolute right-0 mt-1 w-56 bg-white rounded-lg shadow-lg border z-50">
-                <a href="#" onclick="event.preventDefault(); openGraphicPickerForDownload('company')" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-t-lg border-b">
+                <a href="#" onclick="event.preventDefault(); downloadResume('company')" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-t-lg border-b">
                     <i class="fas fa-id-card text-teal-600 mr-2"></i>
                     Company Resume
                     <span class="block text-xs text-gray-400 mt-0.5">Custom branded format</span>
                 </a>
-                <a href="#" onclick="event.preventDefault(); openGraphicPickerForDownload('sf330')" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-b-lg">
+                <a href="#" onclick="event.preventDefault(); downloadResume('sf330')" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-b-lg">
                     <i class="fas fa-file-alt text-blue-600 mr-2"></i>
                     SF330 Section E
                     <span class="block text-xs text-gray-400 mt-0.5">Federal standard format</span>
@@ -330,21 +330,15 @@
         </div>
         <div id="photo-gallery" class="grid grid-cols-2 gap-2 mb-4">
             {% for photo in employee.photos %}
-            <div class="relative group {% if photo.is_primary %}ring-2 ring-green-500{% endif %}" data-photo-id="{{ photo.id }}">
+            <div class="relative group {% if photo.include_in_resume %}ring-2 ring-green-500{% endif %}" data-photo-id="{{ photo.id }}">
                 <img src="/photos/employee/{{ photo.id }}" alt="{{ photo.caption or photo.filename }}" 
                      class="w-full h-24 object-cover rounded-lg cursor-pointer hover:opacity-90"
                      onclick="openPhotoViewer({{ photo.id }}, '{{ photo.caption or '' }}')">
-                {% if photo.is_primary %}
-                <div class="absolute top-1 left-1 bg-green-600 text-white text-xs px-1.5 py-0.5 rounded">
-                    <i class="fas fa-star text-xs"></i> Resume
-                </div>
-                {% else %}
-                <button onclick="setAsPrimary({{ photo.id }})" 
-                        class="absolute top-1 left-1 bg-gray-700 text-white text-xs px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition"
-                        title="Use for resume">
-                    <i class="fas fa-star"></i>
+                <button onclick="togglePhotoResume({{ photo.id }}, this)" 
+                        class="absolute top-1 left-1 text-xs px-1.5 py-0.5 rounded transition {% if photo.include_in_resume %}bg-green-600 text-white{% else %}bg-gray-700 text-white opacity-0 group-hover:opacity-100{% endif %}"
+                        title="Include in resume download">
+                    <i class="fas fa-star"></i>{% if photo.include_in_resume %} Resume{% endif %}
                 </button>
-                {% endif %}
                 <button onclick="deletePhoto({{ photo.id }})" 
                         class="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5 text-xs opacity-0 group-hover:opacity-100 transition">
                     <i class="fas fa-times"></i>
@@ -405,7 +399,7 @@
         {% if resume_graphics %}
         <div class="space-y-2">
             {% for graphic in resume_graphics %}
-            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg group hover:bg-gray-100 transition">
+            <div class="flex items-center justify-between p-3 rounded-lg group hover:bg-gray-100 transition {% if graphic.include_in_resume %}bg-green-50 ring-2 ring-green-500{% else %}bg-gray-50{% endif %}" data-graphic-id="{{ graphic.id }}">
                 <div class="flex items-center gap-3">
                     {% if graphic.type == 'challenge-solution' %}
                     <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-red-100 text-red-600">
@@ -431,6 +425,11 @@
                     </div>
                 </div>
                 <div class="flex items-center gap-1">
+                    <button onclick="toggleGraphicResume({{ graphic.id }}, this)"
+                            class="px-2 py-1 text-xs rounded transition {% if graphic.include_in_resume %}bg-green-600 text-white{% else %}bg-gray-200 text-gray-500 opacity-0 group-hover:opacity-100{% endif %}"
+                            title="Include in resume download">
+                        <i class="fas fa-star mr-1"></i>{% if graphic.include_in_resume %}Resume{% else %}Resume{% endif %}
+                    </button>
                     <a href="/resume-graphics-app/#/{% if graphic.type == 'competency-badge' %}badges{% elif graphic.type == 'key-staff' %}key-staff{% endif %}?edit={{ graphic.id }}"
                        class="p-2 text-gray-400 hover:text-blue-600 rounded-lg transition" title="Edit">
                         <i class="fas fa-edit text-sm"></i>
@@ -1206,9 +1205,9 @@ function addPhotoToGallery(photo) {
         <img src="${photo.url}" alt="${photo.caption || photo.filename}" 
              class="w-full h-24 object-cover rounded-lg cursor-pointer hover:opacity-90"
              onclick="openPhotoViewer(${photo.id}, '${safeCaption}')">
-        <button onclick="setAsPrimary(${photo.id})" 
+        <button onclick="togglePhotoResume(${photo.id}, this)" 
                 class="absolute top-1 left-1 bg-gray-700 text-white text-xs px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition"
-                title="Use for resume">
+                title="Include in resume download">
             <i class="fas fa-star"></i>
         </button>
         <button onclick="deletePhoto(${photo.id})" 
@@ -1325,6 +1324,50 @@ async function deletePhoto(photoId) {
 
 function openPhotoViewer(photoId, caption) {
     window.open(`/photos/employee/${photoId}`, '_blank');
+}
+
+async function togglePhotoResume(photoId, btn) {
+    try {
+        const response = await fetch(`/employees/${employeeId}/photos/${photoId}/toggle-resume`, { method: 'POST' });
+        const result = await response.json();
+        if (result.success) {
+            const container = btn.closest('[data-photo-id]');
+            if (result.include_in_resume) {
+                container.classList.add('ring-2', 'ring-green-500');
+                btn.className = 'absolute top-1 left-1 text-xs px-1.5 py-0.5 rounded transition bg-green-600 text-white';
+                btn.innerHTML = '<i class="fas fa-star"></i> Resume';
+            } else {
+                container.classList.remove('ring-2', 'ring-green-500');
+                btn.className = 'absolute top-1 left-1 text-xs px-1.5 py-0.5 rounded transition bg-gray-700 text-white opacity-0 group-hover:opacity-100';
+                btn.innerHTML = '<i class="fas fa-star"></i>';
+            }
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+async function toggleGraphicResume(graphicId, btn) {
+    try {
+        const response = await fetch(`/api/resume-graphics/${graphicId}/toggle-resume`, { method: 'POST' });
+        const result = await response.json();
+        if (result.success) {
+            const container = btn.closest('[data-graphic-id]');
+            if (result.include_in_resume) {
+                container.classList.remove('bg-gray-50');
+                container.classList.add('bg-green-50', 'ring-2', 'ring-green-500');
+                btn.className = 'px-2 py-1 text-xs rounded transition bg-green-600 text-white';
+                btn.innerHTML = '<i class="fas fa-star mr-1"></i>Resume';
+            } else {
+                container.classList.remove('bg-green-50', 'ring-2', 'ring-green-500');
+                container.classList.add('bg-gray-50');
+                btn.className = 'px-2 py-1 text-xs rounded transition bg-gray-200 text-gray-500 opacity-0 group-hover:opacity-100';
+                btn.innerHTML = '<i class="fas fa-star mr-1"></i>Resume';
+            }
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
 }
 
 async function setAsPrimary(photoId) {
@@ -3062,101 +3105,16 @@ async function saveMergedProject() {
     }
 }
 
-let pendingDownloadType = null;
-const employeeGraphics = {{ resume_graphics | tojson }};
-
-function openGraphicPickerForDownload(type) {
+function downloadResume(type) {
     document.getElementById('resume-dd-menu').classList.add('hidden');
-    pendingDownloadType = type;
-    
-    if (!employeeGraphics || employeeGraphics.length === 0) {
-        proceedWithDownload([]);
-        return;
-    }
-    
-    const container = document.getElementById('graphic-picker-list');
-    container.innerHTML = '';
-    employeeGraphics.forEach(g => {
-        const typeLabel = g.type === 'challenge-solution' ? 'Challenge/Solution' : 
-                          g.type === 'competency-badge' ? 'Competency Badge' : 'Key Staff';
-        const typeColor = g.type === 'challenge-solution' ? 'text-red-600' : 
-                          g.type === 'competency-badge' ? 'text-purple-600' : 'text-blue-600';
-        const iconClass = g.type === 'challenge-solution' ? 'fa-columns' : 
-                          g.type === 'competency-badge' ? 'fa-award' : 'fa-users';
-        const div = document.createElement('div');
-        div.className = 'flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition';
-        div.innerHTML = `
-            <input type="checkbox" value="${g.id}" class="graphic-cb w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" checked>
-            <i class="fas ${iconClass} ${typeColor}"></i>
-            <div class="flex-1">
-                <p class="text-sm font-medium text-gray-800">${g.name}</p>
-                <p class="text-xs text-gray-500">${typeLabel}</p>
-            </div>
-            <img src="/api/resume-graphics/${g.id}/preview.png" class="h-12 rounded border" alt="Preview" onerror="this.style.display='none'">
-        `;
-        div.addEventListener('click', function(e) {
-            if (e.target.tagName !== 'INPUT') {
-                const cb = div.querySelector('input');
-                cb.checked = !cb.checked;
-            }
-        });
-        container.appendChild(div);
-    });
-    
-    document.getElementById('graphic-picker-modal').classList.remove('hidden');
-}
-
-function closeGraphicPicker() {
-    document.getElementById('graphic-picker-modal').classList.add('hidden');
-}
-
-function confirmGraphicSelection() {
-    const checked = document.querySelectorAll('.graphic-cb:checked');
-    const ids = Array.from(checked).map(cb => cb.value);
-    closeGraphicPicker();
-    proceedWithDownload(ids);
-}
-
-function skipGraphics() {
-    closeGraphicPicker();
-    proceedWithDownload([]);
-}
-
-function proceedWithDownload(graphicIds) {
     let url;
-    if (pendingDownloadType === 'company') {
+    if (type === 'company') {
         url = '/employee/{{ employee.id }}/download';
     } else {
         url = '/employee/{{ employee.id }}/download-sf330';
     }
-    if (graphicIds.length > 0) {
-        url += '?graphics=' + graphicIds.join(',');
-    }
+    url += '?include_selected=1';
     window.location.href = url;
 }
 </script>
-
-<div id="graphic-picker-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
-    <div class="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[80vh] overflow-hidden">
-        <div class="flex justify-between items-center p-4 border-b">
-            <h3 class="text-lg font-semibold text-gray-800">Include Resume Graphics?</h3>
-            <button onclick="closeGraphicPicker()" class="text-gray-500 hover:text-gray-700">
-                <i class="fas fa-times text-xl"></i>
-            </button>
-        </div>
-        <div class="p-4">
-            <p class="text-sm text-gray-600 mb-3">Select which graphics to include in the Word document:</p>
-            <div id="graphic-picker-list" class="space-y-2 max-h-[40vh] overflow-y-auto">
-            </div>
-        </div>
-        <div class="flex justify-end gap-2 p-4 border-t bg-gray-50">
-            <button onclick="skipGraphics()" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 rounded-lg hover:bg-gray-200 transition">
-                Skip Graphics
-            </button>
-            <button onclick="confirmGraphicSelection()" class="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
-                <i class="fas fa-download mr-1"></i> Download with Graphics
-            </button>
-        </div>
-    </div>
-</div>
 {% endblock %}

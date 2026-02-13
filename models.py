@@ -410,6 +410,7 @@ class EmployeePhoto(db.Model):
     file_size = db.Column(db.Integer)
     content_type = db.Column(db.String(100))
     is_primary = db.Column(db.Boolean, default=False)
+    include_in_resume = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     employee = db.relationship('Employee', backref=db.backref('photos', lazy=True, cascade='all, delete-orphan'))
@@ -693,6 +694,7 @@ class ResumeGraphic(db.Model):
     notes = db.Column(db.Text)
     employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=True)
     project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=True)
+    include_in_resume = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     

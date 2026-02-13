@@ -804,9 +804,33 @@ def download_employee_resume(id):
         p_element = para._element
         p_element.getparent().remove(p_element)
     
+    from docx.shared import Inches
+    include_selected = request.args.get('include_selected', '')
     graphic_ids = request.args.get('graphics', '')
-    if graphic_ids:
-        from docx.shared import Inches
+    
+    if include_selected:
+        selected_photos = EmployeePhoto.query.filter_by(employee_id=id, include_in_resume=True).all()
+        for photo in selected_photos:
+            try:
+                client = get_storage_client()
+                if client:
+                    photo_bytes = client.download_as_bytes(photo.storage_path)
+                    if photo_bytes:
+                        img_buf = io.BytesIO(photo_bytes)
+                        doc.add_paragraph()
+                        doc.add_picture(img_buf, width=Inches(5.0))
+                        if photo.caption:
+                            cap_para = doc.add_paragraph(photo.caption)
+                            cap_para.alignment = 1
+            except Exception as e:
+                print(f"Error embedding photo {photo.id}: {e}")
+        
+        selected_graphics = ResumeGraphic.query.filter_by(employee_id=id, include_in_resume=True).all()
+        for rg in selected_graphics:
+            img_buf = _get_graphic_png(rg)
+            doc.add_paragraph()
+            doc.add_picture(img_buf, width=Inches(6.0))
+    elif graphic_ids:
         gids = [int(g) for g in graphic_ids.split(',') if g.strip().isdigit()]
         if gids:
             graphics_to_embed = ResumeGraphic.query.filter(ResumeGraphic.id.in_(gids)).all()
@@ -1110,9 +1134,33 @@ def download_employee_sf330_resume(id):
         p_element = para._element
         p_element.getparent().remove(p_element)
 
+    from docx.shared import Inches
+    include_selected = request.args.get('include_selected', '')
     graphic_ids = request.args.get('graphics', '')
-    if graphic_ids:
-        from docx.shared import Inches
+    
+    if include_selected:
+        selected_photos = EmployeePhoto.query.filter_by(employee_id=id, include_in_resume=True).all()
+        for photo in selected_photos:
+            try:
+                client = get_storage_client()
+                if client:
+                    photo_bytes = client.download_as_bytes(photo.storage_path)
+                    if photo_bytes:
+                        img_buf = io.BytesIO(photo_bytes)
+                        doc.add_paragraph()
+                        doc.add_picture(img_buf, width=Inches(5.0))
+                        if photo.caption:
+                            cap_para = doc.add_paragraph(photo.caption)
+                            cap_para.alignment = 1
+            except Exception as e:
+                print(f"Error embedding photo {photo.id}: {e}")
+        
+        selected_graphics = ResumeGraphic.query.filter_by(employee_id=id, include_in_resume=True).all()
+        for rg in selected_graphics:
+            img_buf = _get_graphic_png(rg)
+            doc.add_paragraph()
+            doc.add_picture(img_buf, width=Inches(6.0))
+    elif graphic_ids:
         gids = [int(g) for g in graphic_ids.split(',') if g.strip().isdigit()]
         if gids:
             graphics_to_embed = ResumeGraphic.query.filter(ResumeGraphic.id.in_(gids)).all()
@@ -6778,6 +6826,24 @@ def set_employee_primary_photo(id, photo_id):
     db.session.commit()
     
     return jsonify({'success': True})
+
+
+@app.route('/employees/<int:id>/photos/<int:photo_id>/toggle-resume', methods=['POST'])
+@login_required
+def toggle_employee_photo_resume(id, photo_id):
+    photo = EmployeePhoto.query.filter_by(id=photo_id, employee_id=id).first_or_404()
+    photo.include_in_resume = not photo.include_in_resume
+    db.session.commit()
+    return jsonify({'success': True, 'include_in_resume': photo.include_in_resume})
+
+
+@app.route('/api/resume-graphics/<int:graphic_id>/toggle-resume', methods=['POST'])
+@login_required
+def toggle_graphic_resume(graphic_id):
+    graphic = ResumeGraphic.query.get_or_404(graphic_id)
+    graphic.include_in_resume = not graphic.include_in_resume
+    db.session.commit()
+    return jsonify({'success': True, 'include_in_resume': graphic.include_in_resume})
 
 
 @app.route('/projects/<int:id>/photos/<int:photo_id>/caption', methods=['PUT'])
