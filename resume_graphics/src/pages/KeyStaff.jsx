@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { toPng } from 'html-to-image';
-import { Plus, Minus, Download, Save, RotateCcw } from 'lucide-react';
+import { Plus, Minus, Download, Save, RotateCcw, X } from 'lucide-react';
 import { api } from '../lib/api';
 import { SIZE_PRESETS, DEFAULT_STAFF, ICON_OPTIONS } from '../lib/constants';
 import KeyStaffPreview from '../components/KeyStaffPreview';
@@ -59,6 +59,10 @@ export default function KeyStaff() {
 
   function removeStaff() {
     if (staff.length > 1) setStaff(staff.slice(0, -1));
+  }
+
+  function removeStaffAt(index) {
+    if (staff.length > 1) setStaff(staff.filter((_, i) => i !== index));
   }
 
   async function handleSave() {
@@ -176,6 +180,7 @@ export default function KeyStaff() {
             <div key={i} className="bg-white border border-slate-200 rounded-lg p-3">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold text-slate-400 w-6">{i + 1}.</span>
+
                 <select
                   value={member.icon}
                   onChange={(e) => updateStaff(i, 'icon', e.target.value)}
@@ -192,6 +197,11 @@ export default function KeyStaff() {
                   placeholder="Staff name, title"
                   className="flex-1 px-2 py-1.5 border border-slate-300 rounded text-sm"
                 />
+                {staff.length > 1 && (
+                  <button onClick={() => removeStaffAt(i)} className="text-slate-300 hover:text-red-500 transition" title="Delete this staff member">
+                    <X size={16} />
+                  </button>
+                )}
               </div>
             </div>
           ))}

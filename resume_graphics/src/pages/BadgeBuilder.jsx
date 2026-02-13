@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { toPng } from 'html-to-image';
-import { Plus, Minus, Download, Save, RotateCcw, Sparkles } from 'lucide-react';
+import { Plus, Minus, Download, Save, RotateCcw, Sparkles, X } from 'lucide-react';
 import { api } from '../lib/api';
 import { SIZE_PRESETS, DEFAULT_BADGES, ICON_OPTIONS } from '../lib/constants';
 import BadgePreview from '../components/BadgePreview';
@@ -69,6 +69,10 @@ export default function BadgeBuilder() {
 
   function removeBadge() {
     if (badges.length > 1) setBadges(badges.slice(0, -1));
+  }
+
+  function removeBadgeAt(index) {
+    if (badges.length > 1) setBadges(badges.filter((_, i) => i !== index));
   }
 
   async function handleSelectEmployee(e) {
@@ -182,8 +186,15 @@ export default function BadgeBuilder() {
           </div>
 
           {badges.map((badge, i) => (
-            <div key={i} className="bg-white border border-slate-200 rounded-lg p-4">
-              <h4 className="text-xs font-semibold text-slate-500 uppercase mb-2">Badge {i + 1}</h4>
+            <div key={i} className="bg-white border border-slate-200 rounded-lg p-4 relative group">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-xs font-semibold text-slate-500 uppercase">Badge {i + 1}</h4>
+                {badges.length > 1 && (
+                  <button onClick={() => removeBadgeAt(i)} className="text-slate-300 hover:text-red-500 transition" title="Delete this badge">
+                    <X size={16} />
+                  </button>
+                )}
+              </div>
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">Icon</label>

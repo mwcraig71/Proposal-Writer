@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { toPng } from 'html-to-image';
-import { Plus, Minus, Download, Save, RotateCcw, Sparkles } from 'lucide-react';
+import { Plus, Minus, Download, Save, RotateCcw, Sparkles, X } from 'lucide-react';
 import { api } from '../lib/api';
 import { SIZE_PRESETS, STARTER_SCENARIOS } from '../lib/constants';
 import GraphicPreview from '../components/GraphicPreview';
@@ -83,6 +83,10 @@ export default function GraphicBuilder() {
 
   function removePair() {
     if (pairs.length > 1) setPairs(pairs.slice(0, -1));
+  }
+
+  function removePairAt(index) {
+    if (pairs.length > 1) setPairs(pairs.filter((_, i) => i !== index));
   }
 
   function loadScenario(scenario) {
@@ -240,8 +244,15 @@ export default function GraphicBuilder() {
           </div>
 
           {pairs.map((pair, i) => (
-            <div key={i} className="bg-white border border-slate-200 rounded-lg p-4">
-              <h4 className="text-xs font-semibold text-slate-500 uppercase mb-2">Pair {i + 1}</h4>
+            <div key={i} className="bg-white border border-slate-200 rounded-lg p-4 relative group">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-xs font-semibold text-slate-500 uppercase">Pair {i + 1}</h4>
+                {pairs.length > 1 && (
+                  <button onClick={() => removePairAt(i)} className="text-slate-300 hover:text-red-500 transition" title="Delete this pair">
+                    <X size={16} />
+                  </button>
+                )}
+              </div>
               <div className="space-y-2">
                 <div>
                   <label className="block text-xs font-medium text-red-600 mb-1">Challenge</label>
