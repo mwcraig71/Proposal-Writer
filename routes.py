@@ -14,7 +14,7 @@ from models import (
     FirmPhoto, ProposalSelectedFirmPhoto, MarketingPhoto, ProposalSelectedMarketingPhoto,
     EmployeeAlternateBio, FirmAlternateDescription, ProposalSavedResponse,
     Response, ProposalLinkedResponse, Reference, ProposalLinkedReference,
-    SavedOrgChart
+    SavedOrgChart, ResumeGraphic, GraphicScenario
 )
 from replit.object_storage import Client as ObjectStorageClient
 import uuid
@@ -9611,3 +9611,315 @@ def get_proposal_linked_references(proposal_id):
         })
     
     return jsonify({'success': True, 'references': refs})
+
+
+@app.route('/resume-graphics-app')
+@app.route('/resume-graphics-app/')
+@login_required
+def resume_graphics_app():
+    import os
+    dist_path = os.path.join(os.path.dirname(__file__), 'resume_graphics', 'dist', 'index.html')
+    if os.path.exists(dist_path):
+        return send_file(dist_path)
+    else:
+        return "Resume Graphics app not built. Please build with: cd resume_graphics && npm run build", 404
+
+
+@app.route('/resume-graphics-app/<path:filename>')
+@login_required
+def resume_graphics_static(filename):
+    import os
+    return send_from_directory(
+        os.path.join(os.path.dirname(__file__), 'resume_graphics', 'dist'),
+        filename
+    )
+
+
+@app.route('/api/resume-graphics', methods=['GET'])
+@login_required
+def api_get_graphics():
+    graphics = ResumeGraphic.query.order_by(ResumeGraphic.created_at.desc()).all()
+    result = []
+    for g in graphics:
+        result.append({
+            'id': g.id,
+            'name': g.name,
+            'type': g.graphic_type,
+            'payload': json.loads(g.payload) if g.payload else {},
+            'tags': g.tags,
+            'notes': g.notes,
+            'employeeId': g.employee_id,
+            'projectId': g.project_id,
+            'createdAt': g.created_at.isoformat() if g.created_at else None,
+            'updatedAt': g.updated_at.isoformat() if g.updated_at else None
+        })
+    return jsonify(result)
+
+
+@app.route('/api/resume-graphics', methods=['POST'])
+@login_required
+def api_create_graphic():
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+    
+    graphic = ResumeGraphic(
+        name=data.get('name', 'Untitled'),
+        graphic_type=data.get('type', 'challenge-solution'),
+        payload=json.dumps(data.get('payload', {})),
+        tags=data.get('tags'),
+        notes=data.get('notes'),
+        employee_id=data.get('employeeId'),
+        project_id=data.get('projectId')
+    )
+    db.session.add(graphic)
+    db.session.commit()
+    
+    return jsonify({
+        'id': graphic.id,
+        'name': graphic.name,
+        'type': graphic.graphic_type,
+        'payload': json.loads(graphic.payload),
+        'createdAt': graphic.created_at.isoformat()
+    }), 201
+
+
+@app.route('/api/resume-graphics/<int:graphic_id>', methods=['GET'])
+@login_required
+def api_get_graphic(graphic_id):
+    graphic = ResumeGraphic.query.get_or_404(graphic_id)
+    return jsonify({
+        'id': graphic.id,
+        'name': graphic.name,
+        'type': graphic.graphic_type,
+        'payload': json.loads(graphic.payload) if graphic.payload else {},
+        'tags': graphic.tags,
+        'notes': graphic.notes,
+        'employeeId': graphic.employee_id,
+        'projectId': graphic.project_id,
+        'createdAt': graphic.created_at.isoformat() if graphic.created_at else None,
+        'updatedAt': graphic.updated_at.isoformat() if graphic.updated_at else None
+    })
+
+
+@app.route('/api/resume-graphics/<int:graphic_id>', methods=['PATCH'])
+@login_required
+def api_update_graphic(graphic_id):
+    graphic = ResumeGraphic.query.get_or_404(graphic_id)
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+    
+    if 'name' in data:
+        graphic.name = data['name']
+    if 'type' in data:
+        graphic.graphic_type = data['type']
+    if 'payload' in data:
+        graphic.payload = json.dumps(data['payload'])
+    if 'tags' in data:
+        graphic.tags = data['tags']
+    if 'notes' in data:
+        graphic.notes = data['notes']
+    if 'employeeId' in data:
+        graphic.employee_id = data['employeeId']
+    if 'projectId' in data:
+        graphic.project_id = data['projectId']
+    
+    db.session.commit()
+    
+    return jsonify({
+        'id': graphic.id,
+        'name': graphic.name,
+        'type': graphic.graphic_type,
+        'payload': json.loads(graphic.payload),
+        'updatedAt': graphic.updated_at.isoformat()
+    })
+
+
+@app.route('/api/resume-graphics/<int:graphic_id>', methods=['DELETE'])
+@login_required
+def api_delete_graphic(graphic_id):
+    graphic = ResumeGraphic.query.get_or_404(graphic_id)
+    db.session.delete(graphic)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/api/graphic-scenarios', methods=['GET'])
+@login_required
+def api_get_scenarios():
+    scenarios = GraphicScenario.query.order_by(GraphicScenario.created_at.desc()).all()
+    result = []
+    for s in scenarios:
+        result.append({
+            'id': s.id,
+            'name': s.name,
+            'category': s.category,
+            'challenge': s.challenge,
+            'solution': s.solution,
+            'createdAt': s.created_at.isoformat() if s.created_at else None
+        })
+    return jsonify(result)
+
+
+@app.route('/api/graphic-scenarios', methods=['POST'])
+@login_required
+def api_create_scenario():
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+    
+    scenario = GraphicScenario(
+        name=data.get('name', 'Untitled'),
+        category=data.get('category'),
+        challenge=data.get('challenge'),
+        solution=data.get('solution')
+    )
+    db.session.add(scenario)
+    db.session.commit()
+    
+    return jsonify({
+        'id': scenario.id,
+        'name': scenario.name,
+        'category': scenario.category,
+        'createdAt': scenario.created_at.isoformat()
+    }), 201
+
+
+@app.route('/api/graphic-scenarios/<int:scenario_id>', methods=['GET'])
+@login_required
+def api_get_scenario(scenario_id):
+    scenario = GraphicScenario.query.get_or_404(scenario_id)
+    return jsonify({
+        'id': scenario.id,
+        'name': scenario.name,
+        'category': scenario.category,
+        'challenge': scenario.challenge,
+        'solution': scenario.solution,
+        'createdAt': scenario.created_at.isoformat() if scenario.created_at else None
+    })
+
+
+@app.route('/api/graphic-scenarios/<int:scenario_id>', methods=['DELETE'])
+@login_required
+def api_delete_scenario(scenario_id):
+    scenario = GraphicScenario.query.get_or_404(scenario_id)
+    db.session.delete(scenario)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/api/graphic-ai/parse-project', methods=['POST'])
+@login_required
+def api_graphic_ai_parse_project():
+    from gemini_service import ai_generate
+    data = request.get_json()
+    if not data or not data.get('projectDescription'):
+        return jsonify({'error': 'Project description required'}), 400
+    
+    description = data['projectDescription']
+    direction = data.get('direction', '')
+    
+    prompt = f"""Analyze the following project description and generate exactly 4 challenge/solution pairs for an SF 330 proposal graphic.
+
+Each pair should highlight a specific engineering challenge encountered on the project and the innovative solution applied.
+
+Project Description:
+{description}
+
+{f'Additional Direction: {direction}' if direction else ''}
+
+Return valid JSON with this exact structure:
+{{
+  "pairs": [
+    {{"challenge": "Brief challenge description (10-20 words)", "solution": "Brief solution description (10-20 words)"}},
+    {{"challenge": "...", "solution": "..."}},
+    {{"challenge": "...", "solution": "..."}},
+    {{"challenge": "...", "solution": "..."}}
+  ]
+}}"""
+
+    try:
+        result = ai_generate(prompt, json_mode=True)
+        parsed = json.loads(result)
+        return jsonify(parsed)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/graphic-ai/parse-resume', methods=['POST'])
+@login_required
+def api_graphic_ai_parse_resume():
+    from gemini_service import ai_generate
+    data = request.get_json()
+    if not data or not data.get('resumeText'):
+        return jsonify({'error': 'Resume text required'}), 400
+    
+    resume_text = data['resumeText']
+    focus_areas = data.get('focusAreas', '')
+    
+    prompt = f"""Analyze the following resume/qualifications text and generate exactly 4 competency badges for an SF 330 proposal graphic.
+
+Each badge should highlight a key technical competency, certification, specialty, or notable achievement.
+
+Resume/Qualifications:
+{resume_text}
+
+{f'Focus Areas: {focus_areas}' if focus_areas else ''}
+
+For each badge, choose the most appropriate icon from this list:
+Shield, Award, Star, Code, Calendar, Wrench, HardHat, Clipboard, Target, Zap, BookOpen, Users, TrendingUp, CheckCircle, Briefcase, Globe, Layers, GitBranch, Database, Cpu
+
+Return valid JSON with this exact structure:
+{{
+  "badges": [
+    {{"label": "Category Label (1-3 words)", "value": "Specific competency description (5-15 words)", "icon": "IconName"}},
+    {{"label": "...", "value": "...", "icon": "..."}},
+    {{"label": "...", "value": "...", "icon": "..."}},
+    {{"label": "...", "value": "...", "icon": "..."}}
+  ]
+}}"""
+
+    try:
+        result = ai_generate(prompt, json_mode=True)
+        parsed = json.loads(result)
+        return jsonify(parsed)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/graphic-data/employees', methods=['GET'])
+@login_required
+def api_graphic_employees():
+    employees = Employee.query.order_by(Employee.name).all()
+    result = []
+    for e in employees:
+        result.append({
+            'id': e.id,
+            'name': e.display_name,
+            'title': e.title,
+            'role': e.role,
+            'bio': e.bio,
+            'education': e.education,
+            'registrations': e.registrations,
+            'firmName': e.firm.name if e.firm else None,
+            'yearsExperience': e.years_experience_total
+        })
+    return jsonify(result)
+
+
+@app.route('/api/graphic-data/projects', methods=['GET'])
+@login_required
+def api_graphic_projects():
+    projects = Project.query.order_by(Project.title).all()
+    result = []
+    for p in projects:
+        result.append({
+            'id': p.id,
+            'title': p.title,
+            'location': p.location,
+            'description': p.brief_description,
+            'firmName': p.firm.name if p.firm else None,
+            'yearCompleted': p.year_completed_professional
+        })
+    return jsonify(result)

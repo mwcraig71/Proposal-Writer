@@ -680,3 +680,32 @@ class ProposalLinkedReference(db.Model):
     reference = db.relationship('Reference', backref=db.backref('proposal_links', lazy=True, cascade='all, delete-orphan'))
     
     __table_args__ = (db.UniqueConstraint('proposal_id', 'reference_id', name='unique_proposal_reference'),)
+
+
+class ResumeGraphic(db.Model):
+    __tablename__ = 'resume_graphics'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(500), nullable=False)
+    graphic_type = db.Column(db.String(50), nullable=False)  # 'challenge-solution', 'competency-badge', 'key-staff'
+    payload = db.Column(db.Text, nullable=False)  # JSON data with pairs/badges/staff, sizePreset, width, fontScale
+    tags = db.Column(db.String(500))
+    notes = db.Column(db.Text)
+    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    employee = db.relationship('Employee', backref=db.backref('resume_graphics', lazy=True))
+    project = db.relationship('Project', backref=db.backref('resume_graphics', lazy=True))
+
+
+class GraphicScenario(db.Model):
+    __tablename__ = 'graphic_scenarios'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(500), nullable=False)
+    category = db.Column(db.String(100))
+    challenge = db.Column(db.Text)
+    solution = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
