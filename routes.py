@@ -9650,6 +9650,8 @@ def api_get_graphics():
             'notes': g.notes,
             'employeeId': g.employee_id,
             'projectId': g.project_id,
+            'employeeName': g.employee.name if g.employee else None,
+            'projectName': g.project.title if g.project else None,
             'createdAt': g.created_at.isoformat() if g.created_at else None,
             'updatedAt': g.updated_at.isoformat() if g.updated_at else None
         })
@@ -9697,6 +9699,8 @@ def api_get_graphic(graphic_id):
         'notes': graphic.notes,
         'employeeId': graphic.employee_id,
         'projectId': graphic.project_id,
+        'employeeName': graphic.employee.name if graphic.employee else None,
+        'projectName': graphic.project.title if graphic.project else None,
         'createdAt': graphic.created_at.isoformat() if graphic.created_at else None,
         'updatedAt': graphic.updated_at.isoformat() if graphic.updated_at else None
     })

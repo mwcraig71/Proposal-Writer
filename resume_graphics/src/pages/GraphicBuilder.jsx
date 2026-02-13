@@ -27,6 +27,7 @@ export default function GraphicBuilder() {
   const [aiDirection, setAiDirection] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
   const [graphicName, setGraphicName] = useState('');
+  const [selectedProjectId, setSelectedProjectId] = useState(null);
 
   useEffect(() => {
     loadScenarios();
@@ -57,6 +58,7 @@ export default function GraphicBuilder() {
       setWidthOverride(g.data?.widthOverride || SIZE_PRESETS[g.data?.sizePreset || 'medium'].baseWidth);
       setFontScale(g.data?.fontScale || 100);
       setGraphicName(g.name || '');
+      if (g.projectId) setSelectedProjectId(g.projectId);
     } catch (e) {
       alert('Failed to load graphic: ' + e.message);
     }
@@ -87,7 +89,8 @@ export default function GraphicBuilder() {
 
   async function handleSelectProject(e) {
     const id = e.target.value;
-    if (!id) return;
+    if (!id) { setSelectedProjectId(null); return; }
+    setSelectedProjectId(parseInt(id));
     const proj = projects.find(p => String(p.id) === String(id));
     if (proj) {
       setAiDescription(proj.description || proj.title || '');
@@ -118,6 +121,7 @@ export default function GraphicBuilder() {
         name,
         type: 'challenge_solution',
         data: { title, pairs, sizePreset, widthOverride, fontScale },
+        projectId: selectedProjectId || null,
       };
       if (editId) {
         await api.updateGraphic(editId, payload);
@@ -260,7 +264,7 @@ export default function GraphicBuilder() {
             <div className="space-y-2">
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Select Project</label>
-                <select onChange={handleSelectProject} className="w-full px-3 py-2 border border-slate-300 rounded text-sm bg-white">
+                <select value={selectedProjectId || ''} onChange={handleSelectProject} className="w-full px-3 py-2 border border-slate-300 rounded text-sm bg-white">
                   <option value="">-- Select a project --</option>
                   {projects.map(p => (
                     <option key={p.id} value={p.id}>{p.title}</option>

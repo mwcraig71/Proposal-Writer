@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toPng } from 'html-to-image';
-import { Edit, Eye, EyeOff, Download, Trash2, Loader2 } from 'lucide-react';
+import { Edit, Eye, EyeOff, Download, Trash2, Loader2, User, FolderOpen } from 'lucide-react';
 import { api } from '../lib/api';
 import { SIZE_PRESETS, DEFAULT_BADGES, DEFAULT_STAFF } from '../lib/constants';
 import GraphicPreview from '../components/GraphicPreview';
@@ -125,8 +125,18 @@ function GraphicRow({ graphic, onDelete, onEdit }) {
         <div className="flex items-center gap-3">
           <div>
             <h3 className="font-semibold text-slate-800">{graphic.name}</h3>
-            <div className="flex items-center gap-2 mt-1">
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
               <TypeBadge type={graphic.type} />
+              {graphic.employeeName && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+                  <User size={10} /> {graphic.employeeName}
+                </span>
+              )}
+              {graphic.projectName && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">
+                  <FolderOpen size={10} /> {graphic.projectName}
+                </span>
+              )}
               <span className="text-xs text-slate-400">
                 {graphic.created_at ? new Date(graphic.created_at).toLocaleDateString() : ''}
               </span>

@@ -22,6 +22,7 @@ export default function BadgeBuilder() {
   const [aiFocus, setAiFocus] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
   const [graphicName, setGraphicName] = useState('');
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
 
   useEffect(() => {
     loadEmployees();
@@ -43,6 +44,7 @@ export default function BadgeBuilder() {
       setWidthOverride(g.data?.widthOverride || SIZE_PRESETS[g.data?.sizePreset || 'medium'].baseWidth);
       setFontScale(g.data?.fontScale || 100);
       setGraphicName(g.name || '');
+      if (g.employeeId) setSelectedEmployeeId(g.employeeId);
     } catch (e) {
       alert('Failed to load graphic: ' + e.message);
     }
@@ -64,7 +66,8 @@ export default function BadgeBuilder() {
 
   async function handleSelectEmployee(e) {
     const id = e.target.value;
-    if (!id) return;
+    if (!id) { setSelectedEmployeeId(null); return; }
+    setSelectedEmployeeId(parseInt(id));
     const emp = employees.find(p => String(p.id) === String(id));
     if (emp) {
       const parts = [emp.bio, emp.education, emp.registrations].filter(Boolean);
@@ -95,6 +98,7 @@ export default function BadgeBuilder() {
         name,
         type: 'badge',
         data: { badges, sizePreset, widthOverride, fontScale },
+        employeeId: selectedEmployeeId || null,
       };
       if (editId) {
         await api.updateGraphic(editId, payload);
@@ -214,7 +218,7 @@ export default function BadgeBuilder() {
             <div className="space-y-2">
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Select Employee</label>
-                <select onChange={handleSelectEmployee} className="w-full px-3 py-2 border border-slate-300 rounded text-sm bg-white">
+                <select value={selectedEmployeeId || ''} onChange={handleSelectEmployee} className="w-full px-3 py-2 border border-slate-300 rounded text-sm bg-white">
                   <option value="">-- Select an employee --</option>
                   {employees.map(e => (
                     <option key={e.id} value={e.id}>{e.name}</option>
