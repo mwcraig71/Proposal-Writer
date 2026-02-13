@@ -710,4 +710,6 @@ class GraphicScenario(db.Model):
     category = db.Column(db.String(100))
     challenge = db.Column(db.Text)
     solution = db.Column(db.Text)
+    type = db.Column(db.String(50), default='challenge-solution')
+    payload = db.Column(db.JSON)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

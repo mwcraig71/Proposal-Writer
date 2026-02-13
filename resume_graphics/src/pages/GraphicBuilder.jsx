@@ -6,6 +6,7 @@ import { api } from '../lib/api';
 import { SIZE_PRESETS, STARTER_SCENARIOS } from '../lib/constants';
 import GraphicPreview from '../components/GraphicPreview';
 import PreviewControls from '../components/PreviewControls';
+import QuickPickSection from '../components/QuickPickSection';
 
 export default function GraphicBuilder() {
   const [searchParams] = useSearchParams();
@@ -28,7 +29,6 @@ export default function GraphicBuilder() {
     localStorage.setItem('resumeGraphicFontScale', val);
   };
   const [saving, setSaving] = useState(false);
-  const [scenarios, setScenarios] = useState([]);
   const [projects, setProjects] = useState([]);
   const [aiDescription, setAiDescription] = useState('');
   const [aiDirection, setAiDirection] = useState('');
@@ -37,17 +37,9 @@ export default function GraphicBuilder() {
   const [selectedProjectId, setSelectedProjectId] = useState(null);
 
   useEffect(() => {
-    loadScenarios();
     loadProjects();
     if (editId) loadGraphic(editId);
   }, [editId]);
-
-  async function loadScenarios() {
-    try {
-      const data = await api.getScenarios();
-      setScenarios(data);
-    } catch (e) { /* ignore */ }
-  }
 
   async function loadProjects() {
     try {
@@ -89,13 +81,16 @@ export default function GraphicBuilder() {
     if (pairs.length > 1) setPairs(pairs.filter((_, i) => i !== index));
   }
 
-  function loadScenario(scenario) {
-    if (scenario.pairs && scenario.pairs.length > 0) {
-      setPairs(scenario.pairs.map(p => ({ ...p })));
-    } else if (scenario.challenge || scenario.solution) {
-      setPairs([{ challenge: scenario.challenge || '', solution: scenario.solution || '' }]);
+  function loadQuickPick(item) {
+    const payload = item.payload || {};
+    if (payload.pairs && payload.pairs.length > 0) {
+      setPairs(payload.pairs.map(p => ({ ...p })));
+    } else if (item.pairs && item.pairs.length > 0) {
+      setPairs(item.pairs.map(p => ({ ...p })));
     }
-    setTitle(scenario.name || 'CHALLENGE / SOLUTION');
+    if (payload.title || item.name) {
+      setTitle(payload.title || item.name);
+    }
   }
 
   async function handleSelectProject(e) {
@@ -219,29 +214,13 @@ export default function GraphicBuilder() {
             />
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-lg p-4">
-            <h3 className="text-sm font-semibold text-slate-700 mb-3">Quick-Pick Scenarios</h3>
-            <div className="flex flex-wrap gap-2">
-              {STARTER_SCENARIOS.map((sc, i) => (
-                <button
-                  key={i}
-                  onClick={() => loadScenario(sc)}
-                  className="px-3 py-1.5 text-xs bg-slate-100 text-slate-600 rounded-full hover:bg-slate-200 font-medium"
-                >
-                  {sc.name}
-                </button>
-              ))}
-              {scenarios.map((sc) => (
-                <button
-                  key={sc.id}
-                  onClick={() => loadScenario(sc)}
-                  className="px-3 py-1.5 text-xs bg-orange-50 text-orange-700 rounded-full hover:bg-orange-100 font-medium"
-                >
-                  {sc.name}
-                </button>
-              ))}
-            </div>
-          </div>
+          <QuickPickSection
+            type="challenge-solution"
+            builtInItems={STARTER_SCENARIOS.map(sc => ({ name: sc.name, payload: { title: sc.name, pairs: sc.pairs } }))}
+            onSelect={loadQuickPick}
+            currentData={() => ({ title, pairs })}
+            currentName={graphicName}
+          />
 
           {pairs.map((pair, i) => (
             <div key={i} className="bg-white border border-slate-200 rounded-lg p-4 relative group">

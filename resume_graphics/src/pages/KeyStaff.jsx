@@ -6,6 +6,7 @@ import { api } from '../lib/api';
 import { SIZE_PRESETS, DEFAULT_STAFF, ICON_OPTIONS } from '../lib/constants';
 import KeyStaffPreview from '../components/KeyStaffPreview';
 import PreviewControls from '../components/PreviewControls';
+import QuickPickSection from '../components/QuickPickSection';
 
 export default function KeyStaff() {
   const [searchParams] = useSearchParams();
@@ -63,6 +64,15 @@ export default function KeyStaff() {
 
   function removeStaffAt(index) {
     if (staff.length > 1) setStaff(staff.filter((_, i) => i !== index));
+  }
+
+  function loadQuickPick(item) {
+    const payload = item.payload || {};
+    if (payload.staff && payload.staff.length > 0) {
+      setStaff(payload.staff.map(s => ({ ...s })));
+    }
+    if (payload.title) setTitle(payload.title);
+    if (payload.columns) setColumns(payload.columns);
   }
 
   async function handleSave() {
@@ -176,11 +186,17 @@ export default function KeyStaff() {
             </div>
           </div>
 
+          <QuickPickSection
+            type="key-staff"
+            onSelect={loadQuickPick}
+            currentData={() => ({ title, columns, staff })}
+            currentName={graphicName}
+          />
+
           {staff.map((member, i) => (
             <div key={i} className="bg-white border border-slate-200 rounded-lg p-3">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold text-slate-400 w-6">{i + 1}.</span>
-
                 <select
                   value={member.icon}
                   onChange={(e) => updateStaff(i, 'icon', e.target.value)}

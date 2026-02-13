@@ -9933,17 +9933,25 @@ def api_upload_graphic_snapshot(graphic_id):
 @app.route('/api/graphic-scenarios', methods=['GET'])
 @login_required
 def api_get_scenarios():
-    scenarios = GraphicScenario.query.order_by(GraphicScenario.created_at.desc()).all()
+    scenario_type = request.args.get('type', None)
+    query = GraphicScenario.query
+    if scenario_type:
+        query = query.filter_by(type=scenario_type)
+    scenarios = query.order_by(GraphicScenario.created_at.desc()).all()
     result = []
     for s in scenarios:
-        result.append({
+        item = {
             'id': s.id,
             'name': s.name,
             'category': s.category,
-            'challenge': s.challenge,
-            'solution': s.solution,
+            'type': s.type or 'challenge-solution',
+            'payload': s.payload,
             'createdAt': s.created_at.isoformat() if s.created_at else None
-        })
+        }
+        if s.type == 'challenge-solution' or not s.type:
+            if not s.payload and s.challenge:
+                item['payload'] = {'pairs': [{'challenge': s.challenge, 'solution': s.solution}]}
+        result.append(item)
     return jsonify(result)
 
 
@@ -9957,6 +9965,8 @@ def api_create_scenario():
     scenario = GraphicScenario(
         name=data.get('name', 'Untitled'),
         category=data.get('category'),
+        type=data.get('type', 'challenge-solution'),
+        payload=data.get('payload'),
         challenge=data.get('challenge'),
         solution=data.get('solution')
     )
@@ -9966,7 +9976,8 @@ def api_create_scenario():
     return jsonify({
         'id': scenario.id,
         'name': scenario.name,
-        'category': scenario.category,
+        'type': scenario.type,
+        'payload': scenario.payload,
         'createdAt': scenario.created_at.isoformat()
     }), 201
 
@@ -9979,8 +9990,31 @@ def api_get_scenario(scenario_id):
         'id': scenario.id,
         'name': scenario.name,
         'category': scenario.category,
-        'challenge': scenario.challenge,
-        'solution': scenario.solution,
+        'type': scenario.type or 'challenge-solution',
+        'payload': scenario.payload,
+        'createdAt': scenario.created_at.isoformat() if scenario.created_at else None
+    })
+
+
+@app.route('/api/graphic-scenarios/<int:scenario_id>', methods=['PATCH'])
+@login_required
+def api_update_scenario(scenario_id):
+    scenario = GraphicScenario.query.get_or_404(scenario_id)
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+    if 'name' in data:
+        scenario.name = data['name']
+    if 'payload' in data:
+        scenario.payload = data['payload']
+    if 'category' in data:
+        scenario.category = data['category']
+    db.session.commit()
+    return jsonify({
+        'id': scenario.id,
+        'name': scenario.name,
+        'type': scenario.type,
+        'payload': scenario.payload,
         'createdAt': scenario.created_at.isoformat() if scenario.created_at else None
     })
 

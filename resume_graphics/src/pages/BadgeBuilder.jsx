@@ -6,6 +6,7 @@ import { api } from '../lib/api';
 import { SIZE_PRESETS, DEFAULT_BADGES, ICON_OPTIONS } from '../lib/constants';
 import BadgePreview from '../components/BadgePreview';
 import PreviewControls from '../components/PreviewControls';
+import QuickPickSection from '../components/QuickPickSection';
 
 export default function BadgeBuilder() {
   const [searchParams] = useSearchParams();
@@ -73,6 +74,13 @@ export default function BadgeBuilder() {
 
   function removeBadgeAt(index) {
     if (badges.length > 1) setBadges(badges.filter((_, i) => i !== index));
+  }
+
+  function loadQuickPick(item) {
+    const payload = item.payload || {};
+    if (payload.badges && payload.badges.length > 0) {
+      setBadges(payload.badges.map(b => ({ ...b })));
+    }
   }
 
   async function handleSelectEmployee(e) {
@@ -184,6 +192,13 @@ export default function BadgeBuilder() {
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
             />
           </div>
+
+          <QuickPickSection
+            type="competency-badge"
+            onSelect={loadQuickPick}
+            currentData={() => ({ badges })}
+            currentName={graphicName}
+          />
 
           {badges.map((badge, i) => (
             <div key={i} className="bg-white border border-slate-200 rounded-lg p-4 relative group">
