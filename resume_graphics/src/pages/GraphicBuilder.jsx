@@ -123,10 +123,20 @@ export default function GraphicBuilder() {
         data: { title, pairs, sizePreset, widthOverride, fontScale },
         projectId: selectedProjectId || null,
       };
+      let graphicId = editId;
       if (editId) {
         await api.updateGraphic(editId, payload);
       } else {
-        await api.createGraphic(payload);
+        const result = await api.createGraphic(payload);
+        graphicId = result.id;
+      }
+      if (previewRef.current && graphicId) {
+        try {
+          const dataUrl = await toPng(previewRef.current, { pixelRatio: 3 });
+          await api.uploadSnapshot(graphicId, dataUrl);
+        } catch (snapErr) {
+          console.warn('Snapshot upload failed:', snapErr);
+        }
       }
       alert('Saved!');
     } catch (e) {

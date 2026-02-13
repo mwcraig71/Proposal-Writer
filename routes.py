@@ -196,6 +196,23 @@ def upload_multi_projects():
         return jsonify({'error': str(e)}), 500
 
 
+def _get_graphic_png(rg):
+    """Get high-quality PNG for a resume graphic - prefers stored snapshot from Object Storage, falls back to Pillow renderer"""
+    client = get_storage_client()
+    if client:
+        try:
+            png_bytes = client.download_as_bytes(f'graphic_snapshots/{rg.id}.png')
+            if png_bytes:
+                buf = io.BytesIO(png_bytes)
+                buf.seek(0)
+                return buf
+        except:
+            pass
+    from graphic_renderer import render_graphic_to_png
+    payload = json.loads(rg.payload) if rg.payload else {}
+    return render_graphic_to_png(rg.graphic_type, payload)
+
+
 def safe_int(value):
     """Convert value to integer safely, extracting numbers from strings like '15 Years'"""
     if value is None:
@@ -789,14 +806,12 @@ def download_employee_resume(id):
     
     graphic_ids = request.args.get('graphics', '')
     if graphic_ids:
-        from graphic_renderer import render_graphic_to_png
         from docx.shared import Inches
         gids = [int(g) for g in graphic_ids.split(',') if g.strip().isdigit()]
         if gids:
             graphics_to_embed = ResumeGraphic.query.filter(ResumeGraphic.id.in_(gids)).all()
             for rg in graphics_to_embed:
-                payload = json.loads(rg.payload) if rg.payload else {}
-                img_buf = render_graphic_to_png(rg.graphic_type, payload)
+                img_buf = _get_graphic_png(rg)
                 doc.add_paragraph()
                 doc.add_picture(img_buf, width=Inches(6.0))
     
@@ -1097,14 +1112,12 @@ def download_employee_sf330_resume(id):
 
     graphic_ids = request.args.get('graphics', '')
     if graphic_ids:
-        from graphic_renderer import render_graphic_to_png
         from docx.shared import Inches
         gids = [int(g) for g in graphic_ids.split(',') if g.strip().isdigit()]
         if gids:
             graphics_to_embed = ResumeGraphic.query.filter(ResumeGraphic.id.in_(gids)).all()
             for rg in graphics_to_embed:
-                payload_data = json.loads(rg.payload) if rg.payload else {}
-                img_buf = render_graphic_to_png(rg.graphic_type, payload_data)
+                img_buf = _get_graphic_png(rg)
                 doc.add_paragraph()
                 doc.add_picture(img_buf, width=Inches(6.0))
 
@@ -2652,13 +2665,11 @@ def download_project(id):
     
     graphic_ids = request.args.get('graphics', '')
     if graphic_ids:
-        from graphic_renderer import render_graphic_to_png
         gids = [int(g) for g in graphic_ids.split(',') if g.strip().isdigit()]
         if gids:
             graphics_to_embed = ResumeGraphic.query.filter(ResumeGraphic.id.in_(gids)).all()
             for rg in graphics_to_embed:
-                payload_data = json.loads(rg.payload) if rg.payload else {}
-                img_buf = render_graphic_to_png(rg.graphic_type, payload_data)
+                img_buf = _get_graphic_png(rg)
                 doc.add_paragraph()
                 doc.add_picture(img_buf, width=Inches(6.0))
     
@@ -9811,11 +9822,46 @@ def api_delete_graphic(graphic_id):
 @app.route('/api/resume-graphics/<int:graphic_id>/preview.png')
 @login_required
 def api_graphic_preview_png(graphic_id):
-    from graphic_renderer import render_graphic_to_png
     graphic = ResumeGraphic.query.get_or_404(graphic_id)
+    client = get_storage_client()
+    if client:
+        try:
+            png_bytes = client.download_as_bytes(f'graphic_snapshots/{graphic_id}.png')
+            if png_bytes:
+                buf = io.BytesIO(png_bytes)
+                buf.seek(0)
+                return send_file(buf, mimetype='image/png', download_name=f'{graphic.name}.png')
+        except:
+            pass
+    from graphic_renderer import render_graphic_to_png
     payload = json.loads(graphic.payload) if graphic.payload else {}
     buf = render_graphic_to_png(graphic.graphic_type, payload)
     return send_file(buf, mimetype='image/png', download_name=f'{graphic.name}.png')
+
+
+@app.route('/api/resume-graphics/<int:graphic_id>/snapshot', methods=['POST'])
+@login_required
+def api_upload_graphic_snapshot(graphic_id):
+    import base64
+    graphic = ResumeGraphic.query.get_or_404(graphic_id)
+    data = request.get_json()
+    if not data or 'png' not in data:
+        return jsonify({'error': 'No PNG data provided'}), 400
+    
+    png_data = data['png']
+    if png_data.startswith('data:image/png;base64,'):
+        png_data = png_data.split(',', 1)[1]
+    
+    png_bytes = base64.b64decode(png_data)
+    
+    client = get_storage_client()
+    if not client:
+        return jsonify({'error': 'Object storage not available'}), 500
+    
+    storage_key = f'graphic_snapshots/{graphic_id}.png'
+    client.upload_from_bytes(storage_key, png_bytes)
+    
+    return jsonify({'success': True, 'size': len(png_bytes)})
 
 
 @app.route('/api/graphic-scenarios', methods=['GET'])
