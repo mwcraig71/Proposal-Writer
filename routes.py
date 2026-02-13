@@ -787,6 +787,19 @@ def download_employee_resume(id):
         p_element = para._element
         p_element.getparent().remove(p_element)
     
+    graphic_ids = request.args.get('graphics', '')
+    if graphic_ids:
+        from graphic_renderer import render_graphic_to_png
+        from docx.shared import Inches
+        gids = [int(g) for g in graphic_ids.split(',') if g.strip().isdigit()]
+        if gids:
+            graphics_to_embed = ResumeGraphic.query.filter(ResumeGraphic.id.in_(gids)).all()
+            for rg in graphics_to_embed:
+                payload = json.loads(rg.payload) if rg.payload else {}
+                img_buf = render_graphic_to_png(rg.graphic_type, payload)
+                doc.add_paragraph()
+                doc.add_picture(img_buf, width=Inches(6.0))
+    
     safe_name = employee.display_name or employee.name or 'Employee'
     safe_name = ''.join(c for c in safe_name if c.isalnum() or c in ' _-')[:50].strip()
     filename = f"Resume_{safe_name.replace(' ', '_')}.docx"
@@ -1081,6 +1094,19 @@ def download_employee_sf330_resume(id):
     for para in paras_to_remove:
         p_element = para._element
         p_element.getparent().remove(p_element)
+
+    graphic_ids = request.args.get('graphics', '')
+    if graphic_ids:
+        from graphic_renderer import render_graphic_to_png
+        from docx.shared import Inches
+        gids = [int(g) for g in graphic_ids.split(',') if g.strip().isdigit()]
+        if gids:
+            graphics_to_embed = ResumeGraphic.query.filter(ResumeGraphic.id.in_(gids)).all()
+            for rg in graphics_to_embed:
+                payload_data = json.loads(rg.payload) if rg.payload else {}
+                img_buf = render_graphic_to_png(rg.graphic_type, payload_data)
+                doc.add_paragraph()
+                doc.add_picture(img_buf, width=Inches(6.0))
 
     safe_name = employee.display_name or employee.name or 'Employee'
     safe_name = ''.join(c for c in safe_name if c.isalnum() or c in ' _-')[:50].strip()
@@ -2624,7 +2650,18 @@ def download_project(id):
                 except Exception as e:
                     print(f"Error adding photo {photo.filename}: {e}")
     
-    # Save to BytesIO and return
+    graphic_ids = request.args.get('graphics', '')
+    if graphic_ids:
+        from graphic_renderer import render_graphic_to_png
+        gids = [int(g) for g in graphic_ids.split(',') if g.strip().isdigit()]
+        if gids:
+            graphics_to_embed = ResumeGraphic.query.filter(ResumeGraphic.id.in_(gids)).all()
+            for rg in graphics_to_embed:
+                payload_data = json.loads(rg.payload) if rg.payload else {}
+                img_buf = render_graphic_to_png(rg.graphic_type, payload_data)
+                doc.add_paragraph()
+                doc.add_picture(img_buf, width=Inches(6.0))
+    
     buffer = io.BytesIO()
     doc.save(buffer)
     buffer.seek(0)
@@ -9769,6 +9806,16 @@ def api_delete_graphic(graphic_id):
     db.session.delete(graphic)
     db.session.commit()
     return jsonify({'success': True})
+
+
+@app.route('/api/resume-graphics/<int:graphic_id>/preview.png')
+@login_required
+def api_graphic_preview_png(graphic_id):
+    from graphic_renderer import render_graphic_to_png
+    graphic = ResumeGraphic.query.get_or_404(graphic_id)
+    payload = json.loads(graphic.payload) if graphic.payload else {}
+    buf = render_graphic_to_png(graphic.graphic_type, payload)
+    return send_file(buf, mimetype='image/png', download_name=f'{graphic.name}.png')
 
 
 @app.route('/api/graphic-scenarios', methods=['GET'])

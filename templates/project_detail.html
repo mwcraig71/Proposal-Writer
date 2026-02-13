@@ -10,15 +10,15 @@
     <div class="flex flex-wrap items-center justify-between gap-4">
         <h1 class="text-3xl font-bold text-gray-800">{{ project.title }}</h1>
         <div class="flex gap-2 flex-wrap">
-            <a href="/projects/{{ project.id }}/download?format=template" 
+            <a href="#" onclick="event.preventDefault(); openProjectGraphicPicker('template')"
                class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition flex items-center gap-2">
                 <i class="fas fa-file-word"></i> SF330 Section F
             </a>
-            <a href="/projects/{{ project.id }}/download?format=company" 
+            <a href="#" onclick="event.preventDefault(); openProjectGraphicPicker('company')"
                class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition flex items-center gap-2">
                 <i class="fas fa-building"></i> Company Template
             </a>
-            <a href="/projects/{{ project.id }}/download?format=plain" 
+            <a href="#" onclick="event.preventDefault(); openProjectGraphicPicker('plain')"
                class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center gap-2">
                 <i class="fas fa-download"></i> Plain Word
             </a>
@@ -1286,5 +1286,96 @@ document.getElementById('copy-to-resume-btn').addEventListener('click', async fu
     this.disabled = false;
     this.innerHTML = '<i class="fas fa-copy mr-2"></i> Copy to Selected Resumes';
 });
+
+const projectGraphics = {{ resume_graphics | tojson }};
+let pendingProjectFormat = null;
+
+function openProjectGraphicPicker(format) {
+    pendingProjectFormat = format;
+    
+    if (!projectGraphics || projectGraphics.length === 0) {
+        proceedWithProjectDownload([]);
+        return;
+    }
+    
+    const container = document.getElementById('proj-graphic-picker-list');
+    container.innerHTML = '';
+    projectGraphics.forEach(g => {
+        const typeLabel = g.type === 'challenge-solution' ? 'Challenge/Solution' : 
+                          g.type === 'competency-badge' ? 'Competency Badge' : 'Key Staff';
+        const typeColor = g.type === 'challenge-solution' ? 'text-red-600' : 
+                          g.type === 'competency-badge' ? 'text-purple-600' : 'text-blue-600';
+        const iconClass = g.type === 'challenge-solution' ? 'fa-columns' : 
+                          g.type === 'competency-badge' ? 'fa-award' : 'fa-users';
+        const div = document.createElement('div');
+        div.className = 'flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition';
+        div.innerHTML = `
+            <input type="checkbox" value="${g.id}" class="proj-graphic-cb w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" checked>
+            <i class="fas ${iconClass} ${typeColor}"></i>
+            <div class="flex-1">
+                <p class="text-sm font-medium text-gray-800">${g.name}</p>
+                <p class="text-xs text-gray-500">${typeLabel}</p>
+            </div>
+            <img src="/api/resume-graphics/${g.id}/preview.png" class="h-12 rounded border" alt="Preview" onerror="this.style.display='none'">
+        `;
+        div.addEventListener('click', function(e) {
+            if (e.target.tagName !== 'INPUT') {
+                const cb = div.querySelector('input');
+                cb.checked = !cb.checked;
+            }
+        });
+        container.appendChild(div);
+    });
+    
+    document.getElementById('proj-graphic-picker-modal').classList.remove('hidden');
+}
+
+function closeProjectGraphicPicker() {
+    document.getElementById('proj-graphic-picker-modal').classList.add('hidden');
+}
+
+function confirmProjectGraphicSelection() {
+    const checked = document.querySelectorAll('.proj-graphic-cb:checked');
+    const ids = Array.from(checked).map(cb => cb.value);
+    closeProjectGraphicPicker();
+    proceedWithProjectDownload(ids);
+}
+
+function skipProjectGraphics() {
+    closeProjectGraphicPicker();
+    proceedWithProjectDownload([]);
+}
+
+function proceedWithProjectDownload(graphicIds) {
+    let url = `/projects/{{ project.id }}/download?format=${pendingProjectFormat}`;
+    if (graphicIds.length > 0) {
+        url += '&graphics=' + graphicIds.join(',');
+    }
+    window.location.href = url;
+}
 </script>
+
+<div id="proj-graphic-picker-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[80vh] overflow-hidden">
+        <div class="flex justify-between items-center p-4 border-b">
+            <h3 class="text-lg font-semibold text-gray-800">Include Resume Graphics?</h3>
+            <button onclick="closeProjectGraphicPicker()" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <div class="p-4">
+            <p class="text-sm text-gray-600 mb-3">Select which graphics to include in the Word document:</p>
+            <div id="proj-graphic-picker-list" class="space-y-2 max-h-[40vh] overflow-y-auto">
+            </div>
+        </div>
+        <div class="flex justify-end gap-2 p-4 border-t bg-gray-50">
+            <button onclick="skipProjectGraphics()" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 rounded-lg hover:bg-gray-200 transition">
+                Skip Graphics
+            </button>
+            <button onclick="confirmProjectGraphicSelection()" class="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
+                <i class="fas fa-download mr-1"></i> Download with Graphics
+            </button>
+        </div>
+    </div>
+</div>
 {% endblock %}
