@@ -395,6 +395,58 @@
         {% endif %}
     </div>
     
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-semibold text-gray-800">Resume Graphics</h2>
+            <a href="/resume-graphics-app/#/badges" class="text-sm bg-[#cf3910] text-white px-3 py-1.5 rounded-lg hover:bg-red-700 transition">
+                <i class="fas fa-plus mr-1"></i> Create New
+            </a>
+        </div>
+        {% if resume_graphics %}
+        <div class="space-y-2">
+            {% for graphic in resume_graphics %}
+            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg group hover:bg-gray-100 transition">
+                <div class="flex items-center gap-3">
+                    {% if graphic.type == 'challenge-solution' %}
+                    <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-red-100 text-red-600">
+                        <i class="fas fa-columns text-sm"></i>
+                    </span>
+                    {% elif graphic.type == 'competency-badge' %}
+                    <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-purple-100 text-purple-600">
+                        <i class="fas fa-award text-sm"></i>
+                    </span>
+                    {% else %}
+                    <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-100 text-blue-600">
+                        <i class="fas fa-users text-sm"></i>
+                    </span>
+                    {% endif %}
+                    <div>
+                        <p class="text-sm font-medium text-gray-800">{{ graphic.name }}</p>
+                        <p class="text-xs text-gray-500">
+                            {% if graphic.type == 'challenge-solution' %}Challenge/Solution
+                            {% elif graphic.type == 'competency-badge' %}Competency Badge
+                            {% else %}Key Staff{% endif %}
+                            &middot; {{ graphic.created_at.strftime('%b %d, %Y') if graphic.created_at }}
+                        </p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-1">
+                    <a href="/resume-graphics-app/#/{% if graphic.type == 'competency-badge' %}badges{% elif graphic.type == 'key-staff' %}key-staff{% endif %}?edit={{ graphic.id }}"
+                       class="p-2 text-gray-400 hover:text-blue-600 rounded-lg transition" title="Edit">
+                        <i class="fas fa-edit text-sm"></i>
+                    </a>
+                    <a href="/resume-graphics-app/#/saved" class="p-2 text-gray-400 hover:text-emerald-600 rounded-lg transition" title="View in Library">
+                        <i class="fas fa-th-large text-sm"></i>
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-gray-500 text-sm">No resume graphics linked to this employee. Create badge graphics in the <a href="/resume-graphics-app/#/badges" class="text-blue-600 hover:underline">Badge Builder</a> and select this employee to link them.</p>
+        {% endif %}
+    </div>
+    
     <div id="marketing-picker-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
         <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[80vh] overflow-hidden">
             <div class="flex justify-between items-center p-4 border-b">

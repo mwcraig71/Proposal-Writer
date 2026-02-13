@@ -620,9 +620,20 @@ def employee_detail(id):
     all_marketing = MarketingPhoto.query.all()
     marketing_photos = [p for p in all_marketing if employee_tag.lower() in (p.tags or '').lower()]
     
+    resume_graphics = ResumeGraphic.query.filter_by(employee_id=id).order_by(ResumeGraphic.created_at.desc()).all()
+    resume_graphics_data = []
+    for rg in resume_graphics:
+        resume_graphics_data.append({
+            'id': rg.id,
+            'name': rg.name,
+            'type': rg.graphic_type,
+            'created_at': rg.created_at
+        })
+    
     return render_template('employee_detail.html', employee=employee, projects=projects, project_experiences=project_experiences,
                            project_experiences_json=project_experiences_json, firms=firms, employees=employees, 
-                           marketing_photos=marketing_photos, all_projects_json=all_projects_json)
+                           marketing_photos=marketing_photos, all_projects_json=all_projects_json,
+                           resume_graphics=resume_graphics_data)
 
 
 @app.route('/employee/<int:id>/download')
@@ -2203,6 +2214,16 @@ def project_detail(id):
     all_marketing = MarketingPhoto.query.all()
     marketing_photos = [p for p in all_marketing if project_tag.lower() in (p.tags or '').lower()]
     
+    resume_graphics = ResumeGraphic.query.filter_by(project_id=id).order_by(ResumeGraphic.created_at.desc()).all()
+    resume_graphics_data = []
+    for rg in resume_graphics:
+        resume_graphics_data.append({
+            'id': rg.id,
+            'name': rg.name,
+            'type': rg.graphic_type,
+            'created_at': rg.created_at
+        })
+    
     firms = Firm.query.order_by(Firm.name).all()
     contract_projects = Project.query.filter(
         Project.project_type != 'task_order',
@@ -2211,7 +2232,8 @@ def project_detail(id):
     return render_template('project_detail.html', project=project, employee_links=employee_links, 
                            all_employees=all_employees, marketing_photos=marketing_photos,
                            personnel_writeups=personnel_writeups, personnel_writeups_json=personnel_writeups_json,
-                           firms=firms, contract_projects=contract_projects)
+                           firms=firms, contract_projects=contract_projects,
+                           resume_graphics=resume_graphics_data)
 
 
 @app.route('/projects/<int:id>', methods=['PUT'])
