@@ -8,6 +8,13 @@ import KeyStaffPreview from '../components/KeyStaffPreview';
 import PreviewControls from '../components/PreviewControls';
 import QuickPickSection from '../components/QuickPickSection';
 
+function firstLastName(fullName) {
+  if (!fullName) return '';
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length <= 2) return parts.join(' ');
+  return `${parts[0]} ${parts[parts.length - 1]}`;
+}
+
 export default function KeyStaff() {
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('edit');
@@ -28,6 +35,30 @@ export default function KeyStaff() {
   };
   const [saving, setSaving] = useState(false);
   const [graphicName, setGraphicName] = useState('');
+
+  const [firms, setFirms] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [selectedFirmId, setSelectedFirmId] = useState('');
+  const [selectedProjectId, setSelectedProjectId] = useState('');
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [firmsData, employeesData, projectsData] = await Promise.all([
+          api.getFirms(),
+          api.getEmployees(),
+          api.getProjects(),
+        ]);
+        setFirms(firmsData);
+        setEmployees(employeesData);
+        setProjects(projectsData);
+      } catch (e) {
+        console.error('Failed to load data:', e);
+      }
+    }
+    loadData();
+  }, []);
 
   useEffect(() => {
     if (editId) loadGraphic(editId);
@@ -73,6 +104,39 @@ export default function KeyStaff() {
     }
     if (payload.title) setTitle(payload.title);
     if (payload.columns) setColumns(payload.columns);
+  }
+
+  const filteredProjects = selectedFirmId
+    ? projects.filter(p => String(p.firmId) === String(selectedFirmId))
+    : projects;
+
+  function handleFirmSelect(firmId) {
+    setSelectedFirmId(firmId);
+    setSelectedProjectId('');
+    if (!firmId) return;
+    const firmEmployees = employees.filter(e => String(e.firmId) === String(firmId));
+    if (firmEmployees.length > 0) {
+      setStaff(firmEmployees.map(e => ({
+        name: `${firstLastName(e.name)}, ${e.title || ''}`.replace(/, $/, ''),
+        icon: 'Check',
+      })));
+    }
+  }
+
+  async function handleProjectSelect(projectId) {
+    setSelectedProjectId(projectId);
+    if (!projectId) return;
+    try {
+      const personnel = await api.getProjectPersonnel(projectId);
+      if (personnel.length > 0) {
+        setStaff(personnel.map(p => ({
+          name: `${firstLastName(p.name)}, ${p.role || p.title || ''}`.replace(/, $/, ''),
+          icon: 'Check',
+        })));
+      }
+    } catch (e) {
+      console.error('Failed to load project personnel:', e);
+    }
   }
 
   async function handleSave() {
@@ -181,6 +245,35 @@ export default function KeyStaff() {
               >
                 {[1, 2, 3, 4].map(n => (
                   <option key={n} value={n}>{n} Column{n > 1 ? 's' : ''}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Firm</label>
+              <select
+                value={selectedFirmId}
+                onChange={(e) => handleFirmSelect(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
+              >
+                <option value="">— Select Firm —</option>
+                {firms.map(f => (
+                  <option key={f.id} value={f.id}>{f.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Project</label>
+              <select
+                value={selectedProjectId}
+                onChange={(e) => handleProjectSelect(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
+              >
+                <option value="">— Select Project —</option>
+                {filteredProjects.map(p => (
+                  <option key={p.id} value={p.id}>{p.title}</option>
                 ))}
               </select>
             </div>

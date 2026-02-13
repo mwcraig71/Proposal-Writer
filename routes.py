@@ -10135,6 +10135,7 @@ def api_graphic_employees():
             'bio': e.bio,
             'education': e.education,
             'registrations': e.registrations,
+            'firmId': e.firm_id,
             'firmName': e.firm.name if e.firm else None,
             'yearsExperience': e.years_experience_total
         })
@@ -10152,7 +10153,39 @@ def api_graphic_projects():
             'title': p.title,
             'location': p.location,
             'description': p.brief_description,
+            'firmId': p.firm_id,
             'firmName': p.firm.name if p.firm else None,
             'yearCompleted': p.year_completed_professional
+        })
+    return jsonify(result)
+
+
+@app.route('/api/graphic-data/projects/<int:project_id>/personnel', methods=['GET'])
+@login_required
+def api_graphic_project_personnel(project_id):
+    links = EmployeeProjectLink.query.filter_by(project_id=project_id).all()
+    result = []
+    for link in links:
+        emp = link.employee
+        if emp:
+            result.append({
+                'id': emp.id,
+                'name': emp.display_name,
+                'title': emp.title,
+                'role': link.role_on_project or emp.role,
+                'firmName': emp.firm.name if emp.firm else None,
+            })
+    return jsonify(result)
+
+
+@app.route('/api/graphic-data/firms', methods=['GET'])
+@login_required
+def api_graphic_firms():
+    firms = Firm.query.order_by(Firm.name).all()
+    result = []
+    for f in firms:
+        result.append({
+            'id': f.id,
+            'name': f.name,
         })
     return jsonify(result)
