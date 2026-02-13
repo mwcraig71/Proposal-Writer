@@ -9994,6 +9994,18 @@ def api_delete_scenario(scenario_id):
     return jsonify({'success': True})
 
 
+def _clean_ai_json(text):
+    import re
+    text = text.strip()
+    if text.startswith('```'):
+        text = re.sub(r'^```(?:json)?\s*', '', text)
+        text = re.sub(r'\s*```$', '', text)
+        text = text.strip()
+    text = re.sub(r',\s*([}\]])', r'\1', text)
+    text = re.sub(r'[\x00-\x1f]', ' ', text)
+    return text
+
+
 @app.route('/api/graphic-ai/parse-project', methods=['POST'])
 @login_required
 def api_graphic_ai_parse_project():
@@ -10026,7 +10038,8 @@ Return valid JSON with this exact structure:
 
     try:
         result = ai_generate(prompt, json_mode=True)
-        parsed = json.loads(result)
+        cleaned = _clean_ai_json(result)
+        parsed = json.loads(cleaned)
         return jsonify(parsed)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -10067,7 +10080,8 @@ Return valid JSON with this exact structure:
 
     try:
         result = ai_generate(prompt, json_mode=True)
-        parsed = json.loads(result)
+        cleaned = _clean_ai_json(result)
+        parsed = json.loads(cleaned)
         return jsonify(parsed)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
