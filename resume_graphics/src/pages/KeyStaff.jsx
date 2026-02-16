@@ -150,6 +150,9 @@ export default function KeyStaff() {
         type: 'key_staff',
         data: { title, columns, staff, sizePreset, widthOverride, fontScale },
       };
+      if (selectedProjectId) {
+        payload.projectId = parseInt(selectedProjectId);
+      }
       let graphicId = editId;
       if (editId) {
         await api.updateGraphic(editId, payload);
