@@ -117,7 +117,7 @@ export default function KeyStaff() {
     const firmEmployees = employees.filter(e => String(e.firmId) === String(firmId));
     if (firmEmployees.length > 0) {
       setStaff(firmEmployees.map(e => ({
-        name: `${firstLastName(e.name)}, ${e.title || ''}`.replace(/, $/, ''),
+        name: `${firstLastName(e.name)}, ${e.role || ''}`.replace(/, $/, ''),
         icon: 'Check',
       })));
     }
@@ -130,7 +130,7 @@ export default function KeyStaff() {
       const personnel = await api.getProjectPersonnel(projectId);
       if (personnel.length > 0) {
         setStaff(personnel.map(p => ({
-          name: `${firstLastName(p.name)}, ${p.role || p.title || ''}`.replace(/, $/, ''),
+          name: `${firstLastName(p.name)}, ${p.role || ''}`.replace(/, $/, ''),
           icon: 'Check',
         })));
       }

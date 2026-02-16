@@ -62,7 +62,9 @@ export default function KeyStaffPreview({ staff, title, columns, sizePreset, wid
                 backgroundColor: '#fafafa',
               }}
             >
-              <IconComp size={s.iconInnerSize * scale} color="#cf3910" />
+              <span style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                <IconComp size={s.iconInnerSize * scale} color="#cf3910" />
+              </span>
               <span
                 style={{
                   fontSize: `${s.bodyFontSize * scale}px`,
