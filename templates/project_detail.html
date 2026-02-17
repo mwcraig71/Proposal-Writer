@@ -112,8 +112,11 @@
             </div>
             
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Brief Description (Section F, Block 24)</label>
-                <textarea name="brief_description" rows="6" class="w-full p-2 border rounded-lg">{{ project.brief_description or '' }}</textarea>
+                <div class="flex items-center justify-between mb-1">
+                    <label class="block text-sm font-medium text-gray-700">Brief Description (Section F, Block 24)</label>
+                    <span id="block24-word-count" class="text-xs font-medium text-gray-400"></span>
+                </div>
+                <textarea name="brief_description" id="brief_description_textarea" rows="6" class="w-full p-2 border rounded-lg" oninput="updateBlock24WordCount()">{{ project.brief_description or '' }}</textarea>
             </div>
             
             <div>
@@ -544,6 +547,20 @@
 const projectId = {{ project.id }};
 const personnelWriteups = {{ personnel_writeups_json|tojson|safe if personnel_writeups_json else '[]' }};
 const projectDescription = {{ (project.brief_description or '')|tojson|safe }};
+
+function updateBlock24WordCount() {
+    const text = document.getElementById('brief_description_textarea').value.trim();
+    const words = text ? text.split(/\s+/).length : 0;
+    const el = document.getElementById('block24-word-count');
+    if (words > 375) {
+        el.textContent = words + ' words (recommended: 375 or less)';
+        el.className = 'text-xs font-medium text-red-500';
+    } else {
+        el.textContent = words + ' / 375 words';
+        el.className = 'text-xs font-medium text-gray-400';
+    }
+}
+updateBlock24WordCount();
 
 // Personnel Writeup Functions
 function showEditPersonnelWriteupModal(pwId) {
