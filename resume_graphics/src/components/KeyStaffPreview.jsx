@@ -54,7 +54,7 @@ export default function KeyStaffPreview({ staff, title, columns, sizePreset, wid
               key={i}
               style={{
                 display: 'flex',
-                alignItems: 'center',
+                alignItems: 'flex-start',
                 gap: '6px',
                 padding: `${s.cardPaddingV}px ${s.cardPaddingH}px`,
                 borderLeft: `${s.cardBorderLeft}px solid #cf3910`,
@@ -62,14 +62,15 @@ export default function KeyStaffPreview({ staff, title, columns, sizePreset, wid
                 backgroundColor: '#fafafa',
               }}
             >
-              <span style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
-                <IconComp size={s.iconInnerSize * scale} color="#cf3910" />
+              <span style={{ flexShrink: 0, width: `${s.iconInnerSize * scale}px`, height: `${s.bodyFontSize * scale * 1.3}px`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                <IconComp size={s.iconInnerSize * scale} color="#cf3910" style={{ display: 'block' }} />
               </span>
               <span
                 style={{
                   fontSize: `${s.bodyFontSize * scale}px`,
                   color: '#334155',
                   fontWeight: 500,
+                  lineHeight: 1.3,
                 }}
               >
                 {member.name}
