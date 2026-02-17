@@ -290,6 +290,20 @@
             <p class="text-gray-500 text-sm">No resume graphics linked to this project. Create graphics in the <a href="/resume-graphics-app/" class="text-blue-600 hover:underline">Graphic Builder</a> and select this project to link them.</p>
             {% endif %}
         </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold text-gray-800"><i class="fas fa-file-alt text-blue-600 mr-2"></i>Project Documents</h2>
+                <label class="text-sm bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition cursor-pointer">
+                    <i class="fas fa-upload mr-1"></i> Upload Document
+                    <input type="file" id="project-doc-upload" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv" class="hidden" onchange="uploadProjectDocument(this)">
+                </label>
+            </div>
+            <p class="text-sm text-gray-500 mb-3">Attach PDF, Word, Excel, or other files to this project.</p>
+            <div id="project-documents-list">
+                <p class="text-gray-400 text-sm" id="no-project-docs-msg">No documents uploaded yet.</p>
+            </div>
+        </div>
         
         <div id="marketing-picker-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
             <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[80vh] overflow-hidden">
@@ -561,6 +575,111 @@ function updateBlock24WordCount() {
     }
 }
 updateBlock24WordCount();
+
+// Project Documents Functions
+function formatFileSize(bytes) {
+    if (!bytes) return '';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1048576).toFixed(1) + ' MB';
+}
+
+function getDocIcon(docType) {
+    switch(docType) {
+        case 'pdf': return 'fas fa-file-pdf text-red-500';
+        case 'word': return 'fas fa-file-word text-blue-500';
+        case 'excel': return 'fas fa-file-excel text-green-500';
+        case 'powerpoint': return 'fas fa-file-powerpoint text-orange-500';
+        default: return 'fas fa-file text-gray-500';
+    }
+}
+
+async function loadProjectDocuments() {
+    try {
+        const resp = await fetch(`/api/projects/${projectId}/documents`);
+        const docs = await resp.json();
+        const container = document.getElementById('project-documents-list');
+        const noMsg = document.getElementById('no-project-docs-msg');
+        
+        if (docs.length === 0) {
+            noMsg.classList.remove('hidden');
+            container.innerHTML = '';
+            container.appendChild(noMsg);
+            return;
+        }
+        
+        noMsg.classList.add('hidden');
+        container.innerHTML = docs.map(d => `
+            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg group hover:bg-gray-100 transition mb-2" id="project-doc-${d.id}">
+                <div class="flex items-center gap-3 flex-1 min-w-0">
+                    <i class="${getDocIcon(d.document_type)} text-lg"></i>
+                    <div class="min-w-0 flex-1">
+                        <a href="${d.url}" class="text-sm font-medium text-blue-600 hover:underline truncate block">${d.filename}</a>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-gray-400">${formatFileSize(d.file_size)}</span>
+                            <input type="text" value="${d.description || ''}" placeholder="Add description..."
+                                class="text-xs text-gray-500 bg-transparent border-none focus:border-b focus:border-gray-300 outline-none flex-1"
+                                onblur="updateProjectDocDescription(${d.id}, this.value)">
+                        </div>
+                    </div>
+                </div>
+                <button onclick="deleteProjectDocument(${d.id})" class="p-2 text-gray-300 hover:text-red-500 transition opacity-0 group-hover:opacity-100" title="Delete">
+                    <i class="fas fa-trash text-sm"></i>
+                </button>
+            </div>
+        `).join('');
+    } catch (e) {
+        console.error('Failed to load project documents:', e);
+    }
+}
+
+async function uploadProjectDocument(input) {
+    const file = input.files[0];
+    if (!file) return;
+    
+    const formData = new FormData();
+    formData.append('document', file);
+    
+    try {
+        const resp = await fetch(`/projects/${projectId}/documents`, {
+            method: 'POST',
+            body: formData
+        });
+        const result = await resp.json();
+        if (result.success) {
+            loadProjectDocuments();
+        } else {
+            alert(result.error || 'Upload failed');
+        }
+    } catch (e) {
+        alert('Upload failed: ' + e.message);
+    }
+    input.value = '';
+}
+
+async function deleteProjectDocument(docId) {
+    if (!confirm('Delete this document?')) return;
+    try {
+        await fetch(`/projects/${projectId}/documents/${docId}`, { method: 'DELETE' });
+        loadProjectDocuments();
+    } catch (e) {
+        alert('Delete failed: ' + e.message);
+    }
+}
+
+async function updateProjectDocDescription(docId, description) {
+    try {
+        await fetch(`/projects/${projectId}/documents/${docId}/description`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ description })
+        });
+    } catch (e) {
+        console.error('Failed to update description:', e);
+    }
+}
+
+loadProjectDocuments();
 
 // Personnel Writeup Functions
 function showEditPersonnelWriteupModal(pwId) {

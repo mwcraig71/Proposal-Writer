@@ -7143,6 +7143,134 @@ def serve_firm_document(doc_id):
         return "Document not found", 404
 
 
+# Project Documents Routes
+@app.route('/projects/<int:id>/documents', methods=['POST'])
+@login_required
+def upload_project_document(id):
+    """Upload a document for a project"""
+    from models import ProjectDocument
+    project = Project.query.get_or_404(id)
+    
+    if 'document' not in request.files:
+        return jsonify({'success': False, 'error': 'No document file provided'}), 400
+    
+    file = request.files['document']
+    if file.filename == '':
+        return jsonify({'success': False, 'error': 'No file selected'}), 400
+    
+    if not allowed_document_file(file.filename):
+        return jsonify({'success': False, 'error': 'Invalid file type. Allowed: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT, CSV'}), 400
+    
+    client = get_storage_client()
+    if not client:
+        return jsonify({'success': False, 'error': 'Object storage not configured'}), 500
+    
+    ext = file.filename.rsplit('.', 1)[1].lower()
+    unique_id = str(uuid.uuid4())
+    storage_path = f"projects/{id}/documents/{unique_id}.{ext}"
+    
+    try:
+        file_data = file.read()
+        client.upload_from_bytes(storage_path, file_data)
+        
+        doc = ProjectDocument(
+            project_id=id,
+            filename=secure_filename(file.filename),
+            storage_path=storage_path,
+            description=request.form.get('description', ''),
+            file_size=len(file_data),
+            content_type=file.content_type,
+            document_type=get_document_type(file.filename)
+        )
+        db.session.add(doc)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'document': {
+                'id': doc.id,
+                'filename': doc.filename,
+                'description': doc.description,
+                'document_type': doc.document_type,
+                'file_size': doc.file_size
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/projects/<int:id>/documents/<int:doc_id>', methods=['DELETE'])
+@login_required
+def delete_project_document(id, doc_id):
+    """Delete a project document"""
+    from models import ProjectDocument
+    doc = ProjectDocument.query.filter_by(id=doc_id, project_id=id).first_or_404()
+    
+    client = get_storage_client()
+    if client:
+        try:
+            client.delete(doc.storage_path)
+        except Exception as e:
+            print(f"Error deleting document from storage: {e}")
+    
+    db.session.delete(doc)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/projects/<int:id>/documents/<int:doc_id>/description', methods=['PUT'])
+@login_required
+def update_project_document_description(id, doc_id):
+    """Update a project document description"""
+    from models import ProjectDocument
+    doc = ProjectDocument.query.filter_by(id=doc_id, project_id=id).first_or_404()
+    data = request.json
+    doc.description = data.get('description', '')
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/api/projects/<int:id>/documents')
+@login_required
+def get_project_documents(id):
+    """Get all documents for a project"""
+    from models import ProjectDocument
+    docs = ProjectDocument.query.filter_by(project_id=id).order_by(ProjectDocument.created_at.desc()).all()
+    return jsonify([{
+        'id': d.id,
+        'filename': d.filename,
+        'url': f'/documents/project/{d.id}',
+        'description': d.description,
+        'document_type': d.document_type,
+        'file_size': d.file_size,
+        'created_at': d.created_at.isoformat() if d.created_at else None
+    } for d in docs])
+
+
+@app.route('/documents/project/<int:doc_id>')
+@login_required
+def serve_project_document(doc_id):
+    """Serve a project document from object storage"""
+    from models import ProjectDocument
+    doc = ProjectDocument.query.get_or_404(doc_id)
+    
+    client = get_storage_client()
+    if not client:
+        return "Storage not configured", 500
+    
+    try:
+        data = client.download_as_bytes(doc.storage_path)
+        return send_file(
+            io.BytesIO(data),
+            mimetype=doc.content_type or 'application/octet-stream',
+            download_name=doc.filename,
+            as_attachment=True
+        )
+    except Exception as e:
+        print(f"Error serving project document: {e}")
+        return "Document not found", 404
+
+
 # Marketing Photos Routes
 @app.route('/marketing-photos')
 def marketing_photos():

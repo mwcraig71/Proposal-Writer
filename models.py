@@ -467,6 +467,23 @@ class FirmDocument(db.Model):
     firm = db.relationship('Firm', backref=db.backref('documents', lazy=True, cascade='all, delete-orphan'))
 
 
+class ProjectDocument(db.Model):
+    """Stores document references for projects - PDFs, Word docs, Excel files in object storage"""
+    __tablename__ = 'project_documents'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=False)
+    filename = db.Column(db.String(500), nullable=False)
+    storage_path = db.Column(db.String(500), nullable=False)
+    description = db.Column(db.String(500))
+    file_size = db.Column(db.Integer)
+    content_type = db.Column(db.String(100))
+    document_type = db.Column(db.String(50))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    project = db.relationship('Project', backref=db.backref('documents', lazy=True, cascade='all, delete-orphan'))
+
+
 class SavedOrgChart(db.Model):
     __tablename__ = 'saved_org_charts'
     
