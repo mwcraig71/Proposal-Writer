@@ -1101,6 +1101,10 @@ async function uploadEmployeeDocument(input) {
             method: 'POST',
             body: formData
         });
+        if (!resp.ok && resp.status === 401) {
+            alert('Session expired. Please refresh the page and log in again.');
+            return;
+        }
         const result = await resp.json();
         if (result.success) {
             loadEmployeeDocuments();
@@ -1108,7 +1112,7 @@ async function uploadEmployeeDocument(input) {
             alert(result.error || 'Upload failed');
         }
     } catch (e) {
-        alert('Upload failed: ' + e.message);
+        alert('Upload failed. Please refresh the page and try again.');
     }
     input.value = '';
 }
