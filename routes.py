@@ -7271,6 +7271,134 @@ def serve_project_document(doc_id):
         return "Document not found", 404
 
 
+# Employee Documents Routes
+@app.route('/employees/<int:id>/documents', methods=['POST'])
+@login_required
+def upload_employee_document(id):
+    """Upload a document for an employee"""
+    from models import EmployeeDocument
+    employee = Employee.query.get_or_404(id)
+    
+    if 'document' not in request.files:
+        return jsonify({'success': False, 'error': 'No document file provided'}), 400
+    
+    file = request.files['document']
+    if file.filename == '':
+        return jsonify({'success': False, 'error': 'No file selected'}), 400
+    
+    if not allowed_document_file(file.filename):
+        return jsonify({'success': False, 'error': 'Invalid file type. Allowed: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT, CSV'}), 400
+    
+    client = get_storage_client()
+    if not client:
+        return jsonify({'success': False, 'error': 'Object storage not configured'}), 500
+    
+    ext = file.filename.rsplit('.', 1)[1].lower()
+    unique_id = str(uuid.uuid4())
+    storage_path = f"employees/{id}/documents/{unique_id}.{ext}"
+    
+    try:
+        file_data = file.read()
+        client.upload_from_bytes(storage_path, file_data)
+        
+        doc = EmployeeDocument(
+            employee_id=id,
+            filename=secure_filename(file.filename),
+            storage_path=storage_path,
+            description=request.form.get('description', ''),
+            file_size=len(file_data),
+            content_type=file.content_type,
+            document_type=get_document_type(file.filename)
+        )
+        db.session.add(doc)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'document': {
+                'id': doc.id,
+                'filename': doc.filename,
+                'description': doc.description,
+                'document_type': doc.document_type,
+                'file_size': doc.file_size
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/employees/<int:id>/documents/<int:doc_id>', methods=['DELETE'])
+@login_required
+def delete_employee_document(id, doc_id):
+    """Delete an employee document"""
+    from models import EmployeeDocument
+    doc = EmployeeDocument.query.filter_by(id=doc_id, employee_id=id).first_or_404()
+    
+    client = get_storage_client()
+    if client:
+        try:
+            client.delete(doc.storage_path)
+        except Exception as e:
+            print(f"Error deleting document from storage: {e}")
+    
+    db.session.delete(doc)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/employees/<int:id>/documents/<int:doc_id>/description', methods=['PUT'])
+@login_required
+def update_employee_document_description(id, doc_id):
+    """Update an employee document description"""
+    from models import EmployeeDocument
+    doc = EmployeeDocument.query.filter_by(id=doc_id, employee_id=id).first_or_404()
+    data = request.json
+    doc.description = data.get('description', '')
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/api/employees/<int:id>/documents')
+@login_required
+def get_employee_documents(id):
+    """Get all documents for an employee"""
+    from models import EmployeeDocument
+    docs = EmployeeDocument.query.filter_by(employee_id=id).order_by(EmployeeDocument.created_at.desc()).all()
+    return jsonify([{
+        'id': d.id,
+        'filename': d.filename,
+        'url': f'/documents/employee/{d.id}',
+        'description': d.description,
+        'document_type': d.document_type,
+        'file_size': d.file_size,
+        'created_at': d.created_at.isoformat() if d.created_at else None
+    } for d in docs])
+
+
+@app.route('/documents/employee/<int:doc_id>')
+@login_required
+def serve_employee_document(doc_id):
+    """Serve an employee document from object storage"""
+    from models import EmployeeDocument
+    doc = EmployeeDocument.query.get_or_404(doc_id)
+    
+    client = get_storage_client()
+    if not client:
+        return "Storage not configured", 500
+    
+    try:
+        data = client.download_as_bytes(doc.storage_path)
+        return send_file(
+            io.BytesIO(data),
+            mimetype=doc.content_type or 'application/octet-stream',
+            download_name=doc.filename,
+            as_attachment=True
+        )
+    except Exception as e:
+        print(f"Error serving employee document: {e}")
+        return "Document not found", 404
+
+
 # Marketing Photos Routes
 @app.route('/marketing-photos')
 def marketing_photos():
