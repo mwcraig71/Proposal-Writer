@@ -809,8 +809,10 @@ def download_employee_resume(id):
     graphic_ids = request.args.get('graphics', '')
     
     if include_selected:
-        selected_photos = EmployeePhoto.query.filter_by(employee_id=id, include_in_resume=True).all()
-        for photo in selected_photos:
+        all_photos = EmployeePhoto.query.filter_by(employee_id=id).all()
+        starred_photos = [p for p in all_photos if p.include_in_resume]
+        photos_to_embed = starred_photos if starred_photos else all_photos
+        for photo in photos_to_embed:
             try:
                 client = get_storage_client()
                 if client:
@@ -825,11 +827,16 @@ def download_employee_resume(id):
             except Exception as e:
                 print(f"Error embedding photo {photo.id}: {e}")
         
-        selected_graphics = ResumeGraphic.query.filter_by(employee_id=id, include_in_resume=True).all()
-        for rg in selected_graphics:
-            img_buf = _get_graphic_png(rg)
-            doc.add_paragraph()
-            doc.add_picture(img_buf, width=Inches(6.0))
+        all_graphics = ResumeGraphic.query.filter_by(employee_id=id).all()
+        starred_graphics = [g for g in all_graphics if g.include_in_resume]
+        graphics_to_embed = starred_graphics if starred_graphics else all_graphics
+        for rg in graphics_to_embed:
+            try:
+                img_buf = _get_graphic_png(rg)
+                doc.add_paragraph()
+                doc.add_picture(img_buf, width=Inches(6.0))
+            except Exception as e:
+                print(f"Error embedding graphic {rg.id}: {e}")
     elif graphic_ids:
         gids = [int(g) for g in graphic_ids.split(',') if g.strip().isdigit()]
         if gids:
@@ -1139,8 +1146,10 @@ def download_employee_sf330_resume(id):
     graphic_ids = request.args.get('graphics', '')
     
     if include_selected:
-        selected_photos = EmployeePhoto.query.filter_by(employee_id=id, include_in_resume=True).all()
-        for photo in selected_photos:
+        all_photos = EmployeePhoto.query.filter_by(employee_id=id).all()
+        starred_photos = [p for p in all_photos if p.include_in_resume]
+        photos_to_embed = starred_photos if starred_photos else all_photos
+        for photo in photos_to_embed:
             try:
                 client = get_storage_client()
                 if client:
@@ -1155,11 +1164,16 @@ def download_employee_sf330_resume(id):
             except Exception as e:
                 print(f"Error embedding photo {photo.id}: {e}")
         
-        selected_graphics = ResumeGraphic.query.filter_by(employee_id=id, include_in_resume=True).all()
-        for rg in selected_graphics:
-            img_buf = _get_graphic_png(rg)
-            doc.add_paragraph()
-            doc.add_picture(img_buf, width=Inches(6.0))
+        all_graphics = ResumeGraphic.query.filter_by(employee_id=id).all()
+        starred_graphics = [g for g in all_graphics if g.include_in_resume]
+        graphics_to_embed = starred_graphics if starred_graphics else all_graphics
+        for rg in graphics_to_embed:
+            try:
+                img_buf = _get_graphic_png(rg)
+                doc.add_paragraph()
+                doc.add_picture(img_buf, width=Inches(6.0))
+            except Exception as e:
+                print(f"Error embedding graphic {rg.id}: {e}")
     elif graphic_ids:
         gids = [int(g) for g in graphic_ids.split(',') if g.strip().isdigit()]
         if gids:
