@@ -1079,7 +1079,7 @@ async function loadEmployeeDocuments() {
                         </div>
                     </div>
                 </div>
-                <button onclick="deleteEmployeeDocument(${d.id})" class="p-2 text-gray-300 hover:text-red-500 transition opacity-0 group-hover:opacity-100" title="Delete">
+                <button onclick="deleteEmployeeDocument(${d.id})" class="p-2 text-gray-400 hover:text-red-500 transition" title="Delete">
                     <i class="fas fa-trash text-sm"></i>
                 </button>
             </div>
@@ -1120,10 +1120,20 @@ async function uploadEmployeeDocument(input) {
 async function deleteEmployeeDocument(docId) {
     if (!confirm('Delete this document?')) return;
     try {
-        await fetch(`/employees/${employeeId}/documents/${docId}`, { method: 'DELETE' });
+        const resp = await fetch(`/employees/${employeeId}/documents/${docId}`, { method: 'DELETE' });
+        if (!resp.ok) {
+            const text = await resp.text();
+            try {
+                const data = JSON.parse(text);
+                alert(data.error || 'Delete failed');
+            } catch {
+                alert('Delete failed. Please refresh the page and try again.');
+            }
+            return;
+        }
         loadEmployeeDocuments();
     } catch (e) {
-        alert('Delete failed: ' + e.message);
+        alert('Delete failed. Please refresh the page and try again.');
     }
 }
 
