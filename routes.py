@@ -1394,20 +1394,25 @@ def add_alternate_bio(id):
     employee = Employee.query.get_or_404(id)
     data = request.json
     
-    alt_bio = EmployeeAlternateBio(
-        employee_id=id,
-        label=data.get('label', 'New Bio'),
-        bio=data.get('bio', '')
-    )
-    db.session.add(alt_bio)
-    db.session.commit()
-    
-    return jsonify({
-        'success': True,
-        'id': alt_bio.id,
-        'label': alt_bio.label,
-        'bio': alt_bio.bio
-    })
+    try:
+        alt_bio = EmployeeAlternateBio(
+            employee_id=id,
+            label=data.get('label', 'New Bio'),
+            bio=data.get('bio', '')
+        )
+        db.session.add(alt_bio)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'id': alt_bio.id,
+            'label': alt_bio.label,
+            'bio': alt_bio.bio
+        })
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error saving alternate bio: {e}")
+        return jsonify({'success': False, 'error': 'Failed to save bio. Please try again.'}), 500
 
 
 @app.route('/employees/<int:id>/alternate-bios/<int:bio_id>', methods=['PUT'])
@@ -1417,13 +1422,18 @@ def update_alternate_bio(id, bio_id):
     alt_bio = EmployeeAlternateBio.query.filter_by(id=bio_id, employee_id=id).first_or_404()
     data = request.json
     
-    if 'label' in data:
-        alt_bio.label = data['label']
-    if 'bio' in data:
-        alt_bio.bio = data['bio']
-    
-    db.session.commit()
-    return jsonify({'success': True})
+    try:
+        if 'label' in data:
+            alt_bio.label = data['label']
+        if 'bio' in data:
+            alt_bio.bio = data['bio']
+        
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error updating alternate bio: {e}")
+        return jsonify({'success': False, 'error': 'Failed to update bio. Please try again.'}), 500
 
 
 @app.route('/employees/<int:id>/alternate-bios/<int:bio_id>', methods=['DELETE'])

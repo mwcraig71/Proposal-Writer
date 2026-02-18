@@ -167,7 +167,7 @@
             <div id="alt-bios-list" class="space-y-4">
                 {% if employee.alternate_bios %}
                 {% for alt_bio in employee.alternate_bios %}
-                <div class="border rounded-lg p-4" id="alt-bio-{{ alt_bio.id }}" data-label="{{ alt_bio.label }}" data-bio="{{ alt_bio.bio }}">
+                <div class="border rounded-lg p-4" id="alt-bio-{{ alt_bio.id }}" data-label="{{ alt_bio.label|e }}" data-bio="{{ alt_bio.bio|e }}">
                     <div class="flex justify-between items-start mb-2">
                         <span class="font-medium text-gray-700">{{ alt_bio.label }}</span>
                         <div class="flex space-x-2">
@@ -1683,14 +1683,25 @@ async function saveAIGeneratedBio() {
             body: JSON.stringify({ label, bio })
         });
         
+        if (!response.ok) {
+            const text = await response.text();
+            try {
+                const errData = JSON.parse(text);
+                alert(errData.error || 'Error saving bio. Please try again.');
+            } catch {
+                alert('Error saving bio. Please refresh the page and try again.');
+            }
+            return;
+        }
+        
         const result = await response.json();
         if (result.success) {
             window.location.reload();
         } else {
-            alert('Error saving bio');
+            alert(result.error || 'Error saving bio');
         }
     } catch (error) {
-        alert('Error: ' + error.message);
+        alert('Error saving bio. Please refresh the page and try again.');
     }
 }
 
@@ -1714,14 +1725,25 @@ document.getElementById('alt-bio-form').addEventListener('submit', async (e) => 
             body: JSON.stringify(data)
         });
         
+        if (!response.ok) {
+            const text = await response.text();
+            try {
+                const errData = JSON.parse(text);
+                alert(errData.error || 'Error saving alternate bio. Please try again.');
+            } catch {
+                alert('Error saving alternate bio. Please refresh the page and try again.');
+            }
+            return;
+        }
+        
         const result = await response.json();
         if (result.success) {
             window.location.reload();
         } else {
-            alert('Error saving alternate bio');
+            alert(result.error || 'Error saving alternate bio');
         }
     } catch (error) {
-        alert('Error: ' + error.message);
+        alert('Error saving bio. Please refresh the page and try again.');
     }
 });
 
