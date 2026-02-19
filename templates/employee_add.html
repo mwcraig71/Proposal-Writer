@@ -97,13 +97,13 @@
                 
                 <div class="space-y-4 border rounded-lg p-3 bg-gray-50" id="cert-checklist-container">
                     
-                    <div class="grid grid-cols-2 gap-4">
-                        <div data-category="SPRAT" class="p-2 bg-white rounded">
-                            <h4 class="font-medium text-gray-700 text-sm mb-2">SPRAT</h4>
+                    <div data-category="Access" class="p-2 bg-white rounded">
+                        <h4 class="font-medium text-gray-700 text-sm mb-2">Access (UAS / SPRAT / Aerial Lift)</h4>
+                        <div class="grid grid-cols-2 gap-2">
                             <div class="flex items-center gap-2">
                                 <label class="flex items-center text-sm cursor-pointer">
                                     <input type="checkbox" name="has_sprat" id="has_sprat" class="mr-2 text-blue-600" onchange="toggleSpratLevel()">
-                                    <span>Certified</span>
+                                    <span>SPRAT</span>
                                 </label>
                                 <select name="sprat_level" id="sprat_level" class="p-1 border rounded text-sm flex-1" disabled>
                                     <option value="">Level</option>
@@ -112,18 +112,16 @@
                                     <option value="3">3</option>
                                 </select>
                             </div>
-                        </div>
-                        
-                        <div data-category="Drone" class="p-2 bg-white rounded">
-                            <h4 class="font-medium text-gray-700 text-sm mb-2">Drone/FAA</h4>
-                            {% if cert_types_grouped.get('Drone') %}
-                            {% for ct in cert_types_grouped.get('Drone') %}
-                            <label class="flex items-center text-sm cursor-pointer">
-                                <input type="checkbox" name="cert_types" value="{{ ct.id }}" class="mr-2 text-blue-600">
-                                <span>{{ ct.name }}</span>
-                            </label>
-                            {% endfor %}
-                            {% endif %}
+                            <div>
+                                {% if cert_types_grouped.get('Access') %}
+                                {% for ct in cert_types_grouped.get('Access') %}
+                                <label class="flex items-center text-sm cursor-pointer">
+                                    <input type="checkbox" name="cert_types" value="{{ ct.id }}" class="mr-2 text-blue-600">
+                                    <span>{{ ct.name }}</span>
+                                </label>
+                                {% endfor %}
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
                     
@@ -241,10 +239,9 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Category *</label>
                     <select id="new-cert-category" required class="w-full p-2 border rounded-lg">
-                        <option value="NHI">NHI Training</option>
+                        <option value="NHI">NHI Class</option>
                         <option value="Safety">Safety</option>
-                        <option value="SPRAT">SPRAT</option>
-                        <option value="Drone">Drone/FAA</option>
+                        <option value="Access">Access (UAS / SPRAT / Aerial Lift)</option>
                         <option value="PE License">PE License</option>
                         <option value="Other">Other</option>
                     </select>

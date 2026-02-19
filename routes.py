@@ -567,7 +567,7 @@ def add_employee():
             cert = Certification(
                 employee_id=employee.id,
                 name='SPRAT',
-                category='SPRAT',
+                category='Access',
                 cert_type='certification',
                 level=sprat_level if sprat_level else None,
                 status='active'
@@ -6465,16 +6465,15 @@ def export_certifications_pdf(employee_id, report_type):
         elements.append(Paragraph(f'Generated: {today_date.strftime("%m/%d/%Y")}', subtitle_style))
 
         active_certs = [c for c in certs if c.status != 'expired' and not (c.expiration_date and c.expiration_date < today_date)]
+        cat_order = ['NHI', 'Safety', 'Access', 'PE License', 'Other']
+        cat_labels = {'NHI': 'NHI Class', 'Safety': 'Safety', 'Access': 'Access (UAS / SPRAT / Aerial Lift)', 'PE License': 'PE License', 'Other': 'Other'}
 
         if active_certs:
-            categories = []
-            for c in active_certs:
-                cat = c.category or 'Other'
-                if cat not in categories:
-                    categories.append(cat)
-
-            for cat in categories:
-                elements.append(Paragraph(cat, section_style))
+            for cat in cat_order:
+                cat_items = [c for c in active_certs if (c.category or 'Other') == cat]
+                if not cat_items:
+                    continue
+                elements.append(Paragraph(cat_labels.get(cat, cat), section_style))
                 table_data = [['Name', 'Status', 'License #', 'Expiration', 'PDF']]
                 for c in active_certs:
                     if (c.category or 'Other') == cat:
@@ -6511,72 +6510,59 @@ def export_certifications_pdf(employee_id, report_type):
         elements.append(Paragraph(f'Generated: {today_date.strftime("%m/%d/%Y")}', subtitle_style))
 
         deadline_certs = sorted([c for c in certs if c.expiration_date], key=lambda x: x.expiration_date)
+        dl_cat_order = ['NHI', 'Safety', 'Access', 'PE License', 'Other']
+        dl_cat_labels = {'NHI': 'NHI Class', 'Safety': 'Safety', 'Access': 'Access (UAS / SPRAT / Aerial Lift)', 'PE License': 'PE License', 'Other': 'Other'}
+        has_any = False
 
-        expired_certs = [c for c in deadline_certs if c.expiration_date < today_date]
-        if expired_certs:
-            elements.append(Paragraph('Expired', section_style))
-            table_data = [['Name', 'Category', 'Expired On', 'Days Overdue', 'License #']]
-            for c in expired_certs:
-                name_str = c.name
-                if c.state:
-                    name_str += f' ({c.state})'
-                days_over = (today_date - c.expiration_date).days
-                table_data.append([name_str, c.category or '-', c.expiration_date.strftime('%m/%d/%Y'), str(days_over), c.license_number or '-'])
+        for cat in dl_cat_order:
+            cat_dl = [c for c in deadline_certs if (c.category or 'Other') == cat]
+            if not cat_dl:
+                continue
+            has_any = True
+            elements.append(Paragraph(dl_cat_labels.get(cat, cat), section_style))
 
-            t = Table(table_data, colWidths=[2.2*inch, 1.0*inch, 1.0*inch, 1.0*inch, 1.0*inch])
-            t.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#dc2626')),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-                ('FONTSIZE', (0, 0), (-1, -1), 9),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('ALIGN', (2, 0), (-1, -1), 'CENTER'),
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.HexColor('#fef2f2'), colors.HexColor('#fee2e2')]),
-                ('TOPPADDING', (0, 0), (-1, -1), 4),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-            ]))
-            elements.append(t)
-            elements.append(Spacer(1, 12))
-
-        upcoming_certs = [c for c in deadline_certs if c.expiration_date >= today_date]
-        if upcoming_certs:
-            elements.append(Paragraph('Upcoming Renewals', section_style))
-            table_data = [['Name', 'Category', 'Expires On', 'Days Left', 'License #']]
-            for c in upcoming_certs:
-                name_str = c.name
-                if c.state:
-                    name_str += f' ({c.state})'
-                days_left = (c.expiration_date - today_date).days
-                table_data.append([name_str, c.category or '-', c.expiration_date.strftime('%m/%d/%Y'), str(days_left), c.license_number or '-'])
-
-            t = Table(table_data, colWidths=[2.2*inch, 1.0*inch, 1.0*inch, 1.0*inch, 1.0*inch])
+            table_data = [['Name', 'Status', 'Date', 'Days', 'License #']]
             row_colors = []
-            for i, c in enumerate(upcoming_certs):
-                days_left = (c.expiration_date - today_date).days
-                if days_left <= 30:
-                    row_colors.append(colors.HexColor('#fff7ed'))
-                elif days_left <= 90:
-                    row_colors.append(colors.HexColor('#fefce8'))
+            for c in cat_dl:
+                name_str = c.name
+                if c.state:
+                    name_str += f' ({c.state})'
+                days = (c.expiration_date - today_date).days
+                if days < 0:
+                    status_str = 'EXPIRED'
+                    date_str = c.expiration_date.strftime('%m/%d/%Y')
+                    days_str = f'{-days} overdue'
+                    row_colors.append(colors.HexColor('#fee2e2'))
                 else:
-                    row_colors.append(colors.white)
+                    status_str = 'Active'
+                    date_str = c.expiration_date.strftime('%m/%d/%Y')
+                    days_str = f'{days} left'
+                    if days <= 30:
+                        row_colors.append(colors.HexColor('#fff7ed'))
+                    elif days <= 90:
+                        row_colors.append(colors.HexColor('#fefce8'))
+                    else:
+                        row_colors.append(colors.white)
+                table_data.append([name_str, status_str, date_str, days_str, c.license_number or '-'])
 
+            t = Table(table_data, colWidths=[2.2*inch, 0.8*inch, 1.0*inch, 1.0*inch, 1.2*inch])
             style_cmds = [
                 ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#d97706')),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
                 ('FONTSIZE', (0, 0), (-1, -1), 9),
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('ALIGN', (2, 0), (-1, -1), 'CENTER'),
+                ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
                 ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
                 ('TOPPADDING', (0, 0), (-1, -1), 4),
                 ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
             ]
             for i, bg in enumerate(row_colors):
                 style_cmds.append(('BACKGROUND', (0, i+1), (-1, i+1), bg))
-
             t.setStyle(TableStyle(style_cmds))
             elements.append(t)
+            elements.append(Spacer(1, 6))
 
-        if not expired_certs and not upcoming_certs:
+        if not has_any:
             elements.append(Paragraph('No certifications with expiration dates.', styles['Normal']))
 
     else:
@@ -6649,10 +6635,8 @@ def import_certifications_csv():
                 current_category = 'NHI'
             elif 'Safety' in col0:
                 current_category = 'Safety'
-            elif 'SPRAT' in col0:
-                current_category = 'SPRAT'
-            elif 'Drone' in col0:
-                current_category = 'Drone'
+            elif 'SPRAT' in col0 or 'Drone' in col0 or 'UAS' in col0 or 'Aerial' in col0 or 'Access' in col0:
+                current_category = 'Access'
             elif 'PE' in col0 or 'COA' in col0:
                 current_category = 'PE License'
             continue
@@ -6752,7 +6736,7 @@ def seed_certification_types():
                 name=cert.name,
                 category=cert.category or 'Other',
                 cert_type=cert.cert_type or 'certification',
-                has_levels=(cert.category == 'SPRAT'),
+                has_levels=(cert.category == 'Access'),
                 has_expiration=(cert.category != 'NHI')  # NHI training doesn't typically expire
             )
             db.session.add(cert_type)
