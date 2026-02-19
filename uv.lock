@@ -1843,6 +1843,7 @@ dependencies = [
     { name = "python-docx" },
     { name = "python-magic" },
     { name = "replit-object-storage" },
+    { name = "reportlab" },
     { name = "requests" },
     { name = "sift-stack-py" },
     { name = "sqlalchemy" },
@@ -1868,6 +1869,7 @@ requires-dist = [
     { name = "python-docx", specifier = ">=1.2.0" },
     { name = "python-magic", specifier = ">=0.4.27" },
     { name = "replit-object-storage", specifier = ">=1.0.2" },
+    { name = "reportlab", specifier = ">=4.4.10" },
     { name = "requests", specifier = ">=2.32.5" },
     { name = "sift-stack-py", specifier = ">=0.9.6" },
     { name = "sqlalchemy", specifier = ">=2.0.46" },
@@ -1887,6 +1889,19 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/5a/3c/e4a79901536c6b3801072eb92b2a29a0c2b99471ac75ba92271a7cad568e/replit_object_storage-1.0.2.tar.gz", hash = "sha256:ee51c759e0361d6fd6dffc847b9d5019c5572ee6490166aa66ab6001ed70595d", size = 4720, upload-time = "2024-07-22T22:29:13.98Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/40/0d/844005c9a92b288afc4ca551efcefedb280c4af53b842a33e51129c72e7e/replit_object_storage-1.0.2-py3-none-any.whl", hash = "sha256:de9791d50b9c1197e32224d641529fe0d1b3b3e8fafb20d235f2916dac34cfca", size = 5691, upload-time = "2024-07-22T22:29:12.725Z" },
+]
+
+[[package]]
+name = "reportlab"
+version = "4.4.10"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "charset-normalizer" },
+    { name = "pillow" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/48/57/28bfbf0a775b618b6e4d854ef8dd3f5c8988e5d614d8898703502a35f61c/reportlab-4.4.10.tar.gz", hash = "sha256:5cbbb34ac3546039d0086deb2938cdec06b12da3cdb836e813258eb33cd28487", size = 3714962, upload-time = "2026-02-12T10:45:21.325Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8a/2e/e1798b8b248e1517e74c6cdf10dd6edd485044e7edf46b5f11ffcc5a0add/reportlab-4.4.10-py3-none-any.whl", hash = "sha256:5abc815746ae2bc44e7ff25db96814f921349ca814c992c7eac3c26029bf7c24", size = 1955400, upload-time = "2026-02-12T10:45:18.828Z" },
 ]
 
 [[package]]

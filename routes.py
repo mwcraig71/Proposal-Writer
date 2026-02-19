@@ -6436,6 +6436,161 @@ def delete_certification_pdf(cert_id):
     return redirect(url_for('employee_certifications', employee_id=cert.employee_id))
 
 
+@app.route('/certifications/<int:employee_id>/export-pdf/<report_type>')
+def export_certifications_pdf(employee_id, report_type):
+    from datetime import date
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    import io
+
+    employee = Employee.query.get_or_404(employee_id)
+    certs = Certification.query.filter_by(employee_id=employee_id).order_by(Certification.category, Certification.name).all()
+    today_date = date.today()
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.5*inch, bottomMargin=0.5*inch)
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'], fontSize=16, spaceAfter=6)
+    subtitle_style = ParagraphStyle('Subtitle', parent=styles['Normal'], fontSize=10, textColor=colors.grey, spaceAfter=12)
+    section_style = ParagraphStyle('Section', parent=styles['Heading2'], fontSize=13, spaceAfter=6, spaceBefore=12)
+
+    elements = []
+
+    if report_type == 'on_file':
+        elements.append(Paragraph(f'Certifications on File', title_style))
+        elements.append(Paragraph(f'{employee.name} | {employee.title or ""}' + (f' | {employee.firm.name}' if employee.firm else ''), subtitle_style))
+        elements.append(Paragraph(f'Generated: {today_date.strftime("%m/%d/%Y")}', subtitle_style))
+
+        active_certs = [c for c in certs if c.status != 'expired' and not (c.expiration_date and c.expiration_date < today_date)]
+
+        if active_certs:
+            categories = []
+            for c in active_certs:
+                cat = c.category or 'Other'
+                if cat not in categories:
+                    categories.append(cat)
+
+            for cat in categories:
+                elements.append(Paragraph(cat, section_style))
+                table_data = [['Name', 'Status', 'License #', 'Expiration', 'PDF']]
+                for c in active_certs:
+                    if (c.category or 'Other') == cat:
+                        name_str = c.name
+                        if c.state:
+                            name_str += f' ({c.state})'
+                        if c.level:
+                            name_str += f' - Level {c.level}'
+                        exp_str = c.expiration_date.strftime('%m/%d/%Y') if c.expiration_date else '-'
+                        pdf_str = 'Yes' if c.pdf_content else 'No'
+                        table_data.append([name_str, c.status or '-', c.license_number or '-', exp_str, pdf_str])
+
+                t = Table(table_data, colWidths=[2.5*inch, 0.9*inch, 1.2*inch, 1.0*inch, 0.5*inch])
+                t.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2d6a4f')),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                    ('FONTSIZE', (0, 0), (-1, -1), 9),
+                    ('FONTSIZE', (0, 0), (-1, 0), 9),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f0f0f0')]),
+                    ('TOPPADDING', (0, 0), (-1, -1), 4),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+                ]))
+                elements.append(t)
+                elements.append(Spacer(1, 6))
+        else:
+            elements.append(Paragraph('No active certifications on file.', styles['Normal']))
+
+    elif report_type == 'deadlines':
+        elements.append(Paragraph(f'Renewal Deadlines & Expired Certifications', title_style))
+        elements.append(Paragraph(f'{employee.name} | {employee.title or ""}' + (f' | {employee.firm.name}' if employee.firm else ''), subtitle_style))
+        elements.append(Paragraph(f'Generated: {today_date.strftime("%m/%d/%Y")}', subtitle_style))
+
+        deadline_certs = sorted([c for c in certs if c.expiration_date], key=lambda x: x.expiration_date)
+
+        expired_certs = [c for c in deadline_certs if c.expiration_date < today_date]
+        if expired_certs:
+            elements.append(Paragraph('Expired', section_style))
+            table_data = [['Name', 'Category', 'Expired On', 'Days Overdue', 'License #']]
+            for c in expired_certs:
+                name_str = c.name
+                if c.state:
+                    name_str += f' ({c.state})'
+                days_over = (today_date - c.expiration_date).days
+                table_data.append([name_str, c.category or '-', c.expiration_date.strftime('%m/%d/%Y'), str(days_over), c.license_number or '-'])
+
+            t = Table(table_data, colWidths=[2.2*inch, 1.0*inch, 1.0*inch, 1.0*inch, 1.0*inch])
+            t.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#dc2626')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('FONTSIZE', (0, 0), (-1, -1), 9),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('ALIGN', (2, 0), (-1, -1), 'CENTER'),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.HexColor('#fef2f2'), colors.HexColor('#fee2e2')]),
+                ('TOPPADDING', (0, 0), (-1, -1), 4),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ]))
+            elements.append(t)
+            elements.append(Spacer(1, 12))
+
+        upcoming_certs = [c for c in deadline_certs if c.expiration_date >= today_date]
+        if upcoming_certs:
+            elements.append(Paragraph('Upcoming Renewals', section_style))
+            table_data = [['Name', 'Category', 'Expires On', 'Days Left', 'License #']]
+            for c in upcoming_certs:
+                name_str = c.name
+                if c.state:
+                    name_str += f' ({c.state})'
+                days_left = (c.expiration_date - today_date).days
+                table_data.append([name_str, c.category or '-', c.expiration_date.strftime('%m/%d/%Y'), str(days_left), c.license_number or '-'])
+
+            t = Table(table_data, colWidths=[2.2*inch, 1.0*inch, 1.0*inch, 1.0*inch, 1.0*inch])
+            row_colors = []
+            for i, c in enumerate(upcoming_certs):
+                days_left = (c.expiration_date - today_date).days
+                if days_left <= 30:
+                    row_colors.append(colors.HexColor('#fff7ed'))
+                elif days_left <= 90:
+                    row_colors.append(colors.HexColor('#fefce8'))
+                else:
+                    row_colors.append(colors.white)
+
+            style_cmds = [
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#d97706')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('FONTSIZE', (0, 0), (-1, -1), 9),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('ALIGN', (2, 0), (-1, -1), 'CENTER'),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                ('TOPPADDING', (0, 0), (-1, -1), 4),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ]
+            for i, bg in enumerate(row_colors):
+                style_cmds.append(('BACKGROUND', (0, i+1), (-1, i+1), bg))
+
+            t.setStyle(TableStyle(style_cmds))
+            elements.append(t)
+
+        if not expired_certs and not upcoming_certs:
+            elements.append(Paragraph('No certifications with expiration dates.', styles['Normal']))
+
+    else:
+        elements.append(Paragraph('Invalid report type.', styles['Normal']))
+
+    doc.build(elements)
+    buffer.seek(0)
+
+    safe_name = employee.name.replace(' ', '_')
+    filename = f'{safe_name}_{report_type}_certifications.pdf'
+
+    return send_file(buffer, mimetype='application/pdf', as_attachment=True, download_name=filename)
+
+
 @app.route('/certifications/import-csv', methods=['POST'])
 def import_certifications_csv():
     import csv
