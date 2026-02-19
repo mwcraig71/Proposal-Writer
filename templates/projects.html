@@ -8,7 +8,10 @@
         <h1 class="text-3xl font-bold text-gray-800 mb-2">Projects Database</h1>
         <p class="text-gray-600">Manage example projects for SF330 Section F</p>
     </div>
-    <div class="flex gap-3">
+    <div class="flex gap-3 items-center">
+        <a href="/projects{% if not show_archived %}?show_archived=1{% endif %}" class="px-4 py-2 rounded-lg border transition {% if show_archived %}bg-amber-100 border-amber-300 text-amber-800{% else %}bg-white border-gray-300 text-gray-600 hover:bg-gray-50{% endif %}">
+            <i class="fas fa-archive mr-2"></i> {% if show_archived %}Showing Archived{% else %}Show Archived{% endif %}
+        </a>
         <button id="mergeSelectedBtn" onclick="mergeSelected()" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition hidden">
             <i class="fas fa-code-merge mr-2"></i> Merge Selected
         </button>
@@ -98,7 +101,7 @@
                             {% else %}
                             <i class="fas fa-file-contract text-blue-500 mr-2 text-xs"></i>
                             {% endif %}
-                            <span class="font-medium text-gray-900 truncate" title="{{ project.title }}">{{ project.title }}</span>
+                            <span class="font-medium text-gray-900 truncate" title="{{ project.title }}">{{ project.title }}{% if project.archived %} <span class="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">Archived</span>{% endif %}</span>
                         </div>
                         {% if item.is_task_order %}
                         <span class="ml-6 text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">Task Order</span>
@@ -119,9 +122,15 @@
                             <a href="/projects/{{ project.id }}" class="text-blue-600 hover:text-blue-800" title="Edit">
                                 <i class="fas fa-edit"></i>
                             </a>
-                            <button onclick="deleteProject({{ project.id }}, '{{ project.title | e }}')" class="text-red-600 hover:text-red-800" title="Delete">
-                                <i class="fas fa-trash"></i>
+                            {% if project.archived %}
+                            <button onclick="restoreProject({{ project.id }}, '{{ project.title | e }}')" class="text-green-600 hover:text-green-800" title="Restore">
+                                <i class="fas fa-undo"></i>
                             </button>
+                            {% else %}
+                            <button onclick="archiveProject({{ project.id }}, '{{ project.title | e }}')" class="text-amber-600 hover:text-amber-800" title="Archive">
+                                <i class="fas fa-archive"></i>
+                            </button>
+                            {% endif %}
                         </div>
                     </td>
                 </tr>
@@ -164,7 +173,7 @@
                             {% else %}
                             <i class="fas fa-file-contract text-blue-500 mr-2 text-xs"></i>
                             {% endif %}
-                            <span class="font-medium text-gray-900 truncate" title="{{ project.title }}">{{ project.title }}</span>
+                            <span class="font-medium text-gray-900 truncate" title="{{ project.title }}">{{ project.title }}{% if project.archived %} <span class="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">Archived</span>{% endif %}</span>
                         </div>
                         {% if item.is_task_order %}
                         <span class="ml-6 text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">Task Order</span>
@@ -179,9 +188,15 @@
                             <a href="/projects/{{ project.id }}" class="text-blue-600 hover:text-blue-800" title="Edit">
                                 <i class="fas fa-edit"></i>
                             </a>
-                            <button onclick="deleteProject({{ project.id }}, '{{ project.title | e }}')" class="text-red-600 hover:text-red-800" title="Delete">
-                                <i class="fas fa-trash"></i>
+                            {% if project.archived %}
+                            <button onclick="restoreProject({{ project.id }}, '{{ project.title | e }}')" class="text-green-600 hover:text-green-800" title="Restore">
+                                <i class="fas fa-undo"></i>
                             </button>
+                            {% else %}
+                            <button onclick="archiveProject({{ project.id }}, '{{ project.title | e }}')" class="text-amber-600 hover:text-amber-800" title="Archive">
+                                <i class="fas fa-archive"></i>
+                            </button>
+                            {% endif %}
                         </div>
                     </td>
                 </tr>
@@ -231,7 +246,7 @@
                             {% else %}
                             <i class="fas fa-file-contract text-blue-500 mr-2 text-xs"></i>
                             {% endif %}
-                            <span class="font-medium text-gray-900 truncate" title="{{ project.title }}">{{ project.title }}</span>
+                            <span class="font-medium text-gray-900 truncate" title="{{ project.title }}">{{ project.title }}{% if project.archived %} <span class="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">Archived</span>{% endif %}</span>
                         </div>
                         {% if item.is_task_order %}
                         <span class="ml-6 text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">Task Order</span>
@@ -246,9 +261,15 @@
                             <a href="/projects/{{ project.id }}" class="text-blue-600 hover:text-blue-800" title="Edit">
                                 <i class="fas fa-edit"></i>
                             </a>
-                            <button onclick="deleteProject({{ project.id }}, '{{ project.title | e }}')" class="text-red-600 hover:text-red-800" title="Delete">
-                                <i class="fas fa-trash"></i>
+                            {% if project.archived %}
+                            <button onclick="restoreProject({{ project.id }}, '{{ project.title | e }}')" class="text-green-600 hover:text-green-800" title="Restore">
+                                <i class="fas fa-undo"></i>
                             </button>
+                            {% else %}
+                            <button onclick="archiveProject({{ project.id }}, '{{ project.title | e }}')" class="text-amber-600 hover:text-amber-800" title="Archive">
+                                <i class="fas fa-archive"></i>
+                            </button>
+                            {% endif %}
                         </div>
                     </td>
                 </tr>
@@ -376,8 +397,8 @@ function mergeSelected() {
     window.location.href = `/projects/merge-duplicates?ids=${ids.join(',')}`;
 }
 
-async function deleteProject(id, title) {
-    if (!confirm(`Are you sure you want to delete "${title}"? This action cannot be undone.`)) {
+async function archiveProject(id, title) {
+    if (!confirm(`Archive "${title}"? It will be hidden from lists but can be restored later.`)) {
         return;
     }
     
@@ -390,10 +411,31 @@ async function deleteProject(id, title) {
             location.reload();
         } else {
             const data = await response.json();
-            alert(data.error || 'Failed to delete project');
+            alert(data.error || 'Failed to archive project');
         }
     } catch (error) {
-        alert('Error deleting project: ' + error.message);
+        alert('Error archiving project: ' + error.message);
+    }
+}
+
+async function restoreProject(id, title) {
+    if (!confirm(`Restore "${title}" from archive?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/projects/${id}/restore`, {
+            method: 'POST'
+        });
+        
+        if (response.ok) {
+            location.reload();
+        } else {
+            const data = await response.json();
+            alert(data.error || 'Failed to restore project');
+        }
+    } catch (error) {
+        alert('Error restoring project: ' + error.message);
     }
 }
 

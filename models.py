@@ -91,6 +91,7 @@ class Employee(db.Model):
     other_qualifications = db.Column(db.Text)
     city = db.Column(db.String(100))
     state = db.Column(db.String(50))
+    archived = db.Column(db.Boolean, default=False, nullable=False, server_default='false')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -196,6 +197,7 @@ class Project(db.Model):
     other_firm_name = db.Column(db.String(255))
     project_type = db.Column(db.String(50), default='contract')
     parent_contract_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=True)
+    archived = db.Column(db.Boolean, default=False, nullable=False, server_default='false')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     

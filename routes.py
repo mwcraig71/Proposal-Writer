@@ -407,7 +407,11 @@ def save_parsed_data():
 
 @app.route('/employees')
 def employees():
-    employees = Employee.query.order_by(Employee.name).all()
+    show_archived = request.args.get('show_archived', '0') == '1'
+    if show_archived:
+        employees = Employee.query.order_by(Employee.name).all()
+    else:
+        employees = Employee.query.filter(Employee.archived != True).order_by(Employee.name).all()
     firms = Firm.query.order_by(Firm.name).all()
     
     # Group employees by firm
@@ -442,7 +446,8 @@ def employees():
         })
     
     return render_template('employees.html', employees=employees, firms=firms, firm_data=firm_data, 
-                          unassigned_employees=unassigned_employees, firm_colors=firm_colors)
+                          unassigned_employees=unassigned_employees, firm_colors=firm_colors,
+                          show_archived=show_archived)
 
 
 @app.route('/employees/scrape-website', methods=['POST'])
@@ -2108,10 +2113,15 @@ def rewrite_experience_description():
 @app.route('/employees/<int:id>', methods=['DELETE'])
 def delete_employee(id):
     employee = Employee.query.get_or_404(id)
-    EmployeeProjectExperience.query.filter_by(employee_id=id).delete()
-    EmployeeProjectLink.query.filter_by(employee_id=id).delete()
-    ProposalSelectedEmployee.query.filter_by(employee_id=id).delete()
-    db.session.delete(employee)
+    employee.archived = True
+    db.session.commit()
+    return jsonify({'success': True, 'archived': True})
+
+
+@app.route('/employees/<int:id>/restore', methods=['POST'])
+def restore_employee(id):
+    employee = Employee.query.get_or_404(id)
+    employee.archived = False
     db.session.commit()
     return jsonify({'success': True})
 
@@ -2238,7 +2248,11 @@ def organize_projects_hierarchically(project_list):
 
 @app.route('/projects')
 def projects():
-    all_projects = Project.query.order_by(Project.title).all()
+    show_archived = request.args.get('show_archived', '0') == '1'
+    if show_archived:
+        all_projects = Project.query.order_by(Project.title).all()
+    else:
+        all_projects = Project.query.filter(Project.archived != True).order_by(Project.title).all()
     firms = Firm.query.order_by(Firm.name).all()
     
     hierarchical_projects = organize_projects_hierarchically(all_projects)
@@ -2282,7 +2296,7 @@ def projects():
     return render_template('projects.html', projects=all_projects, hierarchical_projects=hierarchical_projects,
                           firms=firms, firm_data=firm_data, 
                           unassigned_projects=unassigned_projects, unassigned_hierarchical=unassigned_hierarchical,
-                          firm_colors=firm_colors)
+                          firm_colors=firm_colors, show_archived=show_archived)
 
 
 @app.route('/projects/add', methods=['GET', 'POST'])
@@ -2427,10 +2441,15 @@ def update_project(id):
 @app.route('/projects/<int:id>', methods=['DELETE'])
 def delete_project(id):
     project = Project.query.get_or_404(id)
-    EmployeeProjectLink.query.filter_by(project_id=id).delete()
-    ProposalEmployeeRelevantProject.query.filter_by(project_id=id).delete()
-    ProposalSelectedProject.query.filter_by(project_id=id).delete()
-    db.session.delete(project)
+    project.archived = True
+    db.session.commit()
+    return jsonify({'success': True, 'archived': True})
+
+
+@app.route('/projects/<int:id>/restore', methods=['POST'])
+def restore_project(id):
+    project = Project.query.get_or_404(id)
+    project.archived = False
     db.session.commit()
     return jsonify({'success': True})
 
@@ -8167,7 +8186,7 @@ def api_delete_saved_orgchart(chart_id):
 @app.route('/api/projects/list', methods=['GET'])
 def api_projects_list():
     """Get list of all projects for bulk assignment"""
-    projects = Project.query.order_by(Project.title).all()
+    projects = Project.query.filter(Project.archived != True).order_by(Project.title).all()
     return jsonify([{
         'id': p.id,
         'title': p.title,
@@ -8357,7 +8376,7 @@ Please write a response of approximately {word_limit} words. Be professional, hi
 @app.route('/api/employees/list', methods=['GET'])
 def api_employees_list():
     """Get list of all employees for selection"""
-    employees = Employee.query.order_by(Employee.name).all()
+    employees = Employee.query.filter(Employee.archived != True).order_by(Employee.name).all()
     return jsonify([{
         'id': e.id,
         'name': e.display_name,
@@ -9578,7 +9597,7 @@ def references_page():
     """Display the References management page"""
     clients = db.session.query(Reference.client).distinct().filter(Reference.client.isnot(None), Reference.client != '').order_by(Reference.client).all()
     firms = db.session.query(Reference.firm).distinct().filter(Reference.firm.isnot(None), Reference.firm != '').order_by(Reference.firm).all()
-    employees = Employee.query.order_by(Employee.name).all()
+    employees = Employee.query.filter(Employee.archived != True).order_by(Employee.name).all()
     proposals = Proposal.query.order_by(Proposal.name).all()
     
     client_filter = request.args.get('client', '')
@@ -10555,7 +10574,7 @@ Return valid JSON with this exact structure:
 @app.route('/api/graphic-data/employees', methods=['GET'])
 @login_required
 def api_graphic_employees():
-    employees = Employee.query.order_by(Employee.name).all()
+    employees = Employee.query.filter(Employee.archived != True).order_by(Employee.name).all()
     result = []
     for e in employees:
         result.append({
@@ -10576,7 +10595,7 @@ def api_graphic_employees():
 @app.route('/api/graphic-data/projects', methods=['GET'])
 @login_required
 def api_graphic_projects():
-    projects = Project.query.order_by(Project.title).all()
+    projects = Project.query.filter(Project.archived != True).order_by(Project.title).all()
     result = []
     for p in projects:
         result.append({
