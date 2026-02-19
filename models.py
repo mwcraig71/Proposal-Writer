@@ -280,6 +280,7 @@ class Proposal(db.Model):
     org_chart_notes = db.Column(db.Text)  # Global notes for the org chart
     saved_org_chart_id = db.Column(db.Integer, db.ForeignKey('saved_org_charts.id'), nullable=True)
     status = db.Column(db.String(50), default='draft')
+    archived = db.Column(db.Boolean, default=False, nullable=False, server_default='false')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     

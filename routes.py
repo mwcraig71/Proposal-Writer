@@ -3328,8 +3328,11 @@ def delete_firm_alternate_description(alt_id):
 def proposals():
     search = request.args.get('search', '').strip()
     status_filter = request.args.get('status', '')
+    show_archived = request.args.get('show_archived', '0') == '1'
     
     query = Proposal.query
+    if not show_archived:
+        query = query.filter(Proposal.archived != True)
     
     if search:
         search_term = f'%{search}%'
@@ -3346,7 +3349,7 @@ def proposals():
         query = query.filter(Proposal.status == status_filter)
     
     proposals = query.order_by(Proposal.updated_at.desc()).all()
-    return render_template('proposals.html', proposals=proposals, search=search, status_filter=status_filter)
+    return render_template('proposals.html', proposals=proposals, search=search, status_filter=status_filter, show_archived=show_archived)
 
 
 @app.route('/proposals/parse-rfp', methods=['POST'])
@@ -4213,29 +4216,24 @@ def delete_proposal(id):
     proposal = Proposal.query.get_or_404(id)
     
     try:
-        pse_ids = [pse.id for pse in ProposalSelectedEmployee.query.filter_by(proposal_id=id).all()]
-        if pse_ids:
-            ProposalEmployeeRelevantProject.query.filter(ProposalEmployeeRelevantProject.proposal_selected_employee_id.in_(pse_ids)).delete(synchronize_session=False)
-        
-        ProposalLinkedResponse.query.filter_by(proposal_id=id).delete()
-        ProposalLinkedReference.query.filter_by(proposal_id=id).delete()
-        ProposalSavedResponse.query.filter_by(proposal_id=id).delete()
-        ProposalSelectedEmployee.query.filter_by(proposal_id=id).delete()
-        ProposalSelectedProject.query.filter_by(proposal_id=id).delete()
-        ProposalSelectedFirmPhoto.query.filter_by(proposal_id=id).delete()
-        ProposalSelectedMarketingPhoto.query.filter_by(proposal_id=id).delete()
-        ProposalReference.query.filter_by(proposal_id=id).delete()
-        ProposalIntelligence.query.filter_by(proposal_id=id).delete()
-        
-        db.session.delete(proposal)
+        proposal.archived = True
         db.session.commit()
         
-        flash(f'Proposal "{proposal.name}" has been deleted.', 'success')
+        flash(f'Proposal "{proposal.name}" has been archived.', 'success')
     except Exception as e:
         db.session.rollback()
-        flash(f'Error deleting proposal: {str(e)}', 'error')
+        flash(f'Error archiving proposal: {str(e)}', 'error')
     
     return redirect('/proposals')
+
+
+@app.route('/proposals/<int:id>/restore', methods=['POST'])
+def restore_proposal(id):
+    proposal = Proposal.query.get_or_404(id)
+    proposal.archived = False
+    db.session.commit()
+    flash(f'Proposal "{proposal.name}" has been restored.', 'success')
+    return redirect('/proposals?show_archived=1')
 
 
 @app.route('/proposals/<int:id>/export-json')
