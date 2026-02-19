@@ -6510,32 +6510,21 @@ def export_certifications_pdf(employee_id, report_type):
         elements.append(Paragraph(f'Generated: {today_date.strftime("%m/%d/%Y")}', subtitle_style))
 
         deadline_certs = sorted([c for c in certs if c.expiration_date], key=lambda x: x.expiration_date)
-        dl_cat_order = ['NHI', 'Safety', 'Access', 'PE License', 'Other']
-        dl_cat_labels = {'NHI': 'NHI Class', 'Safety': 'Safety', 'Access': 'Access (UAS / SPRAT / Aerial Lift)', 'PE License': 'PE License', 'Other': 'Other'}
-        has_any = False
 
-        for cat in dl_cat_order:
-            cat_dl = [c for c in deadline_certs if (c.category or 'Other') == cat]
-            if not cat_dl:
-                continue
-            has_any = True
-            elements.append(Paragraph(dl_cat_labels.get(cat, cat), section_style))
-
+        if deadline_certs:
             table_data = [['Name', 'Status', 'Date', 'Days', 'License #']]
             row_colors = []
-            for c in cat_dl:
+            for c in deadline_certs:
                 name_str = c.name
                 if c.state:
                     name_str += f' ({c.state})'
                 days = (c.expiration_date - today_date).days
                 if days < 0:
                     status_str = 'EXPIRED'
-                    date_str = c.expiration_date.strftime('%m/%d/%Y')
                     days_str = f'{-days} overdue'
                     row_colors.append(colors.HexColor('#fee2e2'))
                 else:
                     status_str = 'Active'
-                    date_str = c.expiration_date.strftime('%m/%d/%Y')
                     days_str = f'{days} left'
                     if days <= 30:
                         row_colors.append(colors.HexColor('#fff7ed'))
@@ -6543,7 +6532,7 @@ def export_certifications_pdf(employee_id, report_type):
                         row_colors.append(colors.HexColor('#fefce8'))
                     else:
                         row_colors.append(colors.white)
-                table_data.append([name_str, status_str, date_str, days_str, c.license_number or '-'])
+                table_data.append([name_str, status_str, c.expiration_date.strftime('%m/%d/%Y'), days_str, c.license_number or '-'])
 
             t = Table(table_data, colWidths=[2.2*inch, 0.8*inch, 1.0*inch, 1.0*inch, 1.2*inch])
             style_cmds = [
@@ -6560,9 +6549,7 @@ def export_certifications_pdf(employee_id, report_type):
                 style_cmds.append(('BACKGROUND', (0, i+1), (-1, i+1), bg))
             t.setStyle(TableStyle(style_cmds))
             elements.append(t)
-            elements.append(Spacer(1, 6))
-
-        if not has_any:
+        else:
             elements.append(Paragraph('No certifications with expiration dates.', styles['Normal']))
 
     else:

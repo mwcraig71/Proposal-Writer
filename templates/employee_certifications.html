@@ -118,27 +118,14 @@
                     <i class="fas fa-file-pdf mr-1"></i>Print PDF
                 </a>
             </div>
-            <div>
-                {% set cat_order_d = ['NHI', 'Safety', 'Access', 'PE License', 'Other'] %}
-                {% set cat_labels_d = {'NHI': 'NHI Class', 'Safety': 'Safety', 'Access': 'Access (UAS / SPRAT / Aerial Lift)', 'PE License': 'PE License', 'Other': 'Other'} %}
-                {% set cat_icons_d = {'NHI': 'fa-graduation-cap', 'Safety': 'fa-hard-hat', 'Access': 'fa-helicopter', 'PE License': 'fa-stamp', 'Other': 'fa-certificate'} %}
-                {% set cat_colors_d = {'NHI': 'bg-blue-600', 'Safety': 'bg-red-600', 'Access': 'bg-purple-600', 'PE License': 'bg-teal-600', 'Other': 'bg-gray-600'} %}
-                {% set deadline_count = [] %}
-                {% for cat in cat_order_d %}
-                {% set cat_deadline = [] %}
+            <div class="divide-y divide-gray-200">
+                {% set deadline_certs = [] %}
                 {% for cert in certifications %}
-                {% if cert.expiration_date and (cert.category or 'Other') == cat %}
-                {% if cat_deadline.append(cert) %}{% endif %}
+                {% if cert.expiration_date %}
+                {% if deadline_certs.append(cert) %}{% endif %}
                 {% endif %}
                 {% endfor %}
-                {% if cat_deadline|length > 0 %}
-                {% if deadline_count.append(1) %}{% endif %}
-                <div class="px-4 py-2 {{ cat_colors_d[cat] }} text-white text-sm font-semibold flex items-center gap-2">
-                    <i class="fas {{ cat_icons_d[cat] }}"></i>{{ cat_labels_d[cat] }}
-                    <span class="bg-white/20 px-1.5 py-0.5 rounded text-xs">{{ cat_deadline|length }}</span>
-                </div>
-                <div class="divide-y divide-gray-200">
-                {% for cert in cat_deadline|sort(attribute='expiration_date') %}
+                {% for cert in deadline_certs|sort(attribute='expiration_date') %}
                 {% set days_until = (cert.expiration_date - today).days %}
                 {% set is_expired = days_until < 0 %}
                 {% set is_urgent = days_until >= 0 and days_until <= 30 %}
@@ -184,10 +171,7 @@
                     </div>
                 </div>
                 {% endfor %}
-                </div>
-                {% endif %}
-                {% endfor %}
-                {% if deadline_count|length == 0 %}
+                {% if deadline_certs|length == 0 %}
                 <div class="px-6 py-8 text-center text-gray-400">
                     <i class="fas fa-clock text-3xl mb-2"></i>
                     <p>No certifications with expiration dates</p>
