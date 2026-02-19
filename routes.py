@@ -7477,7 +7477,6 @@ def serve_firm_document(doc_id):
 
 # Project Documents Routes
 @app.route('/projects/<int:id>/documents', methods=['POST'])
-@login_required
 def upload_project_document(id):
     """Upload a document for a project"""
     from models import ProjectDocument
@@ -7532,7 +7531,6 @@ def upload_project_document(id):
 
 
 @app.route('/projects/<int:id>/documents/<int:doc_id>', methods=['DELETE'])
-@login_required
 def delete_project_document(id, doc_id):
     """Delete a project document"""
     from models import ProjectDocument
@@ -7551,7 +7549,6 @@ def delete_project_document(id, doc_id):
 
 
 @app.route('/projects/<int:id>/documents/<int:doc_id>/description', methods=['PUT'])
-@login_required
 def update_project_document_description(id, doc_id):
     """Update a project document description"""
     from models import ProjectDocument
@@ -7563,7 +7560,6 @@ def update_project_document_description(id, doc_id):
 
 
 @app.route('/api/projects/<int:id>/documents')
-@login_required
 def get_project_documents(id):
     """Get all documents for a project"""
     from models import ProjectDocument
@@ -7580,7 +7576,6 @@ def get_project_documents(id):
 
 
 @app.route('/documents/project/<int:doc_id>')
-@login_required
 def serve_project_document(doc_id):
     """Serve a project document from object storage"""
     from models import ProjectDocument
@@ -7605,7 +7600,6 @@ def serve_project_document(doc_id):
 
 # Employee Documents Routes
 @app.route('/employees/<int:id>/documents', methods=['POST'])
-@login_required
 def upload_employee_document(id):
     """Upload a document for an employee"""
     from models import EmployeeDocument
@@ -7660,7 +7654,6 @@ def upload_employee_document(id):
 
 
 @app.route('/employees/<int:id>/documents/<int:doc_id>', methods=['DELETE'])
-@login_required
 def delete_employee_document(id, doc_id):
     """Delete an employee document"""
     from models import EmployeeDocument
@@ -7679,7 +7672,6 @@ def delete_employee_document(id, doc_id):
 
 
 @app.route('/employees/<int:id>/documents/<int:doc_id>/description', methods=['PUT'])
-@login_required
 def update_employee_document_description(id, doc_id):
     """Update an employee document description"""
     from models import EmployeeDocument
@@ -7691,7 +7683,6 @@ def update_employee_document_description(id, doc_id):
 
 
 @app.route('/api/employees/<int:id>/documents')
-@login_required
 def get_employee_documents(id):
     """Get all documents for an employee"""
     from models import EmployeeDocument
@@ -7708,7 +7699,6 @@ def get_employee_documents(id):
 
 
 @app.route('/documents/employee/<int:doc_id>')
-@login_required
 def serve_employee_document(doc_id):
     """Serve an employee document from object storage"""
     from models import EmployeeDocument
