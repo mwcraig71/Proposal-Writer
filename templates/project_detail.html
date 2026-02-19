@@ -306,6 +306,44 @@
             </div>
         </div>
 
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold text-gray-800"><i class="fas fa-star text-yellow-500 mr-2"></i>Linked Performance References</h2>
+                <button onclick="openProjectRefPicker()" class="text-sm bg-yellow-500 text-white px-3 py-1.5 rounded-lg hover:bg-yellow-600 transition">
+                    <i class="fas fa-plus mr-1"></i> Link Reference
+                </button>
+            </div>
+            <p class="text-sm text-gray-500 mb-3">Performance evaluations and client testimonials linked to this project.</p>
+            <div id="project-linked-refs-list">
+                <p class="text-gray-400 text-sm">Loading...</p>
+            </div>
+        </div>
+
+        <div id="project-ref-picker-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+            <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden mx-4">
+                <div class="flex justify-between items-center p-4 border-b">
+                    <h3 class="text-lg font-semibold">Select a Reference to Link</h3>
+                    <button onclick="closeProjectRefPicker()" class="text-gray-500 hover:text-gray-700"><i class="fas fa-times text-xl"></i></button>
+                </div>
+                <div class="p-4 overflow-y-auto max-h-[60vh]">
+                    <div id="project-ref-picker-list" class="space-y-2">
+                        <p class="text-gray-400 text-sm">Loading references...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="proj-ref-unlink-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+            <div class="bg-white rounded-lg shadow-xl p-6 max-w-sm mx-4">
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">Unlink Reference</h3>
+                <p class="text-gray-600 mb-4">Remove this reference from the project?</p>
+                <div class="flex justify-end gap-3">
+                    <button onclick="cancelUnlinkProjectRef()" class="px-4 py-2 border rounded-lg hover:bg-gray-50 transition text-sm">Cancel</button>
+                    <button onclick="confirmUnlinkProjectRef()" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm">Unlink</button>
+                </div>
+            </div>
+        </div>
+
         <div id="proj-doc-confirm-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
             <div class="bg-white rounded-lg shadow-xl p-6 max-w-sm mx-4">
                 <h3 class="text-lg font-semibold text-gray-800 mb-2">Delete Document</h3>
@@ -725,6 +763,123 @@ async function updateProjectDocDescription(docId, description) {
 }
 
 loadProjectDocuments();
+
+let projRefUnlinkId = null;
+
+function escRef(s) {
+    if (!s) return '';
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+}
+
+async function loadProjectLinkedRefs() {
+    try {
+        const res = await fetch('/api/projects/{{ project.id }}/linked-references');
+        const data = await res.json();
+        const container = document.getElementById('project-linked-refs-list');
+        if (!data.success || !data.references || data.references.length === 0) {
+            container.innerHTML = '<p class="text-gray-400 text-sm">No references linked yet.</p>';
+            return;
+        }
+        container.innerHTML = data.references.map(r => `
+            <div class="border rounded-lg p-3 bg-white mb-2 shadow-sm border-yellow-200">
+                <div class="flex justify-between items-start">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="font-bold text-gray-800 text-sm">${escRef(r.project_name || r.client || 'Performance Reference')}</span>
+                            ${r.final_score ? `<span class="inline-flex items-center justify-center w-7 h-7 rounded-full text-white font-bold text-xs ${r.final_score >= 9 ? 'bg-green-500' : r.final_score >= 7 ? 'bg-blue-500' : 'bg-yellow-500'}">${r.final_score.toFixed(1)}</span>` : ''}
+                        </div>
+                        <div class="flex flex-wrap gap-2 text-xs">
+                            ${r.client ? `<span class="bg-yellow-50 text-yellow-800 px-2 py-0.5 rounded border border-yellow-100">Client: ${escRef(r.client)}</span>` : ''}
+                            ${r.evaluation_date ? `<span class="bg-gray-50 text-gray-700 px-2 py-0.5 rounded border border-gray-100">${new Date(r.evaluation_date).toLocaleDateString('en-US', {month: 'short', year: 'numeric'})}</span>` : ''}
+                        </div>
+                        ${r.quotes ? `<blockquote class="text-gray-600 text-xs italic bg-yellow-50 p-2 rounded mt-2">"${escRef(r.quotes.substring(0, 150))}${r.quotes.length > 150 ? '...' : ''}"</blockquote>` : ''}
+                    </div>
+                    <div class="flex gap-2 ml-2">
+                        ${r.pdf_filename ? `<a href="/references/${r.id}/download-pdf" class="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition" title="Download PDF"><i class="fas fa-download"></i></a>` : ''}
+                        <button onclick="startUnlinkProjectRef(${r.id})" class="p-1.5 text-red-600 hover:bg-red-50 rounded transition" title="Unlink"><i class="fas fa-times"></i></button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    } catch (e) {
+        console.error('Error loading linked references:', e);
+    }
+}
+
+function openProjectRefPicker() {
+    document.getElementById('project-ref-picker-modal').classList.remove('hidden');
+    loadProjectRefPickerList();
+}
+function closeProjectRefPicker() {
+    document.getElementById('project-ref-picker-modal').classList.add('hidden');
+}
+
+async function loadProjectRefPickerList() {
+    try {
+        const [allRes, linkedRes] = await Promise.all([
+            fetch('/api/references/all'),
+            fetch('/api/projects/{{ project.id }}/linked-references')
+        ]);
+        const allData = await allRes.json();
+        const linkedData = await linkedRes.json();
+        const linkedIds = new Set((linkedData.references || []).map(r => r.id));
+        const container = document.getElementById('project-ref-picker-list');
+        const available = (allData.references || []).filter(r => !linkedIds.has(r.id));
+        if (available.length === 0) {
+            container.innerHTML = '<p class="text-gray-400 text-sm">No available references to link. <a href="/references" class="text-blue-600 hover:underline">Create one first</a>.</p>';
+            return;
+        }
+        container.innerHTML = available.map(r => `
+            <div class="border rounded-lg p-3 flex justify-between items-center hover:bg-yellow-50 transition cursor-pointer" onclick="linkProjectRef(${r.id})">
+                <div>
+                    <span class="font-medium text-sm text-gray-800">${escRef(r.project_name || r.client || 'Reference')}</span>
+                    ${r.final_score ? `<span class="ml-2 inline-flex items-center justify-center w-6 h-6 rounded-full text-white font-bold text-xs ${r.final_score >= 9 ? 'bg-green-500' : r.final_score >= 7 ? 'bg-blue-500' : 'bg-yellow-500'}">${r.final_score.toFixed(1)}</span>` : ''}
+                    <div class="text-xs text-gray-500 mt-0.5">${escRef(r.client || '')} ${r.evaluation_date ? '| ' + new Date(r.evaluation_date).toLocaleDateString('en-US', {month: 'short', year: 'numeric'}) : ''}</div>
+                </div>
+                <i class="fas fa-plus text-yellow-500"></i>
+            </div>
+        `).join('');
+    } catch (e) {
+        console.error('Error loading references:', e);
+    }
+}
+
+async function linkProjectRef(refId) {
+    try {
+        const res = await fetch('/api/projects/{{ project.id }}/link-reference', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({reference_id: refId})
+        });
+        const data = await res.json();
+        if (data.success) {
+            closeProjectRefPicker();
+            loadProjectLinkedRefs();
+        } else {
+            alert(data.error || 'Failed to link reference');
+        }
+    } catch (e) { console.error(e); alert('Error linking reference'); }
+}
+
+function startUnlinkProjectRef(refId) {
+    projRefUnlinkId = refId;
+    document.getElementById('proj-ref-unlink-modal').classList.remove('hidden');
+}
+function cancelUnlinkProjectRef() {
+    projRefUnlinkId = null;
+    document.getElementById('proj-ref-unlink-modal').classList.add('hidden');
+}
+async function confirmUnlinkProjectRef() {
+    if (!projRefUnlinkId) return;
+    try {
+        await fetch(`/api/projects/{{ project.id }}/unlink-reference/${projRefUnlinkId}`, {method: 'DELETE'});
+        loadProjectLinkedRefs();
+    } catch (e) { console.error(e); }
+    cancelUnlinkProjectRef();
+}
+
+loadProjectLinkedRefs();
 
 // Personnel Writeup Functions
 function showEditPersonnelWriteupModal(pwId) {

@@ -14,7 +14,8 @@ from models import (
     FirmPhoto, ProposalSelectedFirmPhoto, MarketingPhoto, ProposalSelectedMarketingPhoto,
     EmployeeAlternateBio, FirmAlternateDescription, ProposalSavedResponse,
     Response, ProposalLinkedResponse, Reference, ProposalLinkedReference,
-    SavedOrgChart, ResumeGraphic, GraphicScenario
+    SavedOrgChart, ResumeGraphic, GraphicScenario,
+    ProjectLinkedReference, EmployeeLinkedReference
 )
 from replit.object_storage import Client as ObjectStorageClient
 import uuid
@@ -10048,6 +10049,107 @@ def get_proposal_linked_references(proposal_id):
         })
     
     return jsonify({'success': True, 'references': refs})
+
+
+def _serialize_reference(ref):
+    return {
+        'id': ref.id,
+        'client': ref.client,
+        'project_name': ref.project_name,
+        'final_score': ref.final_score,
+        'evaluation_date': ref.evaluation_date.isoformat() if ref.evaluation_date else None,
+        'score_summary': ref.score_summary,
+        'quotes': ref.quotes,
+        'consultant_pm': ref.consultant_pm,
+        'firm': ref.firm,
+        'personnel_tags': ref.personnel_tags,
+        'pdf_filename': ref.pdf_filename
+    }
+
+
+@app.route('/api/projects/<int:project_id>/link-reference', methods=['POST'])
+@login_required
+def link_reference_to_project(project_id):
+    project = Project.query.get(project_id)
+    if not project:
+        return jsonify({'success': False, 'error': 'Project not found'}), 404
+    data = request.get_json()
+    reference_id = data.get('reference_id')
+    ref = Reference.query.get(reference_id)
+    if not ref:
+        return jsonify({'success': False, 'error': 'Reference not found'}), 404
+    existing = ProjectLinkedReference.query.filter_by(project_id=project_id, reference_id=reference_id).first()
+    if existing:
+        return jsonify({'success': False, 'error': 'Reference already linked'}), 400
+    link = ProjectLinkedReference(project_id=project_id, reference_id=reference_id)
+    db.session.add(link)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/api/projects/<int:project_id>/unlink-reference/<int:reference_id>', methods=['DELETE'])
+@login_required
+def unlink_reference_from_project(project_id, reference_id):
+    link = ProjectLinkedReference.query.filter_by(project_id=project_id, reference_id=reference_id).first()
+    if not link:
+        return jsonify({'success': False, 'error': 'Link not found'}), 404
+    db.session.delete(link)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/api/projects/<int:project_id>/linked-references')
+@login_required
+def get_project_linked_references(project_id):
+    links = ProjectLinkedReference.query.filter_by(project_id=project_id).all()
+    refs = [_serialize_reference(link.reference) for link in links]
+    return jsonify({'success': True, 'references': refs})
+
+
+@app.route('/api/employees/<int:employee_id>/link-reference', methods=['POST'])
+@login_required
+def link_reference_to_employee(employee_id):
+    employee = Employee.query.get(employee_id)
+    if not employee:
+        return jsonify({'success': False, 'error': 'Employee not found'}), 404
+    data = request.get_json()
+    reference_id = data.get('reference_id')
+    ref = Reference.query.get(reference_id)
+    if not ref:
+        return jsonify({'success': False, 'error': 'Reference not found'}), 404
+    existing = EmployeeLinkedReference.query.filter_by(employee_id=employee_id, reference_id=reference_id).first()
+    if existing:
+        return jsonify({'success': False, 'error': 'Reference already linked'}), 400
+    link = EmployeeLinkedReference(employee_id=employee_id, reference_id=reference_id)
+    db.session.add(link)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/api/employees/<int:employee_id>/unlink-reference/<int:reference_id>', methods=['DELETE'])
+@login_required
+def unlink_reference_from_employee(employee_id, reference_id):
+    link = EmployeeLinkedReference.query.filter_by(employee_id=employee_id, reference_id=reference_id).first()
+    if not link:
+        return jsonify({'success': False, 'error': 'Link not found'}), 404
+    db.session.delete(link)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/api/employees/<int:employee_id>/linked-references')
+@login_required
+def get_employee_linked_references(employee_id):
+    links = EmployeeLinkedReference.query.filter_by(employee_id=employee_id).all()
+    refs = [_serialize_reference(link.reference) for link in links]
+    return jsonify({'success': True, 'references': refs})
+
+
+@app.route('/api/references/all')
+@login_required
+def get_all_references_api():
+    refs = Reference.query.order_by(Reference.evaluation_date.desc().nullslast()).all()
+    return jsonify({'success': True, 'references': [_serialize_reference(r) for r in refs]})
 
 
 @app.route('/resume-graphics-app')
