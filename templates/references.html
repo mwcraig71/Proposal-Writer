@@ -114,9 +114,16 @@
                     {% else %}-{% endif %}
                 </td>
                 <td class="px-4 py-3 text-right whitespace-nowrap" onclick="event.stopPropagation()">
-                    <button onclick="showAddToProposalModal({{ ref.id }})" class="text-blue-600 hover:text-blue-800 mr-2" title="Link to Proposal">
-                        <i class="fas fa-link"></i>
-                    </button>
+                    <div class="relative inline-block">
+                        <button onclick="toggleLinkMenu(event, {{ ref.id }})" class="text-blue-600 hover:text-blue-800 mr-2" title="Link to...">
+                            <i class="fas fa-link"></i><i class="fas fa-caret-down ml-0.5 text-xs"></i>
+                        </button>
+                        <div id="link-menu-{{ ref.id }}" class="hidden absolute right-0 mt-1 w-40 bg-white rounded-lg shadow-lg border z-50">
+                            <button onclick="showAddToProposalModal({{ ref.id }}); closeLinkMenus();" class="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 text-gray-700 rounded-t-lg"><i class="fas fa-file-alt mr-2 text-blue-500"></i>Proposal</button>
+                            <button onclick="showAddToProjectModal({{ ref.id }}); closeLinkMenus();" class="w-full text-left px-3 py-2 text-sm hover:bg-green-50 text-gray-700"><i class="fas fa-building mr-2 text-green-500"></i>Project</button>
+                            <button onclick="showAddToPersonnelModal({{ ref.id }}); closeLinkMenus();" class="w-full text-left px-3 py-2 text-sm hover:bg-purple-50 text-gray-700 rounded-b-lg"><i class="fas fa-user mr-2 text-purple-500"></i>Personnel</button>
+                        </div>
+                    </div>
                     <button onclick="showEditModal({{ ref.id }})" class="text-yellow-600 hover:text-yellow-800 mr-2" title="Edit">
                         <i class="fas fa-edit"></i>
                     </button>
@@ -389,6 +396,60 @@
     </div>
 </div>
 
+<div id="project-link-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+        <div class="flex justify-between items-center p-4 border-b">
+            <h3 class="text-xl font-bold text-gray-800">Link to Projects</h3>
+            <button onclick="closeProjectLinkModal()" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <div class="p-6">
+            <p class="text-gray-600 mb-3">Select projects to link this reference to:</p>
+            <div class="border rounded-lg max-h-60 overflow-y-auto mb-4">
+                {% for p in projects %}
+                <label class="flex items-center px-3 py-2 hover:bg-green-50 cursor-pointer border-b last:border-b-0">
+                    <input type="checkbox" value="{{ p.id }}" class="project-link-cb mr-3 rounded text-green-600 focus:ring-green-500">
+                    <span class="text-sm text-gray-700">{{ p.title }}{% if p.location %} <span class="text-gray-400">- {{ p.location }}</span>{% endif %}</span>
+                </label>
+                {% endfor %}
+            </div>
+            <div id="project-link-status" class="text-sm text-gray-500 mb-3 hidden"></div>
+            <div class="flex justify-end gap-3">
+                <button onclick="closeProjectLinkModal()" class="px-4 py-2 border rounded-lg hover:bg-gray-50">Cancel</button>
+                <button onclick="linkToProjects()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">Link Selected</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="personnel-link-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+        <div class="flex justify-between items-center p-4 border-b">
+            <h3 class="text-xl font-bold text-gray-800">Link to Personnel</h3>
+            <button onclick="closePersonnelLinkModal()" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <div class="p-6">
+            <p class="text-gray-600 mb-3">Select personnel to link this reference to:</p>
+            <div class="border rounded-lg max-h-60 overflow-y-auto mb-4">
+                {% for e in employees %}
+                <label class="flex items-center px-3 py-2 hover:bg-purple-50 cursor-pointer border-b last:border-b-0">
+                    <input type="checkbox" value="{{ e.id }}" class="personnel-link-cb mr-3 rounded text-purple-600 focus:ring-purple-500">
+                    <span class="text-sm text-gray-700">{{ e.name }}{% if e.title %} <span class="text-gray-400">- {{ e.title }}</span>{% endif %}</span>
+                </label>
+                {% endfor %}
+            </div>
+            <div id="personnel-link-status" class="text-sm text-gray-500 mb-3 hidden"></div>
+            <div class="flex justify-end gap-3">
+                <button onclick="closePersonnelLinkModal()" class="px-4 py-2 border rounded-lg hover:bg-gray-50">Cancel</button>
+                <button onclick="linkToPersonnel()" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">Link Selected</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 let currentReferenceId = null;
 
@@ -413,6 +474,128 @@ function closeViewModal() {
 }
 function closeProposalModal() {
     document.getElementById('proposal-modal').classList.add('hidden');
+}
+
+function toggleLinkMenu(event, refId) {
+    event.stopPropagation();
+    closeLinkMenus();
+    document.getElementById('link-menu-' + refId).classList.toggle('hidden');
+}
+function closeLinkMenus() {
+    document.querySelectorAll('[id^="link-menu-"]').forEach(m => m.classList.add('hidden'));
+}
+document.addEventListener('click', closeLinkMenus);
+
+function showAddToProjectModal(id) {
+    currentReferenceId = id;
+    document.querySelectorAll('.project-link-cb').forEach(cb => { cb.checked = false; cb.disabled = false; cb.parentElement.classList.remove('opacity-50'); });
+    document.getElementById('project-link-status').classList.add('hidden');
+    document.getElementById('project-link-modal').classList.remove('hidden');
+    loadExistingProjectLinks(id);
+}
+function closeProjectLinkModal() {
+    document.getElementById('project-link-modal').classList.add('hidden');
+}
+
+async function loadExistingProjectLinks(refId) {
+    try {
+        const res = await fetch('/api/references/' + refId + '/linked-projects');
+        const data = await res.json();
+        if (data.success && data.project_ids) {
+            const linkedIds = new Set(data.project_ids);
+            document.querySelectorAll('.project-link-cb').forEach(cb => {
+                if (linkedIds.has(parseInt(cb.value))) {
+                    cb.checked = true;
+                    cb.disabled = true;
+                    cb.parentElement.classList.add('opacity-50');
+                }
+            });
+        }
+    } catch (e) { console.error(e); }
+}
+
+async function linkToProjects() {
+    const selected = [...document.querySelectorAll('.project-link-cb:checked:not(:disabled)')].map(cb => parseInt(cb.value));
+    if (selected.length === 0) {
+        alert('Please select at least one project');
+        return;
+    }
+    const statusEl = document.getElementById('project-link-status');
+    statusEl.textContent = 'Linking...';
+    statusEl.classList.remove('hidden');
+    let success = 0, failed = 0;
+    for (const projectId of selected) {
+        try {
+            const res = await fetch('/api/projects/' + projectId + '/link-reference', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({reference_id: currentReferenceId})
+            });
+            const data = await res.json();
+            if (data.success) success++; else failed++;
+        } catch (e) { failed++; }
+    }
+    if (failed === 0) {
+        alert(`Linked to ${success} project${success > 1 ? 's' : ''} successfully!`);
+        closeProjectLinkModal();
+    } else {
+        statusEl.textContent = `${success} linked, ${failed} failed (may already be linked)`;
+    }
+}
+
+function showAddToPersonnelModal(id) {
+    currentReferenceId = id;
+    document.querySelectorAll('.personnel-link-cb').forEach(cb => { cb.checked = false; cb.disabled = false; cb.parentElement.classList.remove('opacity-50'); });
+    document.getElementById('personnel-link-status').classList.add('hidden');
+    document.getElementById('personnel-link-modal').classList.remove('hidden');
+    loadExistingPersonnelLinks(id);
+}
+function closePersonnelLinkModal() {
+    document.getElementById('personnel-link-modal').classList.add('hidden');
+}
+
+async function loadExistingPersonnelLinks(refId) {
+    try {
+        const res = await fetch('/api/references/' + refId + '/linked-employees');
+        const data = await res.json();
+        if (data.success && data.employee_ids) {
+            const linkedIds = new Set(data.employee_ids);
+            document.querySelectorAll('.personnel-link-cb').forEach(cb => {
+                if (linkedIds.has(parseInt(cb.value))) {
+                    cb.checked = true;
+                    cb.disabled = true;
+                    cb.parentElement.classList.add('opacity-50');
+                }
+            });
+        }
+    } catch (e) { console.error(e); }
+}
+
+async function linkToPersonnel() {
+    const selected = [...document.querySelectorAll('.personnel-link-cb:checked:not(:disabled)')].map(cb => parseInt(cb.value));
+    if (selected.length === 0) {
+        alert('Please select at least one person');
+        return;
+    }
+    const statusEl = document.getElementById('personnel-link-status');
+    statusEl.textContent = 'Linking...';
+    statusEl.classList.remove('hidden');
+    let success = 0, failed = 0;
+    for (const empId of selected) {
+        try {
+            const res = await fetch('/api/employees/' + empId + '/link-reference', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({reference_id: currentReferenceId})
+            });
+            const data = await res.json();
+            if (data.success) success++; else failed++;
+        } catch (e) { failed++; }
+    }
+    if (failed === 0) {
+        alert(`Linked to ${success} person${success > 1 ? 'nel' : ''} successfully!`);
+        closePersonnelLinkModal();
+    } else {
+        statusEl.textContent = `${success} linked, ${failed} failed (may already be linked)`;
+    }
 }
 
 document.getElementById('upload-drop-zone').addEventListener('click', () => {

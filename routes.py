@@ -10152,6 +10152,20 @@ def get_all_references_api():
     return jsonify({'success': True, 'references': [_serialize_reference(r) for r in refs]})
 
 
+@app.route('/api/references/<int:reference_id>/linked-projects')
+@login_required
+def get_reference_linked_projects(reference_id):
+    links = ProjectLinkedReference.query.filter_by(reference_id=reference_id).all()
+    return jsonify({'success': True, 'project_ids': [l.project_id for l in links]})
+
+
+@app.route('/api/references/<int:reference_id>/linked-employees')
+@login_required
+def get_reference_linked_employees(reference_id):
+    links = EmployeeLinkedReference.query.filter_by(reference_id=reference_id).all()
+    return jsonify({'success': True, 'employee_ids': [l.employee_id for l in links]})
+
+
 @app.route('/resume-graphics-app')
 @app.route('/resume-graphics-app/')
 @login_required
