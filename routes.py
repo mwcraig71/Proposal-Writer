@@ -1232,8 +1232,31 @@ def update_employee(id):
     employee.state = data.get('state', employee.state) or None
     employee.title = data.get('title', employee.title) or None
     employee.role = data.get('role', employee.role) or None
-    employee.years_experience_total = to_int_or_none(data.get('years_experience_total', employee.years_experience_total))
-    employee.years_experience_firm = to_int_or_none(data.get('years_experience_firm', employee.years_experience_firm))
+    import math
+    from datetime import date as date_type
+    career_start_str = data.get('career_start_date', '')
+    firm_hire_str = data.get('firm_hire_date', '')
+    today = date_type.today()
+    if career_start_str:
+        try:
+            employee.career_start_date = date_type.fromisoformat(career_start_str)
+            years = (today - employee.career_start_date).days / 365.25
+            employee.years_experience_total = math.ceil(years) if years > 0 else None
+        except (ValueError, TypeError):
+            pass
+    else:
+        employee.career_start_date = None
+        employee.years_experience_total = None
+    if firm_hire_str:
+        try:
+            employee.firm_hire_date = date_type.fromisoformat(firm_hire_str)
+            years = (today - employee.firm_hire_date).days / 365.25
+            employee.years_experience_firm = math.ceil(years) if years > 0 else None
+        except (ValueError, TypeError):
+            pass
+    else:
+        employee.firm_hire_date = None
+        employee.years_experience_firm = None
     employee.education = data.get('education', employee.education) or None
     employee.registrations = data.get('registrations', employee.registrations) or None
     employee.training = data.get('training', employee.training) or None

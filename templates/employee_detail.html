@@ -75,12 +75,22 @@
                     </select>
                 </div>
                 <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Career Start Date</label>
+                    <input type="date" name="career_start_date" id="career_start_date" value="{{ employee.career_start_date.strftime('%Y-%m-%d') if employee.career_start_date else '' }}" class="w-full p-2 border rounded-lg" onchange="recalcYears()">
+                </div>
+                <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Total Years Experience</label>
-                    <input type="number" name="years_experience_total" value="{{ employee.years_experience_total or '' }}" class="w-full p-2 border rounded-lg">
+                    <input type="text" id="years_experience_total_display" value="{{ employee.years_experience_total or '' }}" class="w-full p-2 border rounded-lg bg-gray-100 text-gray-600" readonly>
+                    <p class="text-xs text-gray-400 mt-0.5">Auto-calculated from Career Start Date</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Strinteg Hire Date</label>
+                    <input type="date" name="firm_hire_date" id="firm_hire_date" value="{{ employee.firm_hire_date.strftime('%Y-%m-%d') if employee.firm_hire_date else '' }}" class="w-full p-2 border rounded-lg" onchange="recalcYears()">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Years with Firm</label>
-                    <input type="number" name="years_experience_firm" value="{{ employee.years_experience_firm or '' }}" class="w-full p-2 border rounded-lg">
+                    <input type="text" id="years_experience_firm_display" value="{{ employee.years_experience_firm or '' }}" class="w-full p-2 border rounded-lg bg-gray-100 text-gray-600" readonly>
+                    <p class="text-xs text-gray-400 mt-0.5">Auto-calculated from Hire Date</p>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">City</label>
@@ -1545,6 +1555,28 @@ async function setAsPrimary(photoId) {
         }
     } catch (error) {
         alert('Error: ' + error.message);
+    }
+}
+
+function recalcYears() {
+    const today = new Date();
+    const careerStart = document.getElementById('career_start_date').value;
+    const firmHire = document.getElementById('firm_hire_date').value;
+    if (careerStart) {
+        const start = new Date(careerStart);
+        const diffMs = today - start;
+        const years = Math.ceil(diffMs / (365.25 * 24 * 60 * 60 * 1000));
+        document.getElementById('years_experience_total_display').value = years > 0 ? years : '';
+    } else {
+        document.getElementById('years_experience_total_display').value = '';
+    }
+    if (firmHire) {
+        const hire = new Date(firmHire);
+        const diffMs = today - hire;
+        const years = Math.ceil(diffMs / (365.25 * 24 * 60 * 60 * 1000));
+        document.getElementById('years_experience_firm_display').value = years > 0 ? years : '';
+    } else {
+        document.getElementById('years_experience_firm_display').value = '';
     }
 }
 
