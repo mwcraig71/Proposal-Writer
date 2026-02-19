@@ -454,12 +454,32 @@
         <div class="p-6">
             <p class="text-gray-600 mb-3">Select personnel to link this reference to:</p>
             <div class="border rounded-lg max-h-60 overflow-y-auto mb-4">
-                {% for e in employees %}
-                <label class="flex items-center px-3 py-2 hover:bg-purple-50 cursor-pointer border-b last:border-b-0">
+                {% for firm in all_firms %}
+                {% set firm_employees = employees | selectattr('firm_id', 'equalto', firm.id) | list %}
+                {% if firm_employees %}
+                <div class="bg-gray-100 px-3 py-1.5 border-b sticky top-0">
+                    <span class="text-xs font-bold text-gray-600 uppercase tracking-wide">{{ firm.name }}</span>
+                </div>
+                {% for e in firm_employees %}
+                <label class="flex items-center px-3 py-2 hover:bg-purple-50 cursor-pointer border-b">
                     <input type="checkbox" value="{{ e.id }}" class="personnel-link-cb mr-3 rounded text-purple-600 focus:ring-purple-500">
                     <span class="text-sm text-gray-700">{{ e.name }}{% if e.title %} <span class="text-gray-400">- {{ e.title }}</span>{% endif %}</span>
                 </label>
                 {% endfor %}
+                {% endif %}
+                {% endfor %}
+                {% set unassigned_employees = employees | rejectattr('firm_id') | list %}
+                {% if unassigned_employees %}
+                <div class="bg-gray-100 px-3 py-1.5 border-b sticky top-0">
+                    <span class="text-xs font-bold text-gray-600 uppercase tracking-wide">No Firm Assigned</span>
+                </div>
+                {% for e in unassigned_employees %}
+                <label class="flex items-center px-3 py-2 hover:bg-purple-50 cursor-pointer border-b">
+                    <input type="checkbox" value="{{ e.id }}" class="personnel-link-cb mr-3 rounded text-purple-600 focus:ring-purple-500">
+                    <span class="text-sm text-gray-700">{{ e.name }}{% if e.title %} <span class="text-gray-400">- {{ e.title }}</span>{% endif %}</span>
+                </label>
+                {% endfor %}
+                {% endif %}
             </div>
             <div id="personnel-link-status" class="text-sm text-gray-500 mb-3 hidden"></div>
             <div class="flex justify-end gap-3">
@@ -772,14 +792,95 @@ async function showViewModal(id) {
                 </a>
             </div>
             ` : ''}
+
+            <div class="pt-4 border-t mt-4">
+                <h4 class="font-semibold text-gray-800 mb-3">Linked Items</h4>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <h5 class="text-sm font-medium text-green-700 mb-2"><i class="fas fa-building mr-1"></i>Projects</h5>
+                        <div id="view-linked-projects" class="space-y-1 text-sm text-gray-500">Loading...</div>
+                    </div>
+                    <div>
+                        <h5 class="text-sm font-medium text-purple-700 mb-2"><i class="fas fa-user mr-1"></i>Personnel</h5>
+                        <div id="view-linked-employees" class="space-y-1 text-sm text-gray-500">Loading...</div>
+                    </div>
+                </div>
+            </div>
         `;
         
         document.getElementById('view-title').textContent = r.project_name || 'Reference Details';
         document.getElementById('view-content').innerHTML = html;
         document.getElementById('view-modal').classList.remove('hidden');
+        loadViewLinkedItems(id);
     } catch (e) {
         alert('Error: ' + e.message);
     }
+}
+
+function escViewRef(s) {
+    if (!s) return '';
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+}
+
+async function loadViewLinkedItems(refId) {
+    try {
+        const [projRes, empRes] = await Promise.all([
+            fetch('/api/references/' + refId + '/linked-projects'),
+            fetch('/api/references/' + refId + '/linked-employees')
+        ]);
+        const projData = await projRes.json();
+        const empData = await empRes.json();
+
+        const projContainer = document.getElementById('view-linked-projects');
+        if (projData.success && projData.projects && projData.projects.length > 0) {
+            projContainer.innerHTML = projData.projects.map(p => `
+                <div class="flex items-center justify-between bg-green-50 rounded px-2 py-1.5 border border-green-100">
+                    <span class="text-gray-700 text-xs">${escViewRef(p.title)}</span>
+                    <button onclick="unlinkProjectFromRef(${refId}, ${p.id})" class="text-red-400 hover:text-red-600 ml-2" title="Unlink"><i class="fas fa-times text-xs"></i></button>
+                </div>
+            `).join('');
+        } else {
+            projContainer.innerHTML = '<span class="text-gray-400 text-xs">None linked</span>';
+        }
+
+        const empContainer = document.getElementById('view-linked-employees');
+        if (empData.success && empData.employees && empData.employees.length > 0) {
+            empContainer.innerHTML = empData.employees.map(e => `
+                <div class="flex items-center justify-between bg-purple-50 rounded px-2 py-1.5 border border-purple-100">
+                    <span class="text-gray-700 text-xs">${escViewRef(e.name)}</span>
+                    <button onclick="unlinkEmployeeFromRef(${refId}, ${e.id})" class="text-red-400 hover:text-red-600 ml-2" title="Unlink"><i class="fas fa-times text-xs"></i></button>
+                </div>
+            `).join('');
+        } else {
+            empContainer.innerHTML = '<span class="text-gray-400 text-xs">None linked</span>';
+        }
+    } catch (e) { console.error(e); }
+}
+
+async function unlinkProjectFromRef(refId, projectId) {
+    try {
+        const res = await fetch('/api/projects/' + projectId + '/unlink-reference/' + refId, {method: 'DELETE'});
+        const data = await res.json();
+        if (data.success) {
+            loadViewLinkedItems(refId);
+        } else {
+            alert(data.error || 'Failed to unlink');
+        }
+    } catch (e) { alert('Error unlinking'); }
+}
+
+async function unlinkEmployeeFromRef(refId, employeeId) {
+    try {
+        const res = await fetch('/api/employees/' + employeeId + '/unlink-reference/' + refId, {method: 'DELETE'});
+        const data = await res.json();
+        if (data.success) {
+            loadViewLinkedItems(refId);
+        } else {
+            alert(data.error || 'Failed to unlink');
+        }
+    } catch (e) { alert('Error unlinking'); }
 }
 
 function showAddToProposalModal(id) {

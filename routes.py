@@ -10158,14 +10158,26 @@ def get_all_references_api():
 @login_required
 def get_reference_linked_projects(reference_id):
     links = ProjectLinkedReference.query.filter_by(reference_id=reference_id).all()
-    return jsonify({'success': True, 'project_ids': [l.project_id for l in links]})
+    project_ids = [l.project_id for l in links]
+    projects_detail = []
+    for l in links:
+        p = Project.query.get(l.project_id)
+        if p:
+            projects_detail.append({'id': p.id, 'title': p.title, 'location': p.location})
+    return jsonify({'success': True, 'project_ids': project_ids, 'projects': projects_detail})
 
 
 @app.route('/api/references/<int:reference_id>/linked-employees')
 @login_required
 def get_reference_linked_employees(reference_id):
     links = EmployeeLinkedReference.query.filter_by(reference_id=reference_id).all()
-    return jsonify({'success': True, 'employee_ids': [l.employee_id for l in links]})
+    employee_ids = [l.employee_id for l in links]
+    employees_detail = []
+    for l in links:
+        e = Employee.query.get(l.employee_id)
+        if e:
+            employees_detail.append({'id': e.id, 'name': e.name, 'title': e.title})
+    return jsonify({'success': True, 'employee_ids': employee_ids, 'employees': employees_detail})
 
 
 @app.route('/resume-graphics-app')
