@@ -6436,6 +6436,149 @@ def delete_certification_pdf(cert_id):
     return redirect(url_for('employee_certifications', employee_id=cert.employee_id))
 
 
+@app.route('/certifications/nhi-training-forecast')
+def nhi_training_forecast():
+    from datetime import date
+    today_date = date.today()
+    current_year = today_date.year
+    years = [current_year, current_year + 1, current_year + 2]
+
+    nhi_certs = db.session.query(Certification, Employee).join(
+        Employee, Certification.employee_id == Employee.id
+    ).filter(
+        Certification.category == 'NHI',
+        Employee.archived != True
+    ).order_by(Certification.name, Employee.name).all()
+
+    courses = {}
+    for cert, emp in nhi_certs:
+        course_name = cert.name
+        if course_name not in courses:
+            courses[course_name] = {}
+
+        exp_year = cert.expiration_date.year if cert.expiration_date else None
+        is_expired = cert.expiration_date and cert.expiration_date < today_date
+
+        courses[course_name][emp.id] = {
+            'employee': emp,
+            'cert': cert,
+            'exp_year': exp_year,
+            'is_expired': is_expired,
+            'needs_years': []
+        }
+
+        if cert.expiration_date:
+            if is_expired or cert.expiration_date.year <= current_year:
+                courses[course_name][emp.id]['needs_years'].append(current_year)
+            for y in years:
+                if cert.expiration_date.year == y:
+                    courses[course_name][emp.id]['needs_years'].append(y)
+        elif cert.status in ('pending', None, ''):
+            courses[course_name][emp.id]['needs_years'].append(current_year)
+
+    return render_template('nhi_training_forecast.html',
+                           courses=courses, years=years, today=today_date)
+
+
+@app.route('/certifications/nhi-training-forecast/pdf')
+def nhi_training_forecast_pdf():
+    from datetime import date
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import letter, landscape
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    import io
+
+    today_date = date.today()
+    current_year = today_date.year
+    years = [current_year, current_year + 1, current_year + 2]
+
+    nhi_certs = db.session.query(Certification, Employee).join(
+        Employee, Certification.employee_id == Employee.id
+    ).filter(
+        Certification.category == 'NHI',
+        Employee.archived != True
+    ).order_by(Certification.name, Employee.name).all()
+
+    courses = {}
+    for cert, emp in nhi_certs:
+        course_name = cert.name
+        if course_name not in courses:
+            courses[course_name] = {}
+        exp_year = cert.expiration_date.year if cert.expiration_date else None
+        is_expired = cert.expiration_date and cert.expiration_date < today_date
+        needs = []
+        if cert.expiration_date:
+            if is_expired or cert.expiration_date.year <= current_year:
+                needs.append(current_year)
+            for y in years:
+                if cert.expiration_date.year == y:
+                    needs.append(y)
+        elif cert.status in ('pending', None, ''):
+            needs.append(current_year)
+        courses[course_name][emp.id] = {
+            'employee': emp, 'cert': cert, 'exp_year': exp_year,
+            'is_expired': is_expired, 'needs_years': needs
+        }
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(letter), topMargin=0.5*inch, bottomMargin=0.5*inch)
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle('CustomTitle', parent=styles['Heading1'], fontSize=16, spaceAfter=6)
+    subtitle_style = ParagraphStyle('Subtitle', parent=styles['Normal'], fontSize=10, textColor=colors.grey, spaceAfter=12)
+    section_style = ParagraphStyle('Section', parent=styles['Heading2'], fontSize=13, spaceAfter=6, spaceBefore=12)
+
+    elements = []
+    elements.append(Paragraph('NHI Training Forecast', title_style))
+    elements.append(Paragraph(f'{current_year} - {current_year + 2} | Generated: {today_date.strftime("%m/%d/%Y")}', subtitle_style))
+
+    for course_name in sorted(courses.keys()):
+        staff = courses[course_name]
+        elements.append(Paragraph(course_name, section_style))
+
+        table_data = [['Employee', 'Title', 'Expiration'] + [str(y) for y in years]]
+        for emp_id in sorted(staff.keys(), key=lambda x: staff[x]['employee'].name):
+            info = staff[emp_id]
+            emp = info['employee']
+            exp_str = info['cert'].expiration_date.strftime('%m/%d/%Y') if info['cert'].expiration_date else 'N/A'
+            row = [emp.name, emp.title or '-', exp_str]
+            for y in years:
+                row.append('NEEDED' if y in info['needs_years'] else '')
+            table_data.append(row)
+
+        col_widths = [2.2*inch, 1.8*inch, 1.0*inch] + [0.9*inch]*3
+        t = Table(table_data, colWidths=col_widths)
+        style_cmds = [
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e40af')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('ALIGN', (2, 0), (-1, -1), 'CENTER'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f0f0f0')]),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ]
+        for row_idx in range(1, len(table_data)):
+            for col_idx, y in enumerate(years, start=3):
+                if table_data[row_idx][col_idx] == 'NEEDED':
+                    style_cmds.append(('BACKGROUND', (col_idx, row_idx), (col_idx, row_idx), colors.HexColor('#fef3c7')))
+                    style_cmds.append(('TEXTCOLOR', (col_idx, row_idx), (col_idx, row_idx), colors.HexColor('#92400e')))
+                    style_cmds.append(('FONTNAME', (col_idx, row_idx), (col_idx, row_idx), 'Helvetica-Bold'))
+        t.setStyle(TableStyle(style_cmds))
+        elements.append(t)
+        elements.append(Spacer(1, 8))
+
+    if not courses:
+        elements.append(Paragraph('No NHI certifications found.', styles['Normal']))
+
+    doc.build(elements)
+    buffer.seek(0)
+    return send_file(buffer, mimetype='application/pdf', as_attachment=True,
+                     download_name=f'NHI_Training_Forecast_{current_year}-{current_year+2}.pdf')
+
+
 @app.route('/certifications/<int:employee_id>/export-pdf/<report_type>')
 def export_certifications_pdf(employee_id, report_type):
     from datetime import date
