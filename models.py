@@ -719,6 +719,34 @@ class ProposalLinkedReference(db.Model):
     __table_args__ = (db.UniqueConstraint('proposal_id', 'reference_id', name='unique_proposal_reference'),)
 
 
+class ProjectLinkedReference(db.Model):
+    __tablename__ = 'project_linked_references'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=False)
+    reference_id = db.Column(db.Integer, db.ForeignKey('references.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    project = db.relationship('Project', backref=db.backref('linked_references', lazy=True, cascade='all, delete-orphan'))
+    reference = db.relationship('Reference', backref=db.backref('project_links', lazy=True, cascade='all, delete-orphan'))
+    
+    __table_args__ = (db.UniqueConstraint('project_id', 'reference_id', name='unique_project_reference'),)
+
+
+class EmployeeLinkedReference(db.Model):
+    __tablename__ = 'employee_linked_references'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False)
+    reference_id = db.Column(db.Integer, db.ForeignKey('references.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    employee = db.relationship('Employee', backref=db.backref('linked_references', lazy=True, cascade='all, delete-orphan'))
+    reference = db.relationship('Reference', backref=db.backref('employee_links', lazy=True, cascade='all, delete-orphan'))
+    
+    __table_args__ = (db.UniqueConstraint('employee_id', 'reference_id', name='unique_employee_reference'),)
+
+
 class ResumeGraphic(db.Model):
     __tablename__ = 'resume_graphics'
     
