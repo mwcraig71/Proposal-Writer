@@ -407,12 +407,32 @@
         <div class="p-6">
             <p class="text-gray-600 mb-3">Select projects to link this reference to:</p>
             <div class="border rounded-lg max-h-60 overflow-y-auto mb-4">
-                {% for p in projects %}
-                <label class="flex items-center px-3 py-2 hover:bg-green-50 cursor-pointer border-b last:border-b-0">
+                {% for firm in all_firms %}
+                {% set firm_projects = projects | selectattr('firm_id', 'equalto', firm.id) | list %}
+                {% if firm_projects %}
+                <div class="bg-gray-100 px-3 py-1.5 border-b sticky top-0">
+                    <span class="text-xs font-bold text-gray-600 uppercase tracking-wide">{{ firm.name }}</span>
+                </div>
+                {% for p in firm_projects %}
+                <label class="flex items-center px-3 py-2 hover:bg-green-50 cursor-pointer border-b">
                     <input type="checkbox" value="{{ p.id }}" class="project-link-cb mr-3 rounded text-green-600 focus:ring-green-500">
                     <span class="text-sm text-gray-700">{{ p.title }}{% if p.location %} <span class="text-gray-400">- {{ p.location }}</span>{% endif %}</span>
                 </label>
                 {% endfor %}
+                {% endif %}
+                {% endfor %}
+                {% set unassigned_projects = projects | rejectattr('firm_id') | list %}
+                {% if unassigned_projects %}
+                <div class="bg-gray-100 px-3 py-1.5 border-b sticky top-0">
+                    <span class="text-xs font-bold text-gray-600 uppercase tracking-wide">No Firm Assigned</span>
+                </div>
+                {% for p in unassigned_projects %}
+                <label class="flex items-center px-3 py-2 hover:bg-green-50 cursor-pointer border-b">
+                    <input type="checkbox" value="{{ p.id }}" class="project-link-cb mr-3 rounded text-green-600 focus:ring-green-500">
+                    <span class="text-sm text-gray-700">{{ p.title }}{% if p.location %} <span class="text-gray-400">- {{ p.location }}</span>{% endif %}</span>
+                </label>
+                {% endfor %}
+                {% endif %}
             </div>
             <div id="project-link-status" class="text-sm text-gray-500 mb-3 hidden"></div>
             <div class="flex justify-end gap-3">

@@ -9611,6 +9611,7 @@ def references_page():
     references = query.all()
     
     projects = Project.query.order_by(Project.title).all()
+    all_firms = Firm.query.order_by(Firm.name).all()
     
     return render_template('references.html',
                           references=references,
@@ -9619,6 +9620,7 @@ def references_page():
                           employees=employees,
                           proposals=proposals,
                           projects=projects,
+                          all_firms=all_firms,
                           client_filter=client_filter,
                           firm_filter=firm_filter,
                           personnel_filter=personnel_filter,
