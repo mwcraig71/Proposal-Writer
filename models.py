@@ -82,6 +82,8 @@ class Employee(db.Model):
     role = db.Column(db.String(255))
     years_experience_total = db.Column(db.Integer)
     years_experience_firm = db.Column(db.Integer)
+    career_start_date = db.Column(db.Date, nullable=True)
+    firm_hire_date = db.Column(db.Date, nullable=True)
     bio = db.Column(db.Text)
     education = db.Column(db.Text)
     registrations = db.Column(db.Text)
