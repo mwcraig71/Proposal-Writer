@@ -76,7 +76,8 @@
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Career Start Date</label>
-                    <input type="date" name="career_start_date" id="career_start_date" value="{{ employee.career_start_date.strftime('%Y-%m-%d') if employee.career_start_date else '' }}" class="w-full p-2 border rounded-lg" onchange="recalcYears()">
+                    <input type="date" name="career_start_date" id="career_start_date" value="{{ employee.career_start_date.strftime('%Y-%m-%d') if employee.career_start_date else '' }}" class="w-full p-2 border rounded-lg" onchange="onDateChanged('career')">
+                    <p id="career_approx_label" class="text-xs text-yellow-600 mt-0.5 hidden">Approximate — back-calculated from years</p>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Total Years Experience</label>
@@ -85,7 +86,8 @@
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Strinteg Hire Date</label>
-                    <input type="date" name="firm_hire_date" id="firm_hire_date" value="{{ employee.firm_hire_date.strftime('%Y-%m-%d') if employee.firm_hire_date else '' }}" class="w-full p-2 border rounded-lg" onchange="recalcYears()">
+                    <input type="date" name="firm_hire_date" id="firm_hire_date" value="{{ employee.firm_hire_date.strftime('%Y-%m-%d') if employee.firm_hire_date else '' }}" class="w-full p-2 border rounded-lg" onchange="onDateChanged('firm')">
+                    <p id="firm_approx_label" class="text-xs text-yellow-600 mt-0.5 hidden">Approximate — back-calculated from years</p>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Years with Firm</label>
@@ -1558,6 +1560,57 @@ async function setAsPrimary(photoId) {
     }
 }
 
+const hasRealCareerDate = {{ 'true' if employee.career_start_date else 'false' }};
+const hasRealFirmDate = {{ 'true' if employee.firm_hire_date else 'false' }};
+let careerDateIsApprox = false;
+let firmDateIsApprox = false;
+
+function setApproxStyle(inputId, labelId, isApprox) {
+    const input = document.getElementById(inputId);
+    const label = document.getElementById(labelId);
+    if (isApprox) {
+        input.classList.add('bg-yellow-100', 'border-yellow-400');
+        label.classList.remove('hidden');
+    } else {
+        input.classList.remove('bg-yellow-100', 'border-yellow-400');
+        label.classList.add('hidden');
+    }
+}
+
+function backCalcDate(years) {
+    const today = new Date();
+    const approx = new Date(today.getFullYear() - years, today.getMonth(), today.getDate());
+    return approx.toISOString().split('T')[0];
+}
+
+function initDates() {
+    const careerInput = document.getElementById('career_start_date');
+    const firmInput = document.getElementById('firm_hire_date');
+    const totalYears = {{ employee.years_experience_total|default(0, true) }};
+    const firmYears = {{ employee.years_experience_firm|default(0, true) }};
+    if (!hasRealCareerDate && totalYears > 0) {
+        careerInput.value = backCalcDate(totalYears);
+        careerDateIsApprox = true;
+        setApproxStyle('career_start_date', 'career_approx_label', true);
+    }
+    if (!hasRealFirmDate && firmYears > 0) {
+        firmInput.value = backCalcDate(firmYears);
+        firmDateIsApprox = true;
+        setApproxStyle('firm_hire_date', 'firm_approx_label', true);
+    }
+}
+
+function onDateChanged(which) {
+    if (which === 'career') {
+        careerDateIsApprox = false;
+        setApproxStyle('career_start_date', 'career_approx_label', false);
+    } else {
+        firmDateIsApprox = false;
+        setApproxStyle('firm_hire_date', 'firm_approx_label', false);
+    }
+    recalcYears();
+}
+
 function recalcYears() {
     const today = new Date();
     const careerStart = document.getElementById('career_start_date').value;
@@ -1580,10 +1633,18 @@ function recalcYears() {
     }
 }
 
+initDates();
+
 document.getElementById('employee-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
     const data = Object.fromEntries(formData.entries());
+    if (careerDateIsApprox) {
+        data.career_start_date = '';
+    }
+    if (firmDateIsApprox) {
+        data.firm_hire_date = '';
+    }
     try {
         const response = await fetch('/employees/{{ employee.id }}', {
             method: 'PUT',

@@ -1246,7 +1246,6 @@ def update_employee(id):
             pass
     else:
         employee.career_start_date = None
-        employee.years_experience_total = None
     if firm_hire_str:
         try:
             employee.firm_hire_date = date_type.fromisoformat(firm_hire_str)
@@ -1256,7 +1255,6 @@ def update_employee(id):
             pass
     else:
         employee.firm_hire_date = None
-        employee.years_experience_firm = None
     employee.education = data.get('education', employee.education) or None
     employee.registrations = data.get('registrations', employee.registrations) or None
     employee.training = data.get('training', employee.training) or None
