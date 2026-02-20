@@ -709,6 +709,19 @@ class Reference(db.Model):
         self.personnel_tags = ','.join(tags_list) if tags_list else ''
 
 
+class ReferenceQuote(db.Model):
+    __tablename__ = 'reference_quotes'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    reference_id = db.Column(db.Integer, db.ForeignKey('references.id'), nullable=False)
+    quote_text = db.Column(db.Text, nullable=False)
+    author = db.Column(db.String(255))
+    client = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    reference = db.relationship('Reference', backref=db.backref('quote_entries', lazy=True, cascade='all, delete-orphan'))
+
+
 class ProposalLinkedReference(db.Model):
     """Junction table for references linked to a proposal"""
     __tablename__ = 'proposal_linked_references'

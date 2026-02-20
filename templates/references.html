@@ -341,8 +341,17 @@
                 <textarea name="score_summary" id="edit-score_summary" rows="3" class="w-full px-3 py-2 border rounded-lg"></textarea>
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Notable Quotes</label>
-                <textarea name="quotes" id="edit-quotes" rows="3" class="w-full px-3 py-2 border rounded-lg"></textarea>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Legacy Quotes (text)</label>
+                <textarea name="quotes" id="edit-quotes" rows="2" class="w-full px-3 py-2 border rounded-lg text-sm text-gray-500" placeholder="Legacy quotes field..."></textarea>
+            </div>
+            <div>
+                <div class="flex items-center justify-between mb-2">
+                    <label class="block text-sm font-medium text-gray-700">Notable Quotes</label>
+                    <button type="button" onclick="addQuoteToEditForm()" class="text-sm px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition">
+                        <i class="fas fa-plus mr-1"></i> Add Quote
+                    </button>
+                </div>
+                <div id="edit-quotes-container" class="space-y-3"></div>
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Personnel Tags (comma-separated)</label>
@@ -707,9 +716,122 @@ async function showEditModal(id) {
         document.getElementById('edit-personnel_tags').value = r.personnel_tags || '';
         document.getElementById('edit-is_final_evaluation').checked = r.is_final_evaluation;
         
+        const container = document.getElementById('edit-quotes-container');
+        container.innerHTML = '';
+        container.dataset.refId = id;
+        if (r.quote_entries && r.quote_entries.length > 0) {
+            r.quote_entries.forEach(q => {
+                container.appendChild(createQuoteRow(q));
+            });
+        }
+        
         document.getElementById('edit-modal').classList.remove('hidden');
     } catch (e) {
         alert('Error: ' + e.message);
+    }
+}
+
+let editRefId = null;
+
+function createQuoteRow(q) {
+    const div = document.createElement('div');
+    div.className = 'bg-gray-50 border rounded-lg p-3 relative';
+    div.dataset.quoteId = q.id || '';
+    div.innerHTML = `
+        <textarea class="w-full px-3 py-2 border rounded-lg text-sm mb-2 quote-text" rows="2" placeholder="Enter quote text...">${q.quote_text || ''}</textarea>
+        <div class="grid grid-cols-2 gap-2">
+            <input type="text" class="px-3 py-1.5 border rounded-lg text-sm quote-author" placeholder="Author name" value="${q.author || ''}">
+            <input type="text" class="px-3 py-1.5 border rounded-lg text-sm quote-client" placeholder="Client/Agency" value="${q.client || ''}">
+        </div>
+        <div class="flex justify-end gap-2 mt-2">
+            <button type="button" onclick="saveQuoteRow(this)" class="text-xs px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition">
+                <i class="fas fa-save mr-1"></i> Save
+            </button>
+            <button type="button" onclick="deleteQuoteRow(this)" class="text-xs px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition">
+                <i class="fas fa-trash mr-1"></i> Remove
+            </button>
+        </div>
+    `;
+    return div;
+}
+
+function addQuoteToEditForm() {
+    const container = document.getElementById('edit-quotes-container');
+    const refId = container.dataset.refId;
+    if (!refId) { alert('Please save the reference first before adding quotes.'); return; }
+    container.appendChild(createQuoteRow({quote_text: '', author: '', client: '', id: ''}));
+}
+
+async function saveQuoteRow(btn) {
+    const row = btn.closest('[data-quote-id]');
+    const quoteId = row.dataset.quoteId;
+    const refId = document.getElementById('edit-quotes-container').dataset.refId;
+    const quote_text = row.querySelector('.quote-text').value.trim();
+    const author = row.querySelector('.quote-author').value.trim();
+    const client = row.querySelector('.quote-client').value.trim();
+    if (!quote_text) { alert('Quote text is required'); return; }
+    
+    try {
+        let res;
+        if (quoteId) {
+            res = await fetch(`/api/references/quotes/${quoteId}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({quote_text, author, client})
+            });
+        } else {
+            res = await fetch(`/api/references/${refId}/quotes`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({quote_text, author, client})
+            });
+        }
+        const data = await res.json();
+        if (data.success) {
+            row.dataset.quoteId = data.quote.id;
+            btn.innerHTML = '<i class="fas fa-check mr-1"></i> Saved';
+            setTimeout(() => { btn.innerHTML = '<i class="fas fa-save mr-1"></i> Save'; }, 1500);
+        } else {
+            alert(data.error || 'Failed to save quote');
+        }
+    } catch (e) {
+        alert('Error saving quote: ' + e.message);
+    }
+}
+
+async function deleteQuoteRow(btn) {
+    const row = btn.closest('[data-quote-id]');
+    const quoteId = row.dataset.quoteId;
+    if (!confirm('Remove this quote?')) return;
+    if (quoteId) {
+        try {
+            await fetch(`/api/references/quotes/${quoteId}`, {method: 'DELETE'});
+        } catch (e) {}
+    }
+    row.remove();
+}
+
+async function downloadQuoteImage(quoteId) {
+    const colorPicker = document.getElementById('view-quote-color');
+    const color = colorPicker ? colorPicker.value : '#1e40af';
+    try {
+        const res = await fetch(`/api/references/quotes/${quoteId}/image`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({color})
+        });
+        if (!res.ok) throw new Error('Failed to generate image');
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `quote_${quoteId}.png`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+    } catch (e) {
+        alert('Error generating quote image: ' + e.message);
     }
 }
 
@@ -769,9 +891,36 @@ async function showViewModal(id) {
             </div>
             ` : ''}
             
-            ${r.quotes ? `
+            ${r.quote_entries && r.quote_entries.length > 0 ? `
             <div class="mb-6">
-                <h4 class="font-semibold text-gray-800 mb-2">Notable Quotes</h4>
+                <div class="flex items-center justify-between mb-3">
+                    <h4 class="font-semibold text-gray-800">Notable Quotes</h4>
+                    <div class="flex items-center gap-2">
+                        <label class="text-xs text-gray-500">Highlight:</label>
+                        <input type="color" id="view-quote-color" value="#1e40af" class="w-8 h-8 border rounded cursor-pointer">
+                    </div>
+                </div>
+                <div class="space-y-4">
+                ${r.quote_entries.map(q => `
+                    <div class="bg-gradient-to-r from-blue-50 to-white p-4 rounded-lg border-l-4 border-blue-600 relative group">
+                        <blockquote class="text-gray-700 italic mb-2">\u201C${q.quote_text}\u201D</blockquote>
+                        <div class="flex items-center justify-between">
+                            <div>
+                                ${q.author ? `<span class="text-sm font-semibold text-gray-800">\u2014 ${q.author}</span>` : ''}
+                                ${q.client ? `<span class="text-sm text-gray-500 ml-1">${q.author ? ', ' : '\u2014 '}${q.client}</span>` : ''}
+                            </div>
+                            <button onclick="downloadQuoteImage(${q.id})" class="text-xs px-3 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition opacity-80 group-hover:opacity-100" title="Download quote as image">
+                                <i class="fas fa-image mr-1"></i> Download Image
+                            </button>
+                        </div>
+                    </div>
+                `).join('')}
+                </div>
+            </div>
+            ` : ''}
+            ${r.quotes && (!r.quote_entries || r.quote_entries.length === 0) ? `
+            <div class="mb-6">
+                <h4 class="font-semibold text-gray-800 mb-2">Notable Quotes (Legacy)</h4>
                 <blockquote class="text-gray-700 text-sm bg-blue-50 p-3 rounded-lg border-l-4 border-blue-500 italic">${r.quotes}</blockquote>
             </div>
             ` : ''}

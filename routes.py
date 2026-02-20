@@ -15,7 +15,7 @@ from models import (
     EmployeeAlternateBio, FirmAlternateDescription, ProposalSavedResponse,
     Response, ProposalLinkedResponse, Reference, ProposalLinkedReference,
     SavedOrgChart, ResumeGraphic, GraphicScenario,
-    ProjectLinkedReference, EmployeeLinkedReference
+    ProjectLinkedReference, EmployeeLinkedReference, ReferenceQuote
 )
 from replit.object_storage import Client as ObjectStorageClient
 import uuid
@@ -10378,6 +10378,7 @@ def get_reference_api(id):
             'pm_performance_score': ref.pm_performance_score,
             'score_summary': ref.score_summary,
             'quotes': ref.quotes,
+            'quote_entries': [{'id': q.id, 'quote_text': q.quote_text, 'author': q.author, 'client': q.client} for q in ref.quote_entries],
             'evaluator_name': ref.evaluator_name,
             'evaluator_title': ref.evaluator_title,
             'consultant_pm': ref.consultant_pm,
@@ -10390,6 +10391,146 @@ def get_reference_api(id):
             'pdf_filename': ref.pdf_filename
         }
     })
+
+
+@app.route('/api/references/<int:id>/quotes', methods=['GET'])
+@login_required
+def get_reference_quotes(id):
+    ref = Reference.query.get_or_404(id)
+    quotes = [{'id': q.id, 'quote_text': q.quote_text, 'author': q.author, 'client': q.client} for q in ref.quote_entries]
+    return jsonify({'success': True, 'quotes': quotes})
+
+
+@app.route('/api/references/<int:id>/quotes', methods=['POST'])
+@login_required
+def add_reference_quote(id):
+    ref = Reference.query.get_or_404(id)
+    data = request.get_json()
+    quote_text = data.get('quote_text', '').strip()
+    if not quote_text:
+        return jsonify({'success': False, 'error': 'Quote text is required'}), 400
+    q = ReferenceQuote(
+        reference_id=ref.id,
+        quote_text=quote_text,
+        author=data.get('author', '').strip() or ref.evaluator_name or '',
+        client=data.get('client', '').strip() or ref.client or ''
+    )
+    db.session.add(q)
+    db.session.commit()
+    return jsonify({'success': True, 'quote': {'id': q.id, 'quote_text': q.quote_text, 'author': q.author, 'client': q.client}})
+
+
+@app.route('/api/references/quotes/<int:quote_id>', methods=['PUT'])
+@login_required
+def update_reference_quote(quote_id):
+    q = ReferenceQuote.query.get_or_404(quote_id)
+    data = request.get_json()
+    if 'quote_text' in data:
+        q.quote_text = data['quote_text'].strip()
+    if 'author' in data:
+        q.author = data['author'].strip()
+    if 'client' in data:
+        q.client = data['client'].strip()
+    db.session.commit()
+    return jsonify({'success': True, 'quote': {'id': q.id, 'quote_text': q.quote_text, 'author': q.author, 'client': q.client}})
+
+
+@app.route('/api/references/quotes/<int:quote_id>', methods=['DELETE'])
+@login_required
+def delete_reference_quote(quote_id):
+    q = ReferenceQuote.query.get_or_404(quote_id)
+    db.session.delete(q)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/api/references/quotes/<int:quote_id>/image', methods=['POST'])
+@login_required
+def generate_quote_image(quote_id):
+    import re
+    from PIL import Image, ImageDraw, ImageFont
+    import textwrap
+    
+    try:
+        q = ReferenceQuote.query.get_or_404(quote_id)
+        data = request.get_json() or {}
+        highlight_color = data.get('color', '#1e40af')
+        
+        if not re.match(r'^#[0-9a-fA-F]{6}$', highlight_color):
+            highlight_color = '#1e40af'
+        
+        width = 1200
+        padding = 80
+        
+        try:
+            font_quote = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf', 32)
+            font_attr = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', 22)
+            font_client = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', 20)
+            font_mark = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf', 120)
+        except:
+            font_quote = ImageFont.load_default()
+            font_attr = font_quote
+            font_client = font_quote
+            font_mark = font_quote
+        
+        hr, hg, hb = int(highlight_color[1:3], 16), int(highlight_color[3:5], 16), int(highlight_color[5:7], 16)
+        light_r = min(255, hr + (255 - hr) * 7 // 10)
+        light_g = min(255, hg + (255 - hg) * 7 // 10)
+        light_b = min(255, hb + (255 - hb) * 7 // 10)
+        
+        wrapped = textwrap.fill(q.quote_text, width=50)
+        lines = wrapped.split('\n')
+        
+        line_height = 46
+        quote_text_height = len(lines) * line_height
+        
+        attr_text = f"\u2014 {q.author}" if q.author else ""
+        client_text = q.client or ""
+        
+        content_height = 60 + quote_text_height + 30
+        if attr_text:
+            content_height += 35
+        if client_text:
+            content_height += 30
+        content_height += 40
+        
+        total_height = padding + content_height + padding
+        total_height = max(total_height, 300)
+        
+        img = Image.new('RGB', (width, total_height), '#FFFFFF')
+        draw = ImageDraw.Draw(img)
+        
+        bar_width = 8
+        draw.rectangle([padding - 30, padding, padding - 30 + bar_width, total_height - padding], fill=(hr, hg, hb))
+        
+        draw.text((padding - 20, padding - 15), '\u201C', fill=(light_r, light_g, light_b), font=font_mark)
+        
+        y = padding + 50
+        for line in lines:
+            draw.text((padding + 20, y), line, fill='#1f2937', font=font_quote)
+            y += line_height
+        
+        y += 25
+        
+        if attr_text:
+            draw.text((padding + 20, y), attr_text, fill=(hr, hg, hb), font=font_attr)
+            y += 35
+        
+        if client_text:
+            draw.text((padding + 20, y), client_text, fill='#6b7280', font=font_client)
+        
+        border_h = 4
+        draw.rectangle([0, 0, width, border_h], fill=(hr, hg, hb))
+        draw.rectangle([0, total_height - border_h, width, total_height], fill=(hr, hg, hb))
+        
+        buf = io.BytesIO()
+        img.save(buf, format='PNG', dpi=(300, 300))
+        buf.seek(0)
+        
+        return send_file(buf, mimetype='image/png', as_attachment=True, download_name=f'quote_{quote_id}.png')
+    except Exception as e:
+        app.logger.error(f'Error generating quote image: {e}')
+        return jsonify({'success': False, 'error': 'Failed to generate quote image'}), 500
 
 
 @app.route('/references/<int:id>/upload-pdf', methods=['POST'])
@@ -10668,6 +10809,7 @@ def _serialize_reference(ref):
         'evaluation_date': ref.evaluation_date.isoformat() if ref.evaluation_date else None,
         'score_summary': ref.score_summary,
         'quotes': ref.quotes,
+        'quote_entries': [{'id': q.id, 'quote_text': q.quote_text, 'author': q.author, 'client': q.client} for q in ref.quote_entries],
         'consultant_pm': ref.consultant_pm,
         'firm': ref.firm,
         'personnel_tags': ref.personnel_tags,
