@@ -48,7 +48,7 @@ function CustomNode({ data, selected, id }) {
   const isTeamMember = data.isTeamMember
 
   const firmColor = data.staffFirmId && data.firmColorMap ? data.firmColorMap[data.staffFirmId] : null
-  const useInline = firmColor?.useInline
+  const bStyle = data.borderStyle || 'default'
 
   let borderClass = 'border-gray-900'
   let bgClass = 'bg-gray-50'
@@ -56,26 +56,30 @@ function CustomNode({ data, selected, id }) {
   
   if (selected) {
     borderClass = 'border-red-500 shadow-lg ring-2 ring-red-300'
-  } else if (data.assignedStaff && firmColor) {
-    if (useInline) {
-      borderClass = ''
-      bgClass = ''
-      inlineStyle = { ...firmColor.borderStyle, ...firmColor.bgStyle }
-    } else {
-      borderClass = firmColor.border
-      bgClass = firmColor.bg
+  } else if (bStyle === 'none') {
+    borderClass = 'border-transparent'
+    bgClass = 'bg-white'
+  } else if (bStyle === 'black') {
+    borderClass = 'border-gray-900'
+    bgClass = data.assignedStaff ? 'bg-gray-50' : 'bg-white'
+  } else if (bStyle === 'firm-colors' && data.assignedStaff && firmColor) {
+    borderClass = ''
+    bgClass = ''
+    inlineStyle = { borderColor: firmColor.hex, backgroundColor: firmColor.hex + '12' }
+  } else {
+    if (isTaskLead) {
+      borderClass = 'border-red-600'
+      bgClass = data.assignedStaff ? 'bg-red-50' : 'bg-white'
+    } else if (isTeamMember) {
+      borderClass = 'border-gray-600'
+      bgClass = data.assignedStaff ? 'bg-gray-100' : 'bg-gray-50'
+    } else if (data.assignedStaff) {
+      borderClass = 'border-gray-900'
+      bgClass = 'bg-red-50'
     }
-  } else if (isTaskLead) {
-    borderClass = 'border-red-600'
-    bgClass = data.assignedStaff ? 'bg-red-50' : 'bg-white'
-  } else if (isTeamMember) {
-    borderClass = 'border-gray-600'
-    bgClass = data.assignedStaff ? 'bg-gray-100' : 'bg-gray-50'
-  } else if (data.assignedStaff) {
-    bgClass = 'bg-red-50'
   }
 
-  const staffTextColor = firmColor ? (useInline ? '' : firmColor.text) : 'text-red-700'
+  const staffTextColor = firmColor ? (firmColor.useInline ? '' : firmColor.text) : 'text-red-700'
   const staffTextStyle = firmColor?.useInline ? firmColor.textStyle : {}
 
   return (

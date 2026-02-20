@@ -43,6 +43,18 @@
   stroke-width: 2;
 }
 
+.line-weight-thin .react-flow__edge-path {
+  stroke-width: 1;
+}
+
+.line-weight-medium .react-flow__edge-path {
+  stroke-width: 2;
+}
+
+.line-weight-thick .react-flow__edge-path {
+  stroke-width: 4;
+}
+
 .staff-item {
   cursor: grab;
   user-select: none;

@@ -14,7 +14,7 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import dagre from 'dagre'
-import { toPng } from 'html-to-image'
+import { toPng, toJpeg } from 'html-to-image'
 import { jsPDF } from 'jspdf'
 import CustomNode from './CustomNode'
 import JunctionNode from './JunctionNode'
@@ -23,7 +23,7 @@ const nodeTypes = { custom: CustomNode, junction: JunctionNode }
 
 const nodeWidth = 192
 const nodeHeight = 100
-const junctionSize = 12
+const junctionSize = 4
 
 const FIRM_COLORS = [
   { bg: 'bg-red-50', border: 'border-red-600', text: 'text-red-700', label: 'bg-red-600', hex: '#dc2626' },
@@ -173,6 +173,9 @@ function OrgChartFlow() {
   const [pdfOrientation, setPdfOrientation] = useState('landscape')
   const [isExportingPdf, setIsExportingPdf] = useState(false)
   const [connectionDirection, setConnectionDirection] = useState('top-bottom')
+  const [lineWeight, setLineWeight] = useState('medium')
+  const [borderStyle, setBorderStyle] = useState('default')
+  const [exportAspectRatio, setExportAspectRatio] = useState('0.773')
 
   const switchConnectionDirection = useCallback((direction) => {
     setConnectionDirection(direction)
@@ -222,63 +225,86 @@ function OrgChartFlow() {
     }))
   }, [setEdges])
 
+  const captureChartImage = useCallback(async (format = 'png') => {
+    const flowEl = document.querySelector('.react-flow__viewport')
+    if (!flowEl) {
+      throw new Error('Could not find the chart to export.')
+    }
+
+    const visibleNodes = nodes.filter(n => n.type !== 'junction')
+    const nodesBounds = getNodesBounds(visibleNodes.length > 0 ? visibleNodes : nodes)
+    const padding = 60
+    const rawWidth = nodesBounds.width + padding * 2
+    const rawHeight = nodesBounds.height + padding * 2
+
+    const ratio = parseFloat(exportAspectRatio)
+    let chartWidth, chartHeight
+    if (rawHeight / rawWidth > ratio) {
+      chartHeight = rawHeight
+      chartWidth = chartHeight / ratio
+    } else {
+      chartWidth = rawWidth
+      chartHeight = chartWidth * ratio
+    }
+
+    const viewport = getViewportForBounds(
+      nodesBounds,
+      chartWidth,
+      chartHeight,
+      0.5,
+      2,
+      padding
+    )
+
+    const styleEl = document.createElement('style')
+    styleEl.id = 'export-hide-styles'
+    styleEl.textContent = `
+      .react-flow__handle { opacity: 0 !important; }
+      .react-flow__node button { display: none !important; }
+      .react-flow__controls { display: none !important; }
+      .react-flow__panel { display: none !important; }
+      .react-flow__attribution { display: none !important; }
+      .react-flow__node-junction { opacity: 0 !important; }
+      .react-flow__edge-path { stroke-width: ${lineWeight === 'thin' ? 1 : lineWeight === 'thick' ? 4 : 2}px !important; }
+    `
+    document.head.appendChild(styleEl)
+
+    await new Promise(r => setTimeout(r, 150))
+
+    const captureOpts = {
+      width: chartWidth,
+      height: chartHeight,
+      pixelRatio: 3,
+      backgroundColor: '#ffffff',
+      style: {
+        width: `${chartWidth}px`,
+        height: `${chartHeight}px`,
+        transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
+      },
+      filter: (node) => {
+        if (node?.classList?.contains('react-flow__minimap')) return false
+        if (node?.classList?.contains('react-flow__controls')) return false
+        return true
+      }
+    }
+
+    let imgData
+    if (format === 'jpeg') {
+      imgData = await toJpeg(flowEl, { ...captureOpts, quality: 0.95 })
+    } else {
+      imgData = await toPng(flowEl, captureOpts)
+    }
+
+    document.getElementById('export-hide-styles')?.remove()
+    return { imgData, chartWidth, chartHeight }
+  }, [nodes, exportAspectRatio, lineWeight])
+
   const exportToPdf = useCallback(async () => {
     setIsExportingPdf(true)
     setShowPdfModal(false)
 
     try {
-      const flowEl = document.querySelector('.react-flow__viewport')
-      if (!flowEl) {
-        alert('Could not find the chart to export.')
-        setIsExportingPdf(false)
-        return
-      }
-
-      const nodesBounds = getNodesBounds(nodes)
-      const padding = 50
-      const chartWidth = nodesBounds.width + padding * 2
-      const chartHeight = nodesBounds.height + padding * 2
-
-      const viewport = getViewportForBounds(
-        nodesBounds,
-        chartWidth,
-        chartHeight,
-        0.5,
-        2,
-        padding
-      )
-
-      const styleEl = document.createElement('style')
-      styleEl.id = 'pdf-export-hide'
-      styleEl.textContent = `
-        .react-flow__handle { opacity: 0 !important; }
-        .react-flow__node button { display: none !important; }
-        .react-flow__controls { display: none !important; }
-        .react-flow__panel { display: none !important; }
-        .react-flow__attribution { display: none !important; }
-      `
-      document.head.appendChild(styleEl)
-
-      await new Promise(r => setTimeout(r, 100))
-
-      const imgData = await toPng(flowEl, {
-        width: chartWidth,
-        height: chartHeight,
-        pixelRatio: 2,
-        backgroundColor: '#ffffff',
-        style: {
-          width: `${chartWidth}px`,
-          height: `${chartHeight}px`,
-          transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
-        },
-        filter: (node) => {
-          if (node?.classList?.contains('react-flow__minimap')) return false
-          if (node?.classList?.contains('react-flow__controls')) return false
-          return true
-        }
-      })
-
-      document.getElementById('pdf-export-hide')?.remove()
+      const { imgData } = await captureChartImage('png')
 
       const pdf = new jsPDF({
         orientation: pdfOrientation,
@@ -319,12 +345,29 @@ function OrgChartFlow() {
       pdf.save(`${fileName} - Org Chart.pdf`)
     } catch (err) {
       console.error('PDF export error:', err)
-      document.getElementById('pdf-export-hide')?.remove()
+      document.getElementById('export-hide-styles')?.remove()
       alert('Failed to export PDF. Please try again.')
     }
 
     setIsExportingPdf(false)
-  }, [nodes, pdfOrientation, savedCharts, selectedSavedChartId])
+  }, [captureChartImage, pdfOrientation, savedCharts, selectedSavedChartId])
+
+  const exportToJpg = useCallback(async () => {
+    setIsExportingPdf(true)
+    try {
+      const { imgData } = await captureChartImage('jpeg')
+      const link = document.createElement('a')
+      const chartName = savedCharts.find(c => String(c.id) === String(selectedSavedChartId))?.name
+      link.download = `${chartName || 'Org Chart'} - Org Chart.jpg`
+      link.href = imgData
+      link.click()
+    } catch (err) {
+      console.error('JPG export error:', err)
+      document.getElementById('export-hide-styles')?.remove()
+      alert('Failed to export JPG. Please try again.')
+    }
+    setIsExportingPdf(false)
+  }, [captureChartImage, savedCharts, selectedSavedChartId])
 
   const exportToCsv = useCallback(() => {
     const parentMap = {}
@@ -441,6 +484,9 @@ function OrgChartFlow() {
           if (chartData.legendItems) {
             setLegendItems(chartData.legendItems)
           }
+          if (chartData.lineWeight) setLineWeight(chartData.lineWeight)
+          if (chartData.borderStyle) setBorderStyle(chartData.borderStyle)
+          if (chartData.exportAspectRatio) setExportAspectRatio(chartData.exportAspectRatio)
         }
         if (data.org_chart_notes) {
           setGlobalNotes(data.org_chart_notes)
@@ -462,7 +508,7 @@ function OrgChartFlow() {
       return
     }
 
-    const chartData = JSON.stringify({ nodes, edges, legendItems })
+    const chartData = JSON.stringify({ nodes, edges, legendItems, lineWeight, borderStyle, exportAspectRatio })
     
     fetch(`/api/saved-orgcharts/${selectedSavedChartId}`, {
       method: 'PUT',
@@ -482,12 +528,12 @@ function OrgChartFlow() {
         setSaveStatus('Failed to save')
         setTimeout(() => setSaveStatus(''), 2000)
       })
-  }, [selectedSavedChartId, nodes, edges, globalNotes, legendItems])
+  }, [selectedSavedChartId, nodes, edges, globalNotes, legendItems, lineWeight, borderStyle, exportAspectRatio])
 
   const saveAsNewChart = useCallback(() => {
     if (!saveAsName.trim()) return
 
-    const chartData = JSON.stringify({ nodes, edges, legendItems })
+    const chartData = JSON.stringify({ nodes, edges, legendItems, lineWeight, borderStyle, exportAspectRatio })
     
     fetch('/api/saved-orgcharts', {
       method: 'POST',
@@ -516,7 +562,7 @@ function OrgChartFlow() {
         setSaveStatus('Failed to save')
         setTimeout(() => setSaveStatus(''), 2000)
       })
-  }, [saveAsName, nodes, edges, globalNotes])
+  }, [saveAsName, nodes, edges, globalNotes, legendItems, lineWeight, borderStyle, exportAspectRatio])
 
   const deleteSavedChart = useCallback(() => {
     if (!selectedSavedChartId) return
@@ -879,6 +925,7 @@ function OrgChartFlow() {
       onRemoveStaffFromList: removeStaffFromList,
       onAddChildBranch: addChildBranch,
       firmColorMap: firmColorMap,
+      borderStyle: borderStyle,
     }
   }))
 
@@ -962,7 +1009,7 @@ function OrgChartFlow() {
         </div>
       </div>
 
-      <div className="flex-1 relative" ref={reactFlowWrapper}>
+      <div className={`flex-1 relative line-weight-${lineWeight}`} ref={reactFlowWrapper}>
         <ReactFlow
           nodes={nodesWithCallbacks}
           edges={edges}
@@ -1051,58 +1098,106 @@ function OrgChartFlow() {
             </div>
           </Panel>
 
-          <Panel position="top-right" className="flex gap-2">
-            <button
-              onClick={addNewServiceType}
-              className="px-4 py-2 bg-red-600 text-white rounded shadow hover:bg-red-700 transition-colors font-medium"
-            >
-              + Add Service Type
-            </button>
-            <button
-              onClick={() => setShowPdfModal(true)}
-              disabled={isExportingPdf}
-              className={`px-4 py-2 rounded shadow transition-colors font-medium ${
-                isExportingPdf
-                  ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
-                  : 'bg-blue-600 text-white hover:bg-blue-700'
-              }`}
-            >
-              {isExportingPdf ? 'Exporting...' : 'Save PDF'}
-            </button>
-            <button
-              onClick={exportToCsv}
-              className="px-4 py-2 bg-emerald-600 text-white rounded shadow hover:bg-emerald-700 transition-colors font-medium"
-            >
-              CSV Export
-            </button>
-            <button
-              onClick={onResetLayout}
-              className="px-4 py-2 bg-gray-800 text-white rounded shadow hover:bg-gray-900 transition-colors font-medium"
-            >
-              Reset Layout
-            </button>
-            <div className="flex rounded shadow overflow-hidden">
+          <Panel position="top-right" className="flex flex-col gap-2 items-end">
+            <div className="flex gap-2 flex-wrap justify-end">
               <button
-                onClick={() => switchConnectionDirection('top-bottom')}
-                className={`px-3 py-2 text-sm font-medium transition-colors ${connectionDirection === 'top-bottom' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
-                title="Connect nodes top to bottom (vertical)"
+                onClick={addNewServiceType}
+                className="px-3 py-2 bg-red-600 text-white rounded shadow hover:bg-red-700 transition-colors font-medium text-sm"
               >
-                ↓ Top-Down
+                + Add Service Type
               </button>
               <button
-                onClick={() => switchConnectionDirection('left-side')}
-                className={`px-3 py-2 text-sm font-medium border-l transition-colors ${connectionDirection === 'left-side' ? 'bg-indigo-600 text-white border-indigo-700' : 'bg-white text-gray-700 hover:bg-gray-100 border-gray-300'}`}
-                title="Connect all nodes from left side"
+                onClick={() => setShowPdfModal(true)}
+                disabled={isExportingPdf}
+                className={`px-3 py-2 rounded shadow transition-colors font-medium text-sm ${
+                  isExportingPdf
+                    ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
               >
-                ← Left
+                {isExportingPdf ? 'Exporting...' : 'Save PDF'}
               </button>
               <button
-                onClick={() => switchConnectionDirection('right-side')}
-                className={`px-3 py-2 text-sm font-medium border-l transition-colors ${connectionDirection === 'right-side' ? 'bg-indigo-600 text-white border-indigo-700' : 'bg-white text-gray-700 hover:bg-gray-100 border-gray-300'}`}
-                title="Connect all nodes from right side"
+                onClick={exportToJpg}
+                disabled={isExportingPdf}
+                className={`px-3 py-2 rounded shadow transition-colors font-medium text-sm ${
+                  isExportingPdf
+                    ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                    : 'bg-amber-600 text-white hover:bg-amber-700'
+                }`}
               >
-                Right →
+                Save JPG
               </button>
+              <button
+                onClick={exportToCsv}
+                className="px-3 py-2 bg-emerald-600 text-white rounded shadow hover:bg-emerald-700 transition-colors font-medium text-sm"
+              >
+                CSV Export
+              </button>
+              <button
+                onClick={onResetLayout}
+                className="px-3 py-2 bg-gray-800 text-white rounded shadow hover:bg-gray-900 transition-colors font-medium text-sm"
+              >
+                Reset Layout
+              </button>
+            </div>
+            <div className="flex gap-2 flex-wrap justify-end items-center">
+              <div className="flex rounded shadow overflow-hidden">
+                <button
+                  onClick={() => switchConnectionDirection('top-bottom')}
+                  className={`px-2 py-1.5 text-xs font-medium transition-colors ${connectionDirection === 'top-bottom' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
+                  title="Connect nodes top to bottom (vertical)"
+                >
+                  ↓ Top-Down
+                </button>
+                <button
+                  onClick={() => switchConnectionDirection('left-side')}
+                  className={`px-2 py-1.5 text-xs font-medium border-l transition-colors ${connectionDirection === 'left-side' ? 'bg-indigo-600 text-white border-indigo-700' : 'bg-white text-gray-700 hover:bg-gray-100 border-gray-300'}`}
+                  title="Connect all nodes from left side"
+                >
+                  ← Left
+                </button>
+                <button
+                  onClick={() => switchConnectionDirection('right-side')}
+                  className={`px-2 py-1.5 text-xs font-medium border-l transition-colors ${connectionDirection === 'right-side' ? 'bg-indigo-600 text-white border-indigo-700' : 'bg-white text-gray-700 hover:bg-gray-100 border-gray-300'}`}
+                  title="Connect all nodes from right side"
+                >
+                  Right →
+                </button>
+              </div>
+              <div className="flex rounded shadow overflow-hidden" title="Line Weight">
+                {[{k:'thin',l:'Thin'},{k:'medium',l:'Med'},{k:'thick',l:'Thick'}].map(w => (
+                  <button
+                    key={w.k}
+                    onClick={() => setLineWeight(w.k)}
+                    className={`px-2 py-1.5 text-xs font-medium transition-colors ${w.k !== 'thin' ? 'border-l' : ''} ${lineWeight === w.k ? 'bg-gray-800 text-white' : 'bg-white text-gray-700 hover:bg-gray-100 border-gray-300'}`}
+                  >
+                    {w.l}
+                  </button>
+                ))}
+              </div>
+              <div className="flex rounded shadow overflow-hidden" title="Border Style">
+                {[{k:'default',l:'Default'},{k:'firm-colors',l:'Firm Colors'},{k:'black',l:'Black'},{k:'none',l:'None'}].map(b => (
+                  <button
+                    key={b.k}
+                    onClick={() => setBorderStyle(b.k)}
+                    className={`px-2 py-1.5 text-xs font-medium transition-colors ${b.k !== 'default' ? 'border-l' : ''} ${borderStyle === b.k ? 'bg-teal-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100 border-gray-300'}`}
+                  >
+                    {b.l}
+                  </button>
+                ))}
+              </div>
+              <div className="flex rounded shadow overflow-hidden" title="Export Aspect Ratio (H:W)">
+                {[{k:'0.773',l:'.773'},{k:'0.647',l:'.647'}].map(r => (
+                  <button
+                    key={r.k}
+                    onClick={() => setExportAspectRatio(r.k)}
+                    className={`px-2 py-1.5 text-xs font-medium transition-colors ${r.k !== '0.773' ? 'border-l' : ''} ${exportAspectRatio === r.k ? 'bg-purple-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100 border-gray-300'}`}
+                  >
+                    {r.l}
+                  </button>
+                ))}
+              </div>
             </div>
           </Panel>
 
