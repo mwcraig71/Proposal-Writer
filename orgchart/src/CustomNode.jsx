@@ -46,7 +46,6 @@ function CustomNode({ data, selected, id }) {
 
   const isTaskLead = data.isTaskLead
   const isTeamMember = data.isTeamMember
-  const connectFromSide = data.connectFromSide
 
   const firmColor = data.staffFirmId && data.firmColorMap ? data.firmColorMap[data.staffFirmId] : null
 
@@ -89,22 +88,18 @@ function CustomNode({ data, selected, id }) {
         id="top"
         className="w-3 h-3 bg-red-600 border-2 border-white"
       />
-      {connectFromSide === 'right' && (
-        <Handle
-          type="target"
-          position={Position.Right}
-          id="right"
-          className="w-3 h-3 bg-red-600 border-2 border-white"
-        />
-      )}
-      {connectFromSide === 'left' && (
-        <Handle
-          type="target"
-          position={Position.Left}
-          id="left"
-          className="w-3 h-3 bg-red-600 border-2 border-white"
-        />
-      )}
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="left"
+        className="w-3 h-3 bg-red-600 border-2 border-white"
+      />
+      <Handle
+        type="target"
+        position={Position.Right}
+        id="right"
+        className="w-3 h-3 bg-red-600 border-2 border-white"
+      />
       <div className="text-center">
         {isTaskLead && (
           <div className="text-[10px] text-red-600 font-bold uppercase tracking-wide mb-1">Task Lead</div>
@@ -187,6 +182,19 @@ function CustomNode({ data, selected, id }) {
       <Handle
         type="source"
         position={Position.Bottom}
+        id="bottom"
+        className="w-3 h-3 bg-red-600 border-2 border-white"
+      />
+      <Handle
+        type="source"
+        position={Position.Left}
+        id="left-source"
+        className="w-3 h-3 bg-red-600 border-2 border-white"
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="right-source"
         className="w-3 h-3 bg-red-600 border-2 border-white"
       />
     </div>

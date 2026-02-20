@@ -3,17 +3,39 @@
 @tailwind utilities;
 
 .react-flow__node-custom {
-  width: 180px;
-  padding: 10px;
-  border-radius: 4px;
-  background: white;
-  border: 2px solid #1e40af;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  width: auto;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 
 .react-flow__node-custom.selected {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 2px #3b82f6;
+  border: none;
+  box-shadow: none;
+  outline: none;
+}
+
+.react-flow__node-custom:focus,
+.react-flow__node-custom:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.react-flow__node-junction {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+}
+
+.react-flow__node-junction.selected,
+.react-flow__node-junction:focus,
+.react-flow__node-junction:focus-visible {
+  outline: none;
+  box-shadow: none;
+  border: none;
 }
 
 .react-flow__edge-path {
