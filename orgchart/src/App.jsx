@@ -25,6 +25,10 @@ const nodeWidth = 192
 const nodeHeight = 100
 const junctionSize = 4
 
+const EDGE_COLOR = '#374151'
+const getStrokeWidth = (weight) => weight === 'thin' ? 1 : weight === 'thick' ? 4 : 2
+const edgeStyle = (weight = 'medium') => ({ stroke: EDGE_COLOR, strokeWidth: getStrokeWidth(weight) })
+
 const FIRM_COLORS = [
   { bg: 'bg-red-50', border: 'border-red-600', text: 'text-red-700', label: 'bg-red-600', hex: '#dc2626' },
   { bg: 'bg-blue-50', border: 'border-blue-600', text: 'text-blue-700', label: 'bg-blue-600', hex: '#2563eb' },
@@ -139,14 +143,14 @@ const initialNodes = [
 ]
 
 const initialEdges = [
-  { id: 'e-pm-junction', source: 'pm', target: 'junction', type: 'smoothstep' },
-  { id: 'e-junction-safety', source: 'junction', sourceHandle: 'left', target: 'safety', targetHandle: 'right', type: 'smoothstep' },
-  { id: 'e-junction-qaqc', source: 'junction', sourceHandle: 'right', target: 'qaqc', targetHandle: 'left', type: 'smoothstep' },
-  { id: 'e-junction-topside', source: 'junction', target: 'topside', type: 'smoothstep' },
-  { id: 'e-junction-underwater', source: 'junction', target: 'underwater', type: 'smoothstep' },
-  { id: 'e-junction-loadrating', source: 'junction', target: 'loadrating', type: 'smoothstep' },
-  { id: 'e-junction-loadtesting', source: 'junction', target: 'loadtesting', type: 'smoothstep' },
-  { id: 'e-junction-ndt', source: 'junction', target: 'ndt', type: 'smoothstep' },
+  { id: 'e-pm-junction', source: 'pm', target: 'junction', type: 'smoothstep', style: edgeStyle() },
+  { id: 'e-junction-safety', source: 'junction', sourceHandle: 'left', target: 'safety', targetHandle: 'right', type: 'smoothstep', style: edgeStyle() },
+  { id: 'e-junction-qaqc', source: 'junction', sourceHandle: 'right', target: 'qaqc', targetHandle: 'left', type: 'smoothstep', style: edgeStyle() },
+  { id: 'e-junction-topside', source: 'junction', target: 'topside', type: 'smoothstep', style: edgeStyle() },
+  { id: 'e-junction-underwater', source: 'junction', target: 'underwater', type: 'smoothstep', style: edgeStyle() },
+  { id: 'e-junction-loadrating', source: 'junction', target: 'loadrating', type: 'smoothstep', style: edgeStyle() },
+  { id: 'e-junction-loadtesting', source: 'junction', target: 'loadtesting', type: 'smoothstep', style: edgeStyle() },
+  { id: 'e-junction-ndt', source: 'junction', target: 'ndt', type: 'smoothstep', style: edgeStyle() },
 ]
 
 const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(initialNodes, initialEdges)
@@ -194,6 +198,10 @@ function OrgChartFlow() {
       return updated
     }))
   }, [setEdges])
+
+  useEffect(() => {
+    setEdges(eds => eds.map(e => ({ ...e, style: edgeStyle(lineWeight) })))
+  }, [lineWeight, setEdges])
 
   const DIRECTION_CYCLE = [
     { sourceHandle: undefined, targetHandle: undefined, label: 'top-bottom' },
@@ -256,6 +264,23 @@ function OrgChartFlow() {
       padding
     )
 
+    const strokeWidth = getStrokeWidth(lineWeight)
+    const edgePaths = flowEl.querySelectorAll('.react-flow__edge-path')
+    const originalStyles = []
+    edgePaths.forEach(path => {
+      originalStyles.push({
+        el: path,
+        stroke: path.style.stroke,
+        strokeWidth: path.style.strokeWidth,
+        attrStroke: path.getAttribute('stroke'),
+        attrStrokeWidth: path.getAttribute('stroke-width')
+      })
+      path.style.stroke = EDGE_COLOR
+      path.style.strokeWidth = `${strokeWidth}px`
+      path.setAttribute('stroke', EDGE_COLOR)
+      path.setAttribute('stroke-width', strokeWidth)
+    })
+
     const styleEl = document.createElement('style')
     styleEl.id = 'export-hide-styles'
     styleEl.textContent = `
@@ -265,38 +290,55 @@ function OrgChartFlow() {
       .react-flow__panel { display: none !important; }
       .react-flow__attribution { display: none !important; }
       .react-flow__node-junction { opacity: 0 !important; }
-      .react-flow__edge-path { stroke-width: ${lineWeight === 'thin' ? 1 : lineWeight === 'thick' ? 4 : 2}px !important; }
+      .react-flow__edge-path { stroke: ${EDGE_COLOR} !important; stroke-width: ${strokeWidth}px !important; }
     `
     document.head.appendChild(styleEl)
 
     await new Promise(r => setTimeout(r, 150))
 
-    const captureOpts = {
-      width: chartWidth,
-      height: chartHeight,
-      pixelRatio: 3,
-      backgroundColor: '#ffffff',
-      style: {
-        width: `${chartWidth}px`,
-        height: `${chartHeight}px`,
-        transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
-      },
-      filter: (node) => {
-        if (node?.classList?.contains('react-flow__minimap')) return false
-        if (node?.classList?.contains('react-flow__controls')) return false
-        return true
+    const restoreStyles = () => {
+      document.getElementById('export-hide-styles')?.remove()
+      originalStyles.forEach(({ el, stroke, strokeWidth: sw, attrStroke, attrStrokeWidth }) => {
+        el.style.stroke = stroke
+        el.style.strokeWidth = sw
+        if (attrStroke !== null) el.setAttribute('stroke', attrStroke)
+        else el.removeAttribute('stroke')
+        if (attrStrokeWidth !== null) el.setAttribute('stroke-width', attrStrokeWidth)
+        else el.removeAttribute('stroke-width')
+      })
+    }
+
+    try {
+      const captureOpts = {
+        width: chartWidth,
+        height: chartHeight,
+        pixelRatio: 3,
+        backgroundColor: '#ffffff',
+        style: {
+          width: `${chartWidth}px`,
+          height: `${chartHeight}px`,
+          transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
+        },
+        filter: (node) => {
+          if (node?.classList?.contains('react-flow__minimap')) return false
+          if (node?.classList?.contains('react-flow__controls')) return false
+          return true
+        }
       }
-    }
 
-    let imgData
-    if (format === 'jpeg') {
-      imgData = await toJpeg(flowEl, { ...captureOpts, quality: 0.95 })
-    } else {
-      imgData = await toPng(flowEl, captureOpts)
-    }
+      let imgData
+      if (format === 'jpeg') {
+        imgData = await toJpeg(flowEl, { ...captureOpts, quality: 0.95 })
+      } else {
+        imgData = await toPng(flowEl, captureOpts)
+      }
 
-    document.getElementById('export-hide-styles')?.remove()
-    return { imgData, chartWidth, chartHeight }
+      restoreStyles()
+      return { imgData, chartWidth, chartHeight }
+    } catch (err) {
+      restoreStyles()
+      throw err
+    }
   }, [nodes, exportAspectRatio, lineWeight])
 
   const exportToPdf = useCallback(async () => {
@@ -480,7 +522,12 @@ function OrgChartFlow() {
         if (data.org_chart_data) {
           const chartData = JSON.parse(data.org_chart_data)
           setNodes(chartData.nodes || layoutedNodes)
-          setEdges(chartData.edges || layoutedEdges)
+          const loadedWeight = chartData.lineWeight || 'medium'
+          const loadedEdges = (chartData.edges || layoutedEdges).map(e => ({
+            ...e,
+            style: edgeStyle(loadedWeight)
+          }))
+          setEdges(loadedEdges)
           if (chartData.legendItems) {
             setLegendItems(chartData.legendItems)
           }
@@ -590,8 +637,8 @@ function OrgChartFlow() {
   }
 
   const onConnect = useCallback(
-    (params) => setEdges((eds) => addEdge({ ...params, type: 'smoothstep' }, eds)),
-    [setEdges]
+    (params) => setEdges((eds) => addEdge({ ...params, type: 'smoothstep', style: edgeStyle(lineWeight) }, eds)),
+    [setEdges, lineWeight]
   )
 
   const onResetLayout = useCallback(() => {
@@ -784,12 +831,13 @@ function OrgChartFlow() {
       target: newNodeId,
       sourceHandle: 'bottom',
       targetHandle: 'left',
-      type: 'smoothstep'
+      type: 'smoothstep',
+      style: edgeStyle(lineWeight)
     }
     
     setNodes((nds) => [...nds, newNode])
     setEdges((eds) => [...eds, newEdge])
-  }, [nodes, setNodes, setEdges])
+  }, [nodes, setNodes, setEdges, lineWeight])
 
   const addTeamMember = useCallback((parentNodeId) => {
     const parentNode = nodes.find(n => n.id === parentNodeId)
@@ -813,7 +861,8 @@ function OrgChartFlow() {
       id: `e-${parentNodeId}-${newNodeId}`,
       source: parentNodeId,
       target: newNodeId,
-      type: 'smoothstep'
+      type: 'smoothstep',
+      style: edgeStyle(lineWeight)
     }
     
     setNodes((nds) => [...nds, newNode])
@@ -823,7 +872,7 @@ function OrgChartFlow() {
       const { nodes: layouted } = getLayoutedElements([...nodes, newNode], [...edges, newEdge])
       setNodes(layouted)
     }, 50)
-  }, [nodes, edges, setNodes, setEdges])
+  }, [nodes, edges, setNodes, setEdges, lineWeight])
 
   const addNewServiceType = useCallback(() => {
     const serviceName = prompt('Enter new service type name:', 'New Service')
@@ -848,7 +897,8 @@ function OrgChartFlow() {
       id: `e-junction-${newNodeId}`,
       source: 'junction',
       target: newNodeId,
-      type: 'smoothstep'
+      type: 'smoothstep',
+      style: edgeStyle(lineWeight)
     }
     
     setNodes((nds) => [...nds, newNode])
@@ -858,7 +908,7 @@ function OrgChartFlow() {
       const { nodes: layouted } = getLayoutedElements([...nodes, newNode], [...edges, newEdge])
       setNodes(layouted)
     }, 50)
-  }, [nodes, edges, setNodes, setEdges, addTeamMember])
+  }, [nodes, edges, setNodes, setEdges, lineWeight])
 
   const addChildBranch = useCallback((parentNodeId) => {
     const parentNode = nodes.find(n => n.id === parentNodeId)
@@ -885,7 +935,8 @@ function OrgChartFlow() {
       id: `e-${parentNodeId}-${newNodeId}`,
       source: parentNodeId,
       target: newNodeId,
-      type: 'smoothstep'
+      type: 'smoothstep',
+      style: edgeStyle(lineWeight)
     }
     
     setNodes((nds) => [...nds, newNode])
@@ -895,7 +946,7 @@ function OrgChartFlow() {
       const { nodes: layouted } = getLayoutedElements([...nodes, newNode], [...edges, newEdge])
       setNodes(layouted)
     }, 50)
-  }, [nodes, edges, setNodes, setEdges])
+  }, [nodes, edges, setNodes, setEdges, lineWeight])
 
   const removeStaffFromList = useCallback((nodeId, index) => {
     setNodes((nds) =>
@@ -1023,7 +1074,7 @@ function OrgChartFlow() {
           onEdgeClick={onEdgeClick}
           nodeTypes={nodeTypes}
           fitView
-          defaultEdgeOptions={{ type: 'smoothstep' }}
+          defaultEdgeOptions={{ type: 'smoothstep', style: edgeStyle(lineWeight) }}
           edgesReconnectable
         >
           <Controls />
