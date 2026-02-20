@@ -254,6 +254,57 @@ function OrgChartFlow() {
     setIsExportingPdf(false)
   }, [nodes, pdfOrientation, savedCharts, selectedSavedChartId])
 
+  const exportToCsv = useCallback(() => {
+    const parentMap = {}
+    edges.forEach(edge => {
+      parentMap[edge.target] = edge.source
+    })
+
+    const getParentRole = (nodeId) => {
+      let parentId = parentMap[nodeId]
+      while (parentId) {
+        const parentNode = nodes.find(n => n.id === parentId)
+        if (!parentNode) return -1
+        if (parentNode.type === 'junction') {
+          parentId = parentMap[parentId]
+          continue
+        }
+        return parentNode.data.role || 'Unknown'
+      }
+      return -1
+    }
+
+    const rows = ['"Name","Supervisor","Title"']
+
+    nodes
+      .filter(n => n.type !== 'junction')
+      .forEach(node => {
+        const role = (node.data.role || '').replace(/"/g, '""')
+        const supervisor = getParentRole(node.id)
+        const supervisorStr = supervisor === -1 ? '-1' : `"${String(supervisor).replace(/"/g, '""')}"`
+        const title = (node.data.assignedStaff || '').replace(/"/g, '""')
+
+        rows.push(`"${role}",${supervisorStr},"${title}"`)
+
+        if (node.data.staffList && node.data.staffList.length > 0) {
+          node.data.staffList.forEach(member => {
+            const memberName = (member.name || '').replace(/"/g, '""')
+            rows.push(`"Team Member","${role}","${memberName}"`)
+          })
+        }
+      })
+
+    const csvContent = rows.join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    const chartName = savedCharts.find(c => String(c.id) === String(selectedSavedChartId))?.name
+    link.href = url
+    link.download = `${chartName || 'Org Chart'} - SmartDraw.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+  }, [nodes, edges, savedCharts, selectedSavedChartId])
+
   useEffect(() => {
     fetch('/api/employees')
       .then(res => res.json())
@@ -913,6 +964,12 @@ function OrgChartFlow() {
               }`}
             >
               {isExportingPdf ? 'Exporting...' : 'Save PDF'}
+            </button>
+            <button
+              onClick={exportToCsv}
+              className="px-4 py-2 bg-emerald-600 text-white rounded shadow hover:bg-emerald-700 transition-colors font-medium"
+            >
+              CSV Export
             </button>
             <button
               onClick={onResetLayout}
