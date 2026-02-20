@@ -233,6 +233,14 @@ function OrgChartFlow() {
     }))
   }, [setEdges])
 
+  const onEdgeContextMenu = useCallback((event, edge) => {
+    event.preventDefault()
+    event.stopPropagation()
+    if (window.confirm('Delete this connection line?')) {
+      setEdges(eds => eds.filter(e => e.id !== edge.id))
+    }
+  }, [setEdges])
+
   const captureChartImage = useCallback(async (format = 'png') => {
     const flowEl = document.querySelector('.react-flow__viewport')
     if (!flowEl) {
@@ -1072,6 +1080,7 @@ function OrgChartFlow() {
           onDragOver={onDragOver}
           onNodeDoubleClick={onNodeDoubleClick}
           onEdgeClick={onEdgeClick}
+          onEdgeContextMenu={onEdgeContextMenu}
           nodeTypes={nodeTypes}
           fitView
           defaultEdgeOptions={{ type: 'smoothstep', style: edgeStyle(lineWeight) }}
