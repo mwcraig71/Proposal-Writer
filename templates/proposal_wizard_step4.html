@@ -956,56 +956,62 @@ async function loadLinkedReferences() {
             return;
         }
         
-        container.innerHTML = data.references.map(r => `
-            <div class="border rounded-lg p-3 bg-white mb-3 shadow-sm border-yellow-200" data-id="${r.id}">
-                <div class="flex justify-between items-start mb-2">
-                    <div class="flex-1">
-                        <div class="flex items-center gap-2 mb-1">
-                            <span class="font-bold text-gray-800 text-sm">${r.project_name || r.client || 'Performance Reference'}</span>
-                            ${r.final_score ? `<span class="inline-flex items-center justify-center w-8 h-8 rounded-full text-white font-bold text-xs ${r.final_score >= 9 ? 'bg-green-500' : r.final_score >= 7 ? 'bg-blue-500' : 'bg-yellow-500'}">${r.final_score.toFixed(1)}</span>` : ''}
-                        </div>
-                        <div class="flex flex-wrap gap-2 text-xs">
-                            ${r.client ? `<span class="bg-yellow-50 text-yellow-800 px-2 py-0.5 rounded border border-yellow-100 font-medium">Client: ${r.client}</span>` : ''}
-                            ${r.evaluation_date ? `<span class="bg-gray-50 text-gray-700 px-2 py-0.5 rounded border border-gray-100">${new Date(r.evaluation_date).toLocaleDateString('en-US', {month: 'short', year: 'numeric'})}</span>` : ''}
-                        </div>
+        container.innerHTML = data.references.map((r, idx) => `
+            <div class="border rounded-lg bg-white mb-3 shadow-sm border-yellow-200 overflow-hidden" data-id="${r.id}">
+                <div class="flex justify-between items-center px-3 py-2.5 cursor-pointer hover:bg-yellow-50 transition select-none" onclick="toggleRefCard(this)">
+                    <div class="flex items-center gap-2 flex-1 min-w-0">
+                        <i class="fas fa-chevron-right text-gray-400 text-xs transition-transform ref-chevron"></i>
+                        <span class="font-bold text-gray-800 text-sm truncate">${r.project_name || r.client || 'Performance Reference'}</span>
+                        ${r.final_score ? `<span class="inline-flex items-center justify-center w-7 h-7 rounded-full text-white font-bold text-xs flex-shrink-0 ${r.final_score >= 9 ? 'bg-green-500' : r.final_score >= 7 ? 'bg-blue-500' : 'bg-yellow-500'}">${r.final_score.toFixed(1)}</span>` : ''}
+                        ${r.client ? `<span class="bg-yellow-50 text-yellow-800 px-2 py-0.5 rounded border border-yellow-100 text-xs font-medium flex-shrink-0 hidden sm:inline">${r.client}</span>` : ''}
+                        ${r.quote_entries && r.quote_entries.length > 0 ? `<span class="bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded text-xs flex-shrink-0"><i class="fas fa-quote-left mr-0.5"></i>${r.quote_entries.length}</span>` : ''}
                     </div>
-                    <div class="flex gap-2 ml-2">
-                        ${r.pdf_filename ? `<a href="/references/${r.id}/download-pdf" class="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition border border-transparent hover:border-blue-200" title="Download PDF"><i class="fas fa-download"></i></a>` : ''}
-                        <button onclick="unlinkReference(${r.id})" class="p-1.5 text-red-600 hover:bg-red-50 rounded transition border border-transparent hover:border-red-200" title="Unlink">
-                            <i class="fas fa-times"></i>
+                    <div class="flex gap-1.5 ml-2 flex-shrink-0" onclick="event.stopPropagation()">
+                        ${r.pdf_filename ? `<a href="/references/${r.id}/download-pdf" class="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition" title="Download PDF"><i class="fas fa-download text-xs"></i></a>` : ''}
+                        <button onclick="unlinkReference(${r.id})" class="p-1.5 text-red-600 hover:bg-red-50 rounded transition" title="Unlink">
+                            <i class="fas fa-times text-xs"></i>
                         </button>
                     </div>
                 </div>
-                ${r.score_summary ? `<p class="text-gray-600 text-xs mb-2 border-l-2 border-yellow-400 pl-2">${r.score_summary.substring(0, 200)}${r.score_summary.length > 200 ? '...' : ''}</p>` : ''}
-                ${r.quote_entries && r.quote_entries.length > 0 ? `
-                <div class="mt-2">
-                    <div class="flex items-center justify-between mb-1.5">
-                        <span class="text-xs font-semibold text-gray-700"><i class="fas fa-quote-left text-yellow-500 mr-1"></i> Notable Quotes (${r.quote_entries.length})</span>
-                        <div class="flex items-center gap-1.5">
-                            <label class="text-xs text-gray-400">Color:</label>
-                            <input type="color" class="w-5 h-5 border rounded cursor-pointer ref-quote-color" value="#1e40af">
+                <div class="ref-card-body hidden px-3 pb-3 border-t border-yellow-100">
+                    <div class="pt-2.5">
+                        <div class="flex flex-wrap gap-2 text-xs mb-2">
+                            ${r.client ? `<span class="bg-yellow-50 text-yellow-800 px-2 py-0.5 rounded border border-yellow-100 font-medium">Client: ${r.client}</span>` : ''}
+                            ${r.evaluation_date ? `<span class="bg-gray-50 text-gray-700 px-2 py-0.5 rounded border border-gray-100">${new Date(r.evaluation_date).toLocaleDateString('en-US', {month: 'short', year: 'numeric'})}</span>` : ''}
+                            ${r.firm ? `<span class="bg-gray-50 text-gray-700 px-2 py-0.5 rounded border border-gray-100">Firm: ${r.firm}</span>` : ''}
                         </div>
-                    </div>
-                    <div class="space-y-2">
-                    ${r.quote_entries.map(q => `
-                        <div class="bg-yellow-50 border border-yellow-100 rounded-lg p-2.5 group">
-                            <blockquote class="text-gray-700 text-xs italic mb-1.5">\u201C${q.quote_text}\u201D</blockquote>
-                            <div class="flex items-center justify-between">
-                                <span class="text-xs text-gray-500">${q.author ? `\u2014 ${q.author}` : ''}${q.client ? (q.author ? ', ' : '\u2014 ') + q.client : ''}</span>
-                                <div class="flex gap-1 opacity-60 group-hover:opacity-100 transition">
-                                    <button onclick="downloadRefQuoteImage(${q.id}, this)" class="text-xs px-2 py-0.5 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition" title="Download as image">
-                                        <i class="fas fa-image"></i> PNG
-                                    </button>
-                                    <button onclick="copyRefQuoteText(this)" data-quote="${q.quote_text.replace(/"/g, '&quot;')}" data-author="${(q.author||'').replace(/"/g, '&quot;')}" data-client="${(q.client||'').replace(/"/g, '&quot;')}" class="text-xs px-2 py-0.5 bg-gray-600 text-white rounded hover:bg-gray-700 transition" title="Copy quote text">
-                                        <i class="fas fa-copy"></i> Copy
-                                    </button>
+                        ${r.score_summary ? `<p class="text-gray-600 text-xs mb-2 border-l-2 border-yellow-400 pl-2">${r.score_summary.substring(0, 300)}${r.score_summary.length > 300 ? '...' : ''}</p>` : ''}
+                        ${r.quote_entries && r.quote_entries.length > 0 ? `
+                        <div class="mt-2">
+                            <div class="flex items-center justify-between mb-1.5">
+                                <span class="text-xs font-semibold text-gray-700"><i class="fas fa-quote-left text-yellow-500 mr-1"></i> Notable Quotes (${r.quote_entries.length})</span>
+                                <div class="flex items-center gap-1.5">
+                                    <label class="text-xs text-gray-400">Color:</label>
+                                    <input type="color" class="w-5 h-5 border rounded cursor-pointer ref-quote-color" value="#1e40af" onclick="event.stopPropagation()">
                                 </div>
                             </div>
+                            <div class="space-y-2">
+                            ${r.quote_entries.map(q => `
+                                <div class="bg-yellow-50 border border-yellow-100 rounded-lg p-2.5 group">
+                                    <blockquote class="text-gray-700 text-xs italic mb-1.5">\u201C${q.quote_text}\u201D</blockquote>
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-xs text-gray-500">${q.author ? `\u2014 ${q.author}` : ''}${q.client ? (q.author ? ', ' : '\u2014 ') + q.client : ''}</span>
+                                        <div class="flex gap-1 opacity-60 group-hover:opacity-100 transition">
+                                            <button onclick="downloadRefQuoteImage(${q.id}, this)" class="text-xs px-2 py-0.5 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition" title="Download as image">
+                                                <i class="fas fa-image"></i> PNG
+                                            </button>
+                                            <button onclick="copyRefQuoteText(this)" data-quote="${q.quote_text.replace(/"/g, '&quot;')}" data-author="${(q.author||'').replace(/"/g, '&quot;')}" data-client="${(q.client||'').replace(/"/g, '&quot;')}" class="text-xs px-2 py-0.5 bg-gray-600 text-white rounded hover:bg-gray-700 transition" title="Copy quote text">
+                                                <i class="fas fa-copy"></i> Copy
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                            </div>
                         </div>
-                    `).join('')}
+                        ` : (r.quotes ? `<blockquote class="text-gray-700 text-xs italic bg-yellow-50 p-2 rounded mt-2">\u201C${r.quotes.substring(0, 200)}${r.quotes.length > 200 ? '...' : ''}\u201D</blockquote>` : '')}
                     </div>
                 </div>
-                ` : (r.quotes ? `<blockquote class="text-gray-700 text-xs italic bg-yellow-50 p-2 rounded">"${r.quotes.substring(0, 150)}${r.quotes.length > 150 ? '...' : ''}"</blockquote>` : '')}
             </div>
         `).join('');
     } catch (e) {
@@ -1066,6 +1072,18 @@ function downloadSavedResponse(btn) {
     const label = container.querySelector('.font-medium')?.textContent || 'Saved Response';
     const text = container.querySelector('.saved-response-text')?.textContent || '';
     downloadAsWord(text, label, 'general');
+}
+
+function toggleRefCard(header) {
+    const card = header.closest('[data-id]');
+    const body = card.querySelector('.ref-card-body');
+    const chevron = header.querySelector('.ref-chevron');
+    body.classList.toggle('hidden');
+    if (body.classList.contains('hidden')) {
+        chevron.style.transform = 'rotate(0deg)';
+    } else {
+        chevron.style.transform = 'rotate(90deg)';
+    }
 }
 
 async function downloadRefQuoteImage(quoteId, btn) {
