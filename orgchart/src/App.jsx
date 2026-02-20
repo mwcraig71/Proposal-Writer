@@ -36,6 +36,15 @@ const FIRM_COLORS = [
   { bg: 'bg-yellow-50', border: 'border-yellow-600', text: 'text-yellow-700', label: 'bg-yellow-600', hex: '#ca8a04' },
 ]
 
+const hexToColorObj = (hex) => ({
+  hex,
+  useInline: true,
+  borderStyle: { borderColor: hex },
+  bgStyle: { backgroundColor: hex + '18' },
+  textStyle: { color: hex },
+  labelStyle: { backgroundColor: hex },
+})
+
 const getLayoutedElements = (nodes, edges, direction = 'TB') => {
   const pmNode = nodes.find(n => n.id === 'pm')
   const junctionNode = nodes.find(n => n.id === 'junction')
@@ -310,12 +319,6 @@ function OrgChartFlow() {
       .then(res => res.json())
       .then(data => {
         setStaff(data)
-        const firmIds = [...new Set(data.map(e => e.firm_id).filter(Boolean))]
-        const colorMap = {}
-        firmIds.forEach((firmId, index) => {
-          colorMap[firmId] = FIRM_COLORS[index % FIRM_COLORS.length]
-        })
-        setFirmColorMap(colorMap)
       })
       .catch(err => console.error('Failed to fetch staff:', err))
     
@@ -323,6 +326,17 @@ function OrgChartFlow() {
       .then(res => res.json())
       .then(data => {
         setFirms(data)
+        const colorMap = {}
+        let fallbackIndex = 0
+        data.forEach(f => {
+          if (f.brand_color) {
+            colorMap[f.id] = hexToColorObj(f.brand_color)
+          } else {
+            colorMap[f.id] = FIRM_COLORS[fallbackIndex % FIRM_COLORS.length]
+            fallbackIndex++
+          }
+        })
+        setFirmColorMap(colorMap)
         const strinteg = data.find(f => f.name.toLowerCase().includes('strinteg'))
         if (strinteg) {
           setSelectedFirmFilter(String(strinteg.id))
@@ -835,12 +849,16 @@ function OrgChartFlow() {
           ) : (
             filteredStaff.map((person) => {
               const firmColor = firmColorMap[person.firm_id]
+              const isInline = firmColor?.useInline
+              const sidebarStyle = isInline ? { borderColor: firmColor.hex, backgroundColor: firmColor.hex + '18' } : {}
+              const sidebarClass = firmColor ? (isInline ? '' : `${firmColor.border} ${firmColor.bg}`) : 'border-gray-200 bg-white hover:border-red-500'
+              const nameStyle = isInline ? { color: firmColor.hex } : {}
+              const nameClass = firmColor ? (isInline ? '' : firmColor.text) : 'text-gray-400'
               return (
                 <div
                   key={person.id}
-                  className={`staff-item p-3 mb-2 rounded shadow hover:shadow-md border-2 transition-all cursor-grab ${
-                    firmColor ? `${firmColor.border} ${firmColor.bg}` : 'border-gray-200 bg-white hover:border-red-500'
-                  }`}
+                  className={`staff-item p-3 mb-2 rounded shadow hover:shadow-md border-2 transition-all cursor-grab ${sidebarClass}`}
+                  style={sidebarStyle}
                   draggable
                   onDragStart={(e) => onDragStart(e, person)}
                 >
@@ -849,7 +867,7 @@ function OrgChartFlow() {
                     <div className="text-xs text-gray-500">{person.title}</div>
                   )}
                   {person.firm_name && (
-                    <div className={`text-[10px] font-semibold mt-0.5 ${firmColor ? firmColor.text : 'text-gray-400'}`}>
+                    <div className={`text-[10px] font-semibold mt-0.5 ${nameClass}`} style={nameStyle}>
                       {person.firm_name}
                     </div>
                   )}
@@ -984,7 +1002,7 @@ function OrgChartFlow() {
               <div className="text-xs font-bold text-gray-600 mb-1">Firm Legend</div>
               {legendFirms.map(({ firmId, firmName, color }) => (
                 <div key={firmId} className="flex items-center gap-1.5 text-xs py-0.5">
-                  <div className={`w-3 h-3 rounded ${color.label}`}></div>
+                  <div className={`w-3 h-3 rounded ${color.useInline ? '' : color.label}`} style={color.useInline ? color.labelStyle : {}}></div>
                   <span className="text-gray-700">{firmName}</span>
                 </div>
               ))}
@@ -1004,13 +1022,19 @@ function OrgChartFlow() {
           ) : (
             nodes.filter(n => n.data?.assignedStaff).map((node) => {
               const firmColor = firmColorMap[node.data.staffFirmId]
+              const isInline = firmColor?.useInline
+              const assignedBorderStyle = isInline ? { borderLeftColor: firmColor.hex } : {}
+              const assignedBorderClass = firmColor ? (isInline ? 'bg-white' : `${firmColor.border} bg-white`) : 'border-gray-300 bg-white'
+              const assignedTextStyle = isInline ? firmColor.textStyle : {}
+              const assignedTextClass = firmColor ? (isInline ? '' : firmColor.text) : 'text-red-600'
               return (
                 <div
                   key={node.id}
-                  className={`p-3 mb-2 rounded shadow border-l-4 ${firmColor ? `${firmColor.border} bg-white` : 'border-gray-300 bg-white'}`}
+                  className={`p-3 mb-2 rounded shadow border-l-4 ${assignedBorderClass}`}
+                  style={assignedBorderStyle}
                 >
                   <div className="font-medium text-gray-800 text-sm">{node.data.role}</div>
-                  <div className={`text-xs font-medium ${firmColor ? firmColor.text : 'text-red-600'}`}>{node.data.assignedStaff}</div>
+                  <div className={`text-xs font-medium ${assignedTextClass}`} style={assignedTextStyle}>{node.data.assignedStaff}</div>
                   {node.data.staffFirmName && (
                     <div className="text-[10px] text-gray-400">{node.data.staffFirmName}</div>
                   )}

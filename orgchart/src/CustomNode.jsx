@@ -48,15 +48,23 @@ function CustomNode({ data, selected, id }) {
   const isTeamMember = data.isTeamMember
 
   const firmColor = data.staffFirmId && data.firmColorMap ? data.firmColorMap[data.staffFirmId] : null
+  const useInline = firmColor?.useInline
 
   let borderClass = 'border-gray-900'
   let bgClass = 'bg-gray-50'
+  let inlineStyle = {}
   
   if (selected) {
     borderClass = 'border-red-500 shadow-lg ring-2 ring-red-300'
   } else if (data.assignedStaff && firmColor) {
-    borderClass = firmColor.border
-    bgClass = firmColor.bg
+    if (useInline) {
+      borderClass = ''
+      bgClass = ''
+      inlineStyle = { ...firmColor.borderStyle, ...firmColor.bgStyle }
+    } else {
+      borderClass = firmColor.border
+      bgClass = firmColor.bg
+    }
   } else if (isTaskLead) {
     borderClass = 'border-red-600'
     bgClass = data.assignedStaff ? 'bg-red-50' : 'bg-white'
@@ -67,11 +75,13 @@ function CustomNode({ data, selected, id }) {
     bgClass = 'bg-red-50'
   }
 
-  const staffTextColor = firmColor ? firmColor.text : 'text-red-700'
+  const staffTextColor = firmColor ? (useInline ? '' : firmColor.text) : 'text-red-700'
+  const staffTextStyle = firmColor?.useInline ? firmColor.textStyle : {}
 
   return (
     <div
       className={`w-48 min-h-[70px] p-3 rounded border-2 shadow-md relative ${borderClass} ${bgClass}`}
+      style={inlineStyle}
     >
       {data.canDelete && (
         <button
@@ -113,6 +123,7 @@ function CustomNode({ data, selected, id }) {
         {data.assignedStaff && !isTeamMember && !data.useStaffList && (
           <div
             className={`mt-1 text-xs font-medium border-t pt-1 cursor-grab hover:opacity-75 rounded px-1 transition-colors ${staffTextColor} ${firmColor ? 'border-current' : 'border-red-200'}`}
+            style={staffTextStyle}
             draggable
             onDragStart={handleStaffDragStart}
             title="Drag to reassign to another role"
@@ -129,9 +140,11 @@ function CustomNode({ data, selected, id }) {
               const staffName = typeof staffEntry === 'string' ? staffEntry : staffEntry.name
               const staffFirmId = typeof staffEntry === 'object' ? staffEntry.firm_id : null
               const entryFirmColor = staffFirmId && data.firmColorMap ? data.firmColorMap[staffFirmId] : null
+              const entryTextStyle = entryFirmColor?.useInline ? entryFirmColor.textStyle : {}
+              const entryTextClass = entryFirmColor ? (entryFirmColor.useInline ? '' : entryFirmColor.text) : 'text-red-700'
               return (
               <div key={index} className="flex items-center justify-between text-xs text-gray-700 py-0.5 hover:bg-gray-100 rounded px-1">
-                <span className={`font-medium ${entryFirmColor ? entryFirmColor.text : 'text-red-700'}`}>{staffName}</span>
+                <span className={`font-medium ${entryTextClass}`} style={entryTextStyle}>{staffName}</span>
                 <button
                   onClick={(e) => {
                     e.stopPropagation()

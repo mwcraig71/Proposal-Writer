@@ -3199,7 +3199,8 @@ def add_firm():
             fax=data.get('fax'),
             email=data.get('email'),
             point_of_contact_name=data.get('point_of_contact_name'),
-            point_of_contact_title=data.get('point_of_contact_title')
+            point_of_contact_title=data.get('point_of_contact_title'),
+            brand_color=data.get('brand_color') if data.get('brand_color') else None
         )
         db.session.add(firm)
         db.session.commit()
@@ -3237,6 +3238,7 @@ def edit_firm(id):
         firm.point_of_contact_title = data.get('point_of_contact_title')
         firm.bio = data.get('bio')
         firm.google_drive_folder_url = data.get('google_drive_folder_url')
+        firm.brand_color = data.get('brand_color') if data.get('brand_color') else None
         
         from datetime import datetime
         stat_fields = [
@@ -5260,13 +5262,15 @@ def api_employees():
     employees = Employee.query.order_by(Employee.name).all()
     firms = Firm.query.order_by(Firm.name).all()
     firm_map = {f.id: f.name for f in firms}
+    firm_color_map = {f.id: f.brand_color for f in firms if f.brand_color}
     return jsonify([{
         'id': e.id,
         'name': e.name,
         'title': e.title,
         'role': e.role,
         'firm_id': e.firm_id,
-        'firm_name': firm_map.get(e.firm_id, 'Unknown')
+        'firm_name': firm_map.get(e.firm_id, 'Unknown'),
+        'firm_color': firm_color_map.get(e.firm_id)
     } for e in employees])
 
 
@@ -8377,7 +8381,7 @@ def api_save_proposal_orgchart(proposal_id):
 @app.route('/api/firms/list')
 def api_firms_list():
     firms = Firm.query.order_by(Firm.name).all()
-    return jsonify([{'id': f.id, 'name': f.name} for f in firms])
+    return jsonify([{'id': f.id, 'name': f.name, 'brand_color': f.brand_color} for f in firms])
 
 
 @app.route('/api/saved-orgcharts', methods=['GET'])
