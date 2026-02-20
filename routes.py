@@ -6950,9 +6950,13 @@ def get_storage_client():
         return None
 
 ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+ALLOWED_LOGO_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'tiff', 'tif', 'ico'}
 
 def allowed_image_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
+
+def allowed_logo_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_LOGO_EXTENSIONS
 
 
 @app.route('/employees/<int:id>/photos', methods=['POST'])
@@ -7335,6 +7339,101 @@ def serve_firm_photo(photo_id):
     except Exception as e:
         print(f"Error serving firm photo: {e}")
         return "Photo not found", 404
+
+
+# Firm Logo Routes
+@app.route('/firms/<int:id>/logo', methods=['POST'])
+def upload_firm_logo(id):
+    firm = Firm.query.get_or_404(id)
+    
+    if 'logo' not in request.files:
+        return jsonify({'success': False, 'error': 'No logo file provided'}), 400
+    
+    file = request.files['logo']
+    if file.filename == '':
+        return jsonify({'success': False, 'error': 'No file selected'}), 400
+    
+    if not allowed_logo_file(file.filename):
+        return jsonify({'success': False, 'error': 'Invalid file type. Allowed: PNG, JPG, JPEG, GIF, WEBP, SVG, BMP, TIFF, ICO'}), 400
+    
+    client = get_storage_client()
+    if not client:
+        return jsonify({'success': False, 'error': 'Object storage not configured'}), 500
+    
+    ext = file.filename.rsplit('.', 1)[1].lower()
+    unique_id = str(uuid.uuid4())
+    storage_path = f"firms/{id}/logo/{unique_id}.{ext}"
+    
+    try:
+        if firm.logo_storage_path:
+            try:
+                client.delete(firm.logo_storage_path)
+            except:
+                pass
+        
+        file_data = file.read()
+        client.upload_from_bytes(storage_path, file_data)
+        
+        firm.logo_storage_path = storage_path
+        firm.logo_filename = secure_filename(file.filename)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'logo_url': f'/firms/{id}/logo/serve'
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/firms/<int:id>/logo', methods=['DELETE'])
+def delete_firm_logo(id):
+    firm = Firm.query.get_or_404(id)
+    
+    if not firm.logo_storage_path:
+        return jsonify({'success': False, 'error': 'No logo to delete'}), 404
+    
+    client = get_storage_client()
+    if client:
+        try:
+            client.delete(firm.logo_storage_path)
+        except:
+            pass
+    
+    firm.logo_storage_path = None
+    firm.logo_filename = None
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/firms/<int:id>/logo/serve')
+def serve_firm_logo(id):
+    firm = Firm.query.get_or_404(id)
+    
+    if not firm.logo_storage_path:
+        return "No logo found", 404
+    
+    client = get_storage_client()
+    if not client:
+        return "Storage not configured", 500
+    
+    try:
+        data = client.download_as_bytes(firm.logo_storage_path)
+        ext = firm.logo_storage_path.rsplit('.', 1)[1].lower() if '.' in firm.logo_storage_path else ''
+        mime_types = {
+            'svg': 'image/svg+xml', 'png': 'image/png', 'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg', 'gif': 'image/gif', 'webp': 'image/webp',
+            'bmp': 'image/bmp', 'tiff': 'image/tiff', 'tif': 'image/tiff', 'ico': 'image/x-icon'
+        }
+        mimetype = mime_types.get(ext, 'image/png')
+        return send_file(
+            io.BytesIO(data),
+            mimetype=mimetype,
+            download_name=firm.logo_filename or f'logo.{ext}'
+        )
+    except Exception as e:
+        print(f"Error serving firm logo: {e}")
+        return "Logo not found", 404
 
 
 # Firm Documents Routes
@@ -8381,7 +8480,12 @@ def api_save_proposal_orgchart(proposal_id):
 @app.route('/api/firms/list')
 def api_firms_list():
     firms = Firm.query.order_by(Firm.name).all()
-    return jsonify([{'id': f.id, 'name': f.name, 'brand_color': f.brand_color} for f in firms])
+    return jsonify([{
+        'id': f.id, 
+        'name': f.name, 
+        'brand_color': f.brand_color,
+        'logo_url': f'/firms/{f.id}/logo/serve' if f.logo_storage_path else None
+    } for f in firms])
 
 
 @app.route('/api/saved-orgcharts', methods=['GET'])

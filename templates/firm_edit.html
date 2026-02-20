@@ -125,6 +125,30 @@
                 </div>
                 
                 <div class="border-t pt-4 mt-4">
+                    <h3 class="font-medium text-gray-700 mb-3"><i class="fas fa-image text-green-600 mr-2"></i>Firm Logo</h3>
+                    <p class="text-sm text-gray-500 mb-2">Upload a logo for this firm (PNG, JPG, SVG, or other image formats)</p>
+                    <div id="logo-section">
+                        {% if firm.logo_storage_path %}
+                        <div id="logo-preview" class="flex items-center gap-4 mb-3">
+                            <img src="/firms/{{ firm.id }}/logo/serve" alt="Firm Logo" class="max-h-20 max-w-48 object-contain border rounded p-1 bg-white">
+                            <div>
+                                <span class="text-sm text-gray-600">{{ firm.logo_filename }}</span>
+                                <button type="button" onclick="deleteFirmLogo({{ firm.id }})" class="ml-3 text-xs text-red-600 hover:text-red-800">
+                                    <i class="fas fa-trash mr-1"></i>Remove
+                                </button>
+                            </div>
+                        </div>
+                        {% endif %}
+                        <div id="logo-upload-area">
+                            <input type="file" id="logo-file-input" accept=".png,.jpg,.jpeg,.gif,.webp,.svg,.bmp,.tiff,.tif,.ico" class="hidden" onchange="uploadFirmLogo({{ firm.id }}, this)">
+                            <button type="button" onclick="document.getElementById('logo-file-input').click()" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm">
+                                <i class="fas fa-upload mr-1"></i>{{ 'Change Logo' if firm.logo_storage_path else 'Upload Logo' }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="border-t pt-4 mt-4">
                     <h3 class="font-medium text-gray-700 mb-3"><i class="fab fa-google-drive text-blue-600 mr-2"></i>Google Drive Integration</h3>
                     <p class="text-sm text-gray-500 mb-2">Link a Google Drive folder to access firm documents</p>
                     <div>
@@ -247,6 +271,38 @@
 
 <script>
 const firmId = {{ firm.id }};
+
+async function uploadFirmLogo(firmId, input) {
+    if (!input.files.length) return;
+    const formData = new FormData();
+    formData.append('logo', input.files[0]);
+    try {
+        const res = await fetch(`/firms/${firmId}/logo`, { method: 'POST', body: formData });
+        const data = await res.json();
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.error || 'Failed to upload logo');
+        }
+    } catch(e) {
+        alert('Error uploading logo');
+    }
+}
+
+async function deleteFirmLogo(firmId) {
+    if (!confirm('Remove the firm logo?')) return;
+    try {
+        const res = await fetch(`/firms/${firmId}/logo`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.error || 'Failed to remove logo');
+        }
+    } catch(e) {
+        alert('Error removing logo');
+    }
+}
 
 async function loadAlternateBios() {
     try {

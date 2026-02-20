@@ -48,6 +48,8 @@ class Firm(db.Model):
     parent_firm_id = db.Column(db.Integer, db.ForeignKey('firms.id'), nullable=True)
     google_drive_folder_url = db.Column(db.String(500))
     brand_color = db.Column(db.String(20))
+    logo_storage_path = db.Column(db.String(500))
+    logo_filename = db.Column(db.String(500))
     
     stat_bridges_inspected = db.Column(db.Integer)
     stat_bridges_inspected_updated = db.Column(db.DateTime)

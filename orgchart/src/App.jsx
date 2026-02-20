@@ -163,6 +163,8 @@ function OrgChartFlow() {
   const [globalNotes, setGlobalNotes] = useState('')
   const [saveStatus, setSaveStatus] = useState('')
   const [firmColorMap, setFirmColorMap] = useState({})
+  const [firmLogoMap, setFirmLogoMap] = useState({})
+  const [legendItems, setLegendItems] = useState([])
   const [savedCharts, setSavedCharts] = useState([])
   const [selectedSavedChartId, setSelectedSavedChartId] = useState('')
   const [showSaveAsModal, setShowSaveAsModal] = useState(false)
@@ -185,6 +187,36 @@ function OrgChartFlow() {
       } else if (direction === 'right-side') {
         updated.sourceHandle = 'right-source'
         updated.targetHandle = 'right'
+      }
+      return updated
+    }))
+  }, [setEdges])
+
+  const DIRECTION_CYCLE = [
+    { sourceHandle: undefined, targetHandle: undefined, label: 'top-bottom' },
+    { sourceHandle: 'left-source', targetHandle: 'left', label: 'left' },
+    { sourceHandle: 'right-source', targetHandle: 'right', label: 'right' },
+  ]
+
+  const onEdgeClick = useCallback((event, edge) => {
+    event.stopPropagation()
+    setEdges(currentEdges => currentEdges.map(e => {
+      if (e.id !== edge.id) return e
+      const currentIdx = DIRECTION_CYCLE.findIndex(d =>
+        d.sourceHandle === (e.sourceHandle || undefined) && d.targetHandle === (e.targetHandle || undefined)
+      )
+      const nextIdx = (currentIdx + 1) % DIRECTION_CYCLE.length
+      const next = DIRECTION_CYCLE[nextIdx]
+      const updated = { ...e }
+      if (next.sourceHandle) {
+        updated.sourceHandle = next.sourceHandle
+      } else {
+        delete updated.sourceHandle
+      }
+      if (next.targetHandle) {
+        updated.targetHandle = next.targetHandle
+      } else {
+        delete updated.targetHandle
       }
       return updated
     }))
@@ -358,6 +390,7 @@ function OrgChartFlow() {
       .then(data => {
         setFirms(data)
         const colorMap = {}
+        const logoMap = {}
         let fallbackIndex = 0
         data.forEach(f => {
           if (f.brand_color) {
@@ -366,8 +399,12 @@ function OrgChartFlow() {
             colorMap[f.id] = FIRM_COLORS[fallbackIndex % FIRM_COLORS.length]
             fallbackIndex++
           }
+          if (f.logo_url) {
+            logoMap[f.id] = f.logo_url
+          }
         })
         setFirmColorMap(colorMap)
+        setFirmLogoMap(logoMap)
         const strinteg = data.find(f => f.name.toLowerCase().includes('strinteg'))
         if (strinteg) {
           setSelectedFirmFilter(String(strinteg.id))
@@ -401,6 +438,9 @@ function OrgChartFlow() {
           const chartData = JSON.parse(data.org_chart_data)
           setNodes(chartData.nodes || layoutedNodes)
           setEdges(chartData.edges || layoutedEdges)
+          if (chartData.legendItems) {
+            setLegendItems(chartData.legendItems)
+          }
         }
         if (data.org_chart_notes) {
           setGlobalNotes(data.org_chart_notes)
@@ -422,7 +462,7 @@ function OrgChartFlow() {
       return
     }
 
-    const chartData = JSON.stringify({ nodes, edges })
+    const chartData = JSON.stringify({ nodes, edges, legendItems })
     
     fetch(`/api/saved-orgcharts/${selectedSavedChartId}`, {
       method: 'PUT',
@@ -442,12 +482,12 @@ function OrgChartFlow() {
         setSaveStatus('Failed to save')
         setTimeout(() => setSaveStatus(''), 2000)
       })
-  }, [selectedSavedChartId, nodes, edges, globalNotes])
+  }, [selectedSavedChartId, nodes, edges, globalNotes, legendItems])
 
   const saveAsNewChart = useCallback(() => {
     if (!saveAsName.trim()) return
 
-    const chartData = JSON.stringify({ nodes, edges })
+    const chartData = JSON.stringify({ nodes, edges, legendItems })
     
     fetch('/api/saved-orgcharts', {
       method: 'POST',
@@ -851,9 +891,22 @@ function OrgChartFlow() {
     return {
       firmId,
       firmName: staffMember?.firm_name || 'Unknown',
-      color: firmColorMap[firmId] || FIRM_COLORS[0]
+      color: firmColorMap[firmId] || FIRM_COLORS[0],
+      logoUrl: firmLogoMap[firmId] || null
     }
   })
+
+  React.useEffect(() => {
+    if (legendFirms.length > 0 && legendItems.length === 0) {
+      setLegendItems(legendFirms.map((f, i) => ({
+        firmId: f.firmId,
+        x: 20,
+        y: 20 + i * 60,
+        width: 180,
+        height: 50,
+      })))
+    }
+  }, [legendFirms.length])
 
   return (
     <div className="flex h-screen w-full">
@@ -909,7 +962,7 @@ function OrgChartFlow() {
         </div>
       </div>
 
-      <div className="flex-1" ref={reactFlowWrapper}>
+      <div className="flex-1 relative" ref={reactFlowWrapper}>
         <ReactFlow
           nodes={nodesWithCallbacks}
           edges={edges}
@@ -920,9 +973,11 @@ function OrgChartFlow() {
           onDrop={onDrop}
           onDragOver={onDragOver}
           onNodeDoubleClick={onNodeDoubleClick}
+          onEdgeClick={onEdgeClick}
           nodeTypes={nodeTypes}
           fitView
           defaultEdgeOptions={{ type: 'smoothstep' }}
+          edgesReconnectable
         >
           <Controls />
           <Background variant="dots" gap={12} size={1} />
@@ -1052,17 +1107,96 @@ function OrgChartFlow() {
           </Panel>
 
           {legendFirms.length > 0 && (
-            <Panel position="bottom-left" className="bg-white p-2 rounded shadow">
-              <div className="text-xs font-bold text-gray-600 mb-1">Firm Legend</div>
-              {legendFirms.map(({ firmId, firmName, color }) => (
-                <div key={firmId} className="flex items-center gap-1.5 text-xs py-0.5">
-                  <div className={`w-3 h-3 rounded ${color.useInline ? '' : color.label}`} style={color.useInline ? color.labelStyle : {}}></div>
-                  <span className="text-gray-700">{firmName}</span>
-                </div>
-              ))}
+            <Panel position="bottom-left" className="flex flex-col gap-0.5" style={{ pointerEvents: 'none' }}>
+              <div className="text-[10px] font-bold text-gray-500 mb-0.5 pointer-events-none">Click &amp; drag legend items to reposition. Drag corner to resize.</div>
             </Panel>
           )}
         </ReactFlow>
+
+        {legendFirms.map((firm) => {
+          const item = legendItems.find(l => l.firmId === firm.firmId)
+          if (!item) return null
+          const borderColor = firm.color.useInline ? firm.color.hex : undefined
+          const borderClass = firm.color.useInline ? '' : (firm.color.border || 'border-gray-300')
+          return (
+            <div
+              key={`legend-${firm.firmId}`}
+              className={`absolute bg-white rounded shadow-md border-2 flex items-center gap-2 p-2 cursor-move select-none overflow-hidden ${borderClass}`}
+              style={{
+                left: item.x,
+                top: item.y,
+                width: item.width,
+                height: item.height,
+                borderColor,
+                zIndex: 50,
+              }}
+              onMouseDown={(e) => {
+                if (e.target.dataset.resize) return
+                e.preventDefault()
+                const startX = e.clientX
+                const startY = e.clientY
+                const origX = item.x
+                const origY = item.y
+                const onMove = (ev) => {
+                  setLegendItems(prev => prev.map(li =>
+                    li.firmId === firm.firmId
+                      ? { ...li, x: origX + (ev.clientX - startX), y: origY + (ev.clientY - startY) }
+                      : li
+                  ))
+                }
+                const onUp = () => {
+                  document.removeEventListener('mousemove', onMove)
+                  document.removeEventListener('mouseup', onUp)
+                }
+                document.addEventListener('mousemove', onMove)
+                document.addEventListener('mouseup', onUp)
+              }}
+            >
+              {firm.logoUrl && (
+                <img
+                  src={firm.logoUrl}
+                  alt={firm.firmName}
+                  className="object-contain flex-shrink-0"
+                  style={{ maxHeight: item.height - 12, maxWidth: item.width * 0.4 }}
+                  draggable={false}
+                />
+              )}
+              {!firm.logoUrl && (
+                <div
+                  className={`w-5 h-5 rounded flex-shrink-0 ${firm.color.useInline ? '' : firm.color.label}`}
+                  style={firm.color.useInline ? firm.color.labelStyle : {}}
+                />
+              )}
+              <span className="text-xs font-semibold text-gray-800 truncate leading-tight">{firm.firmName}</span>
+              <div
+                data-resize="true"
+                className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize"
+                style={{ background: 'linear-gradient(135deg, transparent 50%, #9ca3af 50%)' }}
+                onMouseDown={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  const startX = e.clientX
+                  const startY = e.clientY
+                  const origW = item.width
+                  const origH = item.height
+                  const onMove = (ev) => {
+                    setLegendItems(prev => prev.map(li =>
+                      li.firmId === firm.firmId
+                        ? { ...li, width: Math.max(80, origW + (ev.clientX - startX)), height: Math.max(30, origH + (ev.clientY - startY)) }
+                        : li
+                    ))
+                  }
+                  const onUp = () => {
+                    document.removeEventListener('mousemove', onMove)
+                    document.removeEventListener('mouseup', onUp)
+                  }
+                  document.addEventListener('mousemove', onMove)
+                  document.addEventListener('mouseup', onUp)
+                }}
+              />
+            </div>
+          )
+        })}
       </div>
 
       <div className="w-72 bg-gray-50 border-l border-gray-300 flex flex-col">
