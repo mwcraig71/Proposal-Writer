@@ -14,7 +14,7 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import dagre from 'dagre'
-import html2canvas from 'html2canvas'
+import { toPng } from 'html-to-image'
 import { jsPDF } from 'jspdf'
 import CustomNode from './CustomNode'
 import JunctionNode from './JunctionNode'
@@ -170,6 +170,25 @@ function OrgChartFlow() {
   const [showPdfModal, setShowPdfModal] = useState(false)
   const [pdfOrientation, setPdfOrientation] = useState('landscape')
   const [isExportingPdf, setIsExportingPdf] = useState(false)
+  const [connectionDirection, setConnectionDirection] = useState('top-bottom')
+
+  const switchConnectionDirection = useCallback((direction) => {
+    setConnectionDirection(direction)
+    setEdges(currentEdges => currentEdges.map(edge => {
+      const updated = { ...edge }
+      if (direction === 'top-bottom') {
+        delete updated.sourceHandle
+        delete updated.targetHandle
+      } else if (direction === 'left-side') {
+        updated.sourceHandle = 'left-source'
+        updated.targetHandle = 'left'
+      } else if (direction === 'right-side') {
+        updated.sourceHandle = 'right-source'
+        updated.targetHandle = 'right'
+      }
+      return updated
+    }))
+  }, [setEdges])
 
   const exportToPdf = useCallback(async () => {
     setIsExportingPdf(true)
@@ -188,10 +207,6 @@ function OrgChartFlow() {
       const chartWidth = nodesBounds.width + padding * 2
       const chartHeight = nodesBounds.height + padding * 2
 
-      const scaleFactor = 2
-      const renderWidth = chartWidth * scaleFactor
-      const renderHeight = chartHeight * scaleFactor
-
       const viewport = getViewportForBounds(
         nodesBounds,
         chartWidth,
@@ -201,26 +216,38 @@ function OrgChartFlow() {
         padding
       )
 
-      const canvas = await html2canvas(flowEl, {
+      const styleEl = document.createElement('style')
+      styleEl.id = 'pdf-export-hide'
+      styleEl.textContent = `
+        .react-flow__handle { opacity: 0 !important; }
+        .react-flow__node button { display: none !important; }
+        .react-flow__controls { display: none !important; }
+        .react-flow__panel { display: none !important; }
+        .react-flow__attribution { display: none !important; }
+      `
+      document.head.appendChild(styleEl)
+
+      await new Promise(r => setTimeout(r, 100))
+
+      const imgData = await toPng(flowEl, {
         width: chartWidth,
         height: chartHeight,
-        scale: scaleFactor,
+        pixelRatio: 2,
         backgroundColor: '#ffffff',
-        logging: false,
-        useCORS: true,
-        windowWidth: chartWidth,
-        windowHeight: chartHeight,
-        x: 0,
-        y: 0,
-        onclone: (clonedDoc) => {
-          const clonedFlow = clonedDoc.querySelector('.react-flow__viewport')
-          if (clonedFlow) {
-            clonedFlow.style.transform = `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`
-          }
+        style: {
+          width: `${chartWidth}px`,
+          height: `${chartHeight}px`,
+          transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
+        },
+        filter: (node) => {
+          if (node?.classList?.contains('react-flow__minimap')) return false
+          if (node?.classList?.contains('react-flow__controls')) return false
+          return true
         }
       })
 
-      const isLandscape = pdfOrientation === 'landscape'
+      document.getElementById('pdf-export-hide')?.remove()
+
       const pdf = new jsPDF({
         orientation: pdfOrientation,
         unit: 'pt',
@@ -234,29 +261,33 @@ function OrgChartFlow() {
       const availWidth = pageWidth - margin * 2
       const availHeight = pageHeight - margin * 2
 
-      const imgRatio = canvas.width / canvas.height
+      const img = new Image()
+      img.src = imgData
+      await new Promise(resolve => { img.onload = resolve })
+
+      const imgRatio = img.width / img.height
       const pageRatio = availWidth / availHeight
 
-      let imgWidth, imgHeight
+      let pdfImgWidth, pdfImgHeight
       if (imgRatio > pageRatio) {
-        imgWidth = availWidth
-        imgHeight = availWidth / imgRatio
+        pdfImgWidth = availWidth
+        pdfImgHeight = availWidth / imgRatio
       } else {
-        imgHeight = availHeight
-        imgWidth = availHeight * imgRatio
+        pdfImgHeight = availHeight
+        pdfImgWidth = availHeight * imgRatio
       }
 
-      const xOffset = margin + (availWidth - imgWidth) / 2
-      const yOffset = margin + (availHeight - imgHeight) / 2
+      const xOffset = margin + (availWidth - pdfImgWidth) / 2
+      const yOffset = margin + (availHeight - pdfImgHeight) / 2
 
-      const imgData = canvas.toDataURL('image/png', 1.0)
-      pdf.addImage(imgData, 'PNG', xOffset, yOffset, imgWidth, imgHeight)
+      pdf.addImage(imgData, 'PNG', xOffset, yOffset, pdfImgWidth, pdfImgHeight)
 
       const chartName = savedCharts.find(c => String(c.id) === String(selectedSavedChartId))?.name
       const fileName = chartName || 'Org Chart'
       pdf.save(`${fileName} - Org Chart.pdf`)
     } catch (err) {
       console.error('PDF export error:', err)
+      document.getElementById('pdf-export-hide')?.remove()
       alert('Failed to export PDF. Please try again.')
     }
 
@@ -995,6 +1026,29 @@ function OrgChartFlow() {
             >
               Reset Layout
             </button>
+            <div className="flex rounded shadow overflow-hidden">
+              <button
+                onClick={() => switchConnectionDirection('top-bottom')}
+                className={`px-3 py-2 text-sm font-medium transition-colors ${connectionDirection === 'top-bottom' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
+                title="Connect nodes top to bottom (vertical)"
+              >
+                ↓ Top-Down
+              </button>
+              <button
+                onClick={() => switchConnectionDirection('left-side')}
+                className={`px-3 py-2 text-sm font-medium border-l transition-colors ${connectionDirection === 'left-side' ? 'bg-indigo-600 text-white border-indigo-700' : 'bg-white text-gray-700 hover:bg-gray-100 border-gray-300'}`}
+                title="Connect all nodes from left side"
+              >
+                ← Left
+              </button>
+              <button
+                onClick={() => switchConnectionDirection('right-side')}
+                className={`px-3 py-2 text-sm font-medium border-l transition-colors ${connectionDirection === 'right-side' ? 'bg-indigo-600 text-white border-indigo-700' : 'bg-white text-gray-700 hover:bg-gray-100 border-gray-300'}`}
+                title="Connect all nodes from right side"
+              >
+                Right →
+              </button>
+            </div>
           </Panel>
 
           {legendFirms.length > 0 && (

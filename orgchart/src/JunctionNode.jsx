@@ -10,26 +10,42 @@ function JunctionNode({ selected }) {
       <Handle
         type="target"
         position={Position.Top}
+        id="top"
         className="w-2 h-2 bg-red-600 border-0"
         style={{ top: -4 }}
       />
       <Handle
-        type="source"
-        position={Position.Bottom}
-        className="w-2 h-2 bg-red-600 border-0"
-        style={{ bottom: -4 }}
-      />
-      <Handle
-        type="source"
+        type="target"
         position={Position.Left}
         id="left"
         className="w-2 h-2 bg-red-600 border-0"
         style={{ left: -4 }}
       />
       <Handle
-        type="source"
+        type="target"
         position={Position.Right}
         id="right"
+        className="w-2 h-2 bg-red-600 border-0"
+        style={{ right: -4 }}
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="bottom"
+        className="w-2 h-2 bg-red-600 border-0"
+        style={{ bottom: -4 }}
+      />
+      <Handle
+        type="source"
+        position={Position.Left}
+        id="left-source"
+        className="w-2 h-2 bg-red-600 border-0"
+        style={{ left: -4 }}
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="right-source"
         className="w-2 h-2 bg-red-600 border-0"
         style={{ right: -4 }}
       />
