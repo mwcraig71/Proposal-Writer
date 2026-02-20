@@ -10791,6 +10791,7 @@ def get_proposal_linked_references(proposal_id):
             'evaluation_date': ref.evaluation_date.isoformat() if ref.evaluation_date else None,
             'score_summary': ref.score_summary,
             'quotes': ref.quotes,
+            'quote_entries': [{'id': q.id, 'quote_text': q.quote_text, 'author': q.author, 'client': q.client} for q in ref.quote_entries],
             'consultant_pm': ref.consultant_pm,
             'firm': ref.firm,
             'personnel_tags': ref.personnel_tags,
