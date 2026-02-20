@@ -333,6 +333,38 @@
     {% endif %}
 </div>
 
+<!-- Cover Page & Tabs Section -->
+<div class="bg-white rounded-lg shadow p-6 mb-8">
+    <h2 class="text-xl font-semibold text-gray-800 mb-4">
+        <i class="fas fa-book-open text-teal-600 mr-2"></i> Cover Page & Section Tabs
+    </h2>
+    <p class="text-gray-600 mb-4">Generate a professional cover page and section tab dividers using your firm's branding (color and logo), the RFP, and proposal outline.</p>
+    
+    <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Custom Instructions (optional)</label>
+        <textarea id="cover-tabs-instructions" rows="2" class="w-full p-2 border rounded-lg" placeholder="e.g., Include the state seal, emphasize our DBE certification, use specific section naming..."></textarea>
+    </div>
+    
+    <button onclick="generateCoverTabs()" id="generate-cover-tabs-btn" class="px-6 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition">
+        <i class="fas fa-magic mr-2"></i> Generate Cover & Tabs
+    </button>
+    
+    <div id="cover-tabs-result" class="hidden mt-6">
+        <div class="border-t pt-4">
+            <div class="flex justify-between items-center mb-2">
+                <h3 class="font-semibold text-gray-800">Cover Page Preview</h3>
+                <button onclick="downloadCoverTabs()" id="download-cover-tabs-btn" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition">
+                    <i class="fas fa-file-word mr-2"></i> Download Word Document
+                </button>
+            </div>
+            <div id="cover-text-display" class="bg-teal-50 p-4 rounded-lg whitespace-pre-line text-sm border border-teal-200 mb-4"></div>
+            
+            <h3 class="font-semibold text-gray-800 mb-2">Tab Dividers</h3>
+            <div id="tabs-display" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+        </div>
+    </div>
+</div>
+
 <!-- Linked Responses Section (Always Visible) -->
 <div class="bg-white rounded-lg shadow p-6 mb-8">
     <div class="flex justify-between items-center mb-4">
@@ -1021,6 +1053,88 @@ async function unlinkReference(referenceId) {
     } catch (e) {
         alert('Error: ' + e.message);
     }
+}
+
+let coverTabsData = null;
+
+async function generateCoverTabs() {
+    const btn = document.getElementById('generate-cover-tabs-btn');
+    const instructions = document.getElementById('cover-tabs-instructions').value;
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Generating Cover & Tabs...';
+    
+    try {
+        const response = await fetch('/proposals/{{ proposal.id }}/generate-cover-tabs', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({custom_instructions: instructions})
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+            coverTabsData = {cover_text: result.cover_text, tabs: result.tabs};
+            
+            document.getElementById('cover-text-display').textContent = result.cover_text;
+            
+            const tabsContainer = document.getElementById('tabs-display');
+            tabsContainer.innerHTML = '';
+            result.tabs.forEach(function(tab) {
+                const div = document.createElement('div');
+                div.className = 'bg-white border-2 border-teal-300 rounded-lg p-3 text-center';
+                div.innerHTML = '<div class="font-bold text-teal-700 text-sm">' + (tab.label || tab.title || '') + '</div>' +
+                    (tab.description ? '<div class="text-xs text-gray-500 mt-1">' + tab.description + '</div>' : '');
+                tabsContainer.appendChild(div);
+            });
+            
+            document.getElementById('cover-tabs-result').classList.remove('hidden');
+        } else {
+            alert(result.error || 'Error generating cover page and tabs');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+    
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-magic mr-2"></i> Generate Cover & Tabs';
+}
+
+async function downloadCoverTabs() {
+    if (!coverTabsData) {
+        alert('Please generate cover page and tabs first.');
+        return;
+    }
+    
+    const btn = document.getElementById('download-cover-tabs-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Creating Document...';
+    
+    try {
+        const response = await fetch('/proposals/{{ proposal.id }}/download-cover-tabs', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(coverTabsData)
+        });
+        
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = response.headers.get('Content-Disposition')?.split('filename=')[1]?.replace(/"/g, '') || 'Cover_and_Tabs.docx';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            a.remove();
+        } else {
+            alert('Error downloading document');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+    
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-file-word mr-2"></i> Download Word Document';
 }
 </script>
 {% endblock %}

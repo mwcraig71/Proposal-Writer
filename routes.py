@@ -4079,6 +4079,228 @@ def save_proposal_outline(id):
     return jsonify({'success': True})
 
 
+@app.route('/proposals/<int:id>/generate-cover-tabs', methods=['POST'])
+def generate_cover_tabs(id):
+    """Generate AI cover page and tabs content using RFP, outline, firm data"""
+    proposal = Proposal.query.get_or_404(id)
+    data = request.json
+    custom_instructions = data.get('custom_instructions', '')
+    
+    from gemini_service import generate_cover_tabs_ai
+    
+    firm_bio = ''
+    firm_name = ''
+    firm_color = ''
+    if proposal.firm:
+        firm_name = proposal.firm.name or ''
+        firm_bio = proposal.firm.bio or ''
+        firm_color = proposal.firm.brand_color or ''
+        if proposal.firm_bio_alternate_id:
+            from models import FirmAlternateDescription
+            alt = FirmAlternateDescription.query.get(proposal.firm_bio_alternate_id)
+            if alt:
+                firm_bio = alt.description or firm_bio
+    
+    employees_data = []
+    for pse in proposal.selected_employees:
+        emp = pse.employee
+        employees_data.append({
+            'name': emp.name,
+            'title': emp.title,
+            'role_in_contract': pse.role_in_contract
+        })
+    
+    projects_data = []
+    for psp in proposal.selected_projects:
+        proj = psp.project
+        projects_data.append({
+            'title': proj.title,
+            'location': proj.location
+        })
+    
+    try:
+        result = generate_cover_tabs_ai(
+            rfp_text=proposal.rfp_text or '',
+            firm_name=firm_name,
+            firm_bio=firm_bio,
+            contract_title=proposal.contract_title or '',
+            solicitation_number=proposal.solicitation_number or '',
+            proposal_outline=proposal.proposal_outline or '',
+            employees=employees_data,
+            projects=projects_data,
+            custom_instructions=custom_instructions
+        )
+        
+        return jsonify({'success': True, 'cover_text': result.get('cover_text', ''), 'tabs': result.get('tabs', [])})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/proposals/<int:id>/download-cover-tabs', methods=['POST'])
+def download_cover_tabs(id):
+    """Generate Word document with cover page and tabs using firm branding"""
+    proposal = Proposal.query.get_or_404(id)
+    data = request.json
+    cover_text = data.get('cover_text', '')
+    tabs = data.get('tabs', [])
+    
+    from docx import Document
+    from docx.shared import Pt, Inches, Cm, RGBColor
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.enum.section import WD_ORIENT
+    import io
+    
+    firm_color = None
+    firm_name = ''
+    logo_bytes = None
+    
+    if proposal.firm:
+        firm_name = proposal.firm.name or ''
+        if proposal.firm.brand_color:
+            hex_color = proposal.firm.brand_color.lstrip('#')
+            try:
+                firm_color = RGBColor(int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16))
+            except:
+                firm_color = RGBColor(0x1a, 0x36, 0x5d)
+        
+        if proposal.firm.logo_storage_path:
+            try:
+                from replit.object_storage import Client as StorageClient
+                client = StorageClient()
+                logo_bytes = client.download_as_bytes(proposal.firm.logo_storage_path)
+            except:
+                pass
+    
+    if not firm_color:
+        firm_color = RGBColor(0x1a, 0x36, 0x5d)
+    
+    doc = Document()
+    
+    style = doc.styles['Normal']
+    font = style.font
+    font.name = 'Calibri'
+    font.size = Pt(11)
+    
+    for _ in range(3):
+        doc.add_paragraph('')
+    
+    if logo_bytes:
+        try:
+            logo_stream = io.BytesIO(logo_bytes)
+            p = doc.add_paragraph()
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            run = p.add_run()
+            run.add_picture(logo_stream, width=Inches(2.5))
+        except:
+            pass
+    
+    doc.add_paragraph('')
+    
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = p.add_run('_' * 60)
+    run.font.color.rgb = firm_color
+    run.font.size = Pt(14)
+    run.bold = True
+    
+    doc.add_paragraph('')
+    
+    lines = cover_text.strip().split('\n')
+    for i, line in enumerate(lines):
+        line = line.strip()
+        if not line:
+            doc.add_paragraph('')
+            continue
+        p = doc.add_paragraph()
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        run = p.add_run(line)
+        if i == 0:
+            run.font.size = Pt(28)
+            run.bold = True
+            run.font.color.rgb = firm_color
+        elif i == 1:
+            run.font.size = Pt(18)
+            run.font.color.rgb = firm_color
+        elif 'prepared' in line.lower() or 'submitted' in line.lower() or 'solicitation' in line.lower() or 'contract' in line.lower():
+            run.font.size = Pt(12)
+            run.font.color.rgb = RGBColor(0x66, 0x66, 0x66)
+        else:
+            run.font.size = Pt(14)
+            run.font.color.rgb = RGBColor(0x33, 0x33, 0x33)
+    
+    doc.add_paragraph('')
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = p.add_run('_' * 60)
+    run.font.color.rgb = firm_color
+    run.font.size = Pt(14)
+    run.bold = True
+    
+    for tab in tabs:
+        doc.add_page_break()
+        
+        for _ in range(4):
+            doc.add_paragraph('')
+        
+        tab_label = tab.get('label', tab.get('title', ''))
+        tab_description = tab.get('description', '')
+        
+        p = doc.add_paragraph()
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        run = p.add_run('_' * 50)
+        run.font.color.rgb = firm_color
+        run.font.size = Pt(14)
+        run.bold = True
+        
+        doc.add_paragraph('')
+        
+        p = doc.add_paragraph()
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        run = p.add_run(tab_label)
+        run.font.size = Pt(36)
+        run.bold = True
+        run.font.color.rgb = firm_color
+        
+        if tab_description:
+            doc.add_paragraph('')
+            p = doc.add_paragraph()
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            run = p.add_run(tab_description)
+            run.font.size = Pt(14)
+            run.font.color.rgb = RGBColor(0x66, 0x66, 0x66)
+            run.italic = True
+        
+        if logo_bytes:
+            try:
+                doc.add_paragraph('')
+                doc.add_paragraph('')
+                logo_stream = io.BytesIO(logo_bytes)
+                p = doc.add_paragraph()
+                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                run = p.add_run()
+                run.add_picture(logo_stream, width=Inches(1.5))
+            except:
+                pass
+        
+        doc.add_paragraph('')
+        p = doc.add_paragraph()
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        run = p.add_run('_' * 50)
+        run.font.color.rgb = firm_color
+        run.font.size = Pt(14)
+        run.bold = True
+    
+    buffer = io.BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    
+    safe_name = ''.join(c for c in (proposal.name or 'Proposal') if c.isalnum() or c in ' _-')[:50]
+    filename = f"Cover_and_Tabs_{safe_name.replace(' ', '_')}.docx"
+    
+    return send_file(buffer, as_attachment=True, download_name=filename,
+                     mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+
+
 @app.route('/proposals/<int:id>/generate-cover-letter', methods=['POST'])
 def generate_cover_letter(id):
     """Generate AI cover letter using RFP + firm + staff + project data"""

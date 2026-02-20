@@ -1432,3 +1432,75 @@ Generate ONLY the bio text, no additional commentary or formatting."""
     response_text = ai_generate(prompt)
     
     return response_text.strip() if response_text else ""
+
+
+def generate_cover_tabs_ai(rfp_text, firm_name, firm_bio, contract_title, solicitation_number, proposal_outline, employees, projects, custom_instructions=''):
+    """Generate cover page and tab content using AI"""
+    import json
+    
+    emp_text = '\n'.join([f"- {e['name']}, {e.get('title', '')}, Role: {e.get('role_in_contract', '')}" for e in employees]) if employees else 'No personnel selected'
+    proj_text = '\n'.join([f"- {p['title']} ({p.get('location', '')})" for p in projects]) if projects else 'No projects selected'
+    
+    prompt = f"""You are creating content for a professional SF330 (Architect-Engineer Qualifications) proposal cover page and section tab dividers.
+
+Based on the following proposal information, generate:
+1. Cover page text content (formatted as lines of text for a centered cover page layout)
+2. Tab divider labels and descriptions for each major section
+
+PROPOSAL INFORMATION:
+- Contract Title: {contract_title}
+- Solicitation Number: {solicitation_number}
+- Firm Name: {firm_name}
+- Firm Bio: {firm_bio[:500] if firm_bio else 'Not provided'}
+
+RFP/RFQ Content (excerpt):
+{rfp_text[:2000] if rfp_text else 'Not provided'}
+
+Proposal Outline:
+{proposal_outline[:1500] if proposal_outline else 'Not provided'}
+
+Key Personnel:
+{emp_text}
+
+Projects:
+{proj_text}
+
+{f'Additional Instructions: {custom_instructions}' if custom_instructions else ''}
+
+Return a JSON object with this exact structure:
+{{
+  "cover_text": "Line 1 - Main Title\\nLine 2 - Subtitle\\nLine 3 - blank line\\nContract Title: ...\\nSolicitation Number: ...\\n\\nPrepared for:\\nClient Name\\n\\nPrepared by:\\nFirm Name\\n\\nDate",
+  "tabs": [
+    {{"label": "Table of Contents", "description": "Complete listing of all proposal sections and appendices"}},
+    {{"label": "Section A-C: Contract Information", "description": "Brief description of this section"}},
+    {{"label": "Section D: Organization Chart", "description": "Brief description"}},
+    {{"label": "Section E: Resumes", "description": "Brief description"}},
+    {{"label": "Section F: Project Experience", "description": "Brief description"}},
+    {{"label": "Section G: Key Personnel Matrix", "description": "Brief description"}},
+    {{"label": "Section H: Additional Information", "description": "Brief description"}}
+  ]
+}}
+
+The cover page text should be professional, clean, and appropriate for a government A/E proposal.
+The tab labels should match the SF330 form sections and be tailored to this specific proposal.
+Include the actual contract title, solicitation number, and firm name in the cover text.
+"""
+    
+    result = ai_generate(prompt, json_mode=True)
+    
+    try:
+        parsed = json.loads(result)
+        return parsed
+    except json.JSONDecodeError:
+        return {
+            'cover_text': f'{contract_title}\n\nSolicitation Number: {solicitation_number}\n\nPrepared by:\n{firm_name}',
+            'tabs': [
+                {'label': 'Table of Contents', 'description': ''},
+                {'label': 'Section A-C', 'description': ''},
+                {'label': 'Section D', 'description': ''},
+                {'label': 'Section E', 'description': ''},
+                {'label': 'Section F', 'description': ''},
+                {'label': 'Section G', 'description': ''},
+                {'label': 'Section H', 'description': ''}
+            ]
+        }
