@@ -5913,7 +5913,10 @@ def settings():
     except:
         pass
     
+    ai_banned_words = AISettings.get_value('ai_banned_words', '')
+    
     return render_template('settings.html', ai_style=ai_style, ai_tone=ai_tone, 
+                           ai_banned_words=ai_banned_words,
                            ai_provider=ai_provider, ai_model=ai_model, available_models=AVAILABLE_MODELS,
                            has_custom_template=has_custom_template, has_company_template=has_company_template,
                            has_resume_template=has_resume_template, has_sf330_resume_template=has_sf330_resume_template,
@@ -5924,11 +5927,13 @@ def settings():
 def save_settings():
     ai_style = request.form.get('ai_writing_style', '')
     ai_tone = request.form.get('ai_writing_tone', '')
+    ai_banned_words = request.form.get('ai_banned_words', '')
     ai_provider = request.form.get('ai_provider', 'gemini')
     ai_model = request.form.get('ai_model', 'gemini-2.5-flash')
     
     AISettings.set_value('ai_writing_style', ai_style)
     AISettings.set_value('ai_writing_tone', ai_tone)
+    AISettings.set_value('ai_banned_words', ai_banned_words)
     AISettings.set_value('ai_provider', ai_provider)
     AISettings.set_value('ai_model', ai_model)
     
@@ -9133,6 +9138,7 @@ def api_employees_ai_response():
     
     ai_style = AISettings.get_value('ai_writing_style', '')
     ai_tone = AISettings.get_value('ai_writing_tone', '')
+    ai_banned = AISettings.get_value('ai_banned_words', '')
     
     style_instructions = ""
     if ai_style or ai_tone:
@@ -9141,6 +9147,8 @@ def api_employees_ai_response():
             style_instructions += f"\n- Style: {ai_style}"
         if ai_tone:
             style_instructions += f"\n- Tone: {ai_tone}"
+    if ai_banned:
+        style_instructions += f"\n\nBANNED WORDS/PHRASES (Do NOT use any of these): {ai_banned}"
     
     full_prompt = f"""You are a professional proposal writer. Based on the following staff information, {prompt}
 
@@ -9299,6 +9307,7 @@ def api_projects_ai_response():
     
     ai_style = AISettings.get_value('ai_writing_style', '')
     ai_tone = AISettings.get_value('ai_writing_tone', '')
+    ai_banned = AISettings.get_value('ai_banned_words', '')
     
     style_instructions = ""
     if ai_style or ai_tone:
@@ -9307,6 +9316,8 @@ def api_projects_ai_response():
             style_instructions += f"\n- Style: {ai_style}"
         if ai_tone:
             style_instructions += f"\n- Tone: {ai_tone}"
+    if ai_banned:
+        style_instructions += f"\n\nBANNED WORDS/PHRASES (Do NOT use any of these): {ai_banned}"
     
     system_prompt = f"""You are a professional proposal writer specializing in SF330 government proposals for architecture and engineering firms.
 You are helping to write content about the following projects:
@@ -9512,6 +9523,7 @@ UEI: {firm.uei or 'N/A'}
     
     ai_style = AISettings.get_value('ai_writing_style', '')
     ai_tone = AISettings.get_value('ai_writing_tone', '')
+    ai_banned = AISettings.get_value('ai_banned_words', '')
     
     style_instructions = ""
     if ai_style or ai_tone:
@@ -9520,6 +9532,8 @@ UEI: {firm.uei or 'N/A'}
             style_instructions += f"\n- Style: {ai_style}"
         if ai_tone:
             style_instructions += f"\n- Tone: {ai_tone}"
+    if ai_banned:
+        style_instructions += f"\n\nBANNED WORDS/PHRASES (Do NOT use any of these): {ai_banned}"
     
     source_weights = data.get('source_weights', None)
     weights_instruction = ''
@@ -9835,6 +9849,7 @@ UEI: {firm.uei or 'N/A'}
     
     ai_style = AISettings.get_value('ai_writing_style', '')
     ai_tone = AISettings.get_value('ai_writing_tone', '')
+    ai_banned = AISettings.get_value('ai_banned_words', '')
     
     style_instructions = ""
     if ai_style or ai_tone:
@@ -9843,6 +9858,8 @@ UEI: {firm.uei or 'N/A'}
             style_instructions += f"\n- Style: {ai_style}"
         if ai_tone:
             style_instructions += f"\n- Tone: {ai_tone}"
+    if ai_banned:
+        style_instructions += f"\n\nBANNED WORDS/PHRASES (Do NOT use any of these): {ai_banned}"
     
     source_weights = data.get('source_weights', None)
     weights_instruction = ''
@@ -10422,12 +10439,15 @@ def rewrite_response_with_ai(id):
     
     ai_style = AISettings.get_value('ai_writing_style', '')
     ai_tone = AISettings.get_value('ai_writing_tone', '')
+    ai_banned = AISettings.get_value('ai_banned_words', '')
     
     style_instructions = ""
     if ai_style:
         style_instructions += f"\nWriting Style: {ai_style}"
     if ai_tone:
         style_instructions += f"\nTone: {ai_tone}"
+    if ai_banned:
+        style_instructions += f"\nBANNED WORDS/PHRASES (Do NOT use any of these): {ai_banned}"
     
     prompt = f"""Rewrite the following proposal response. Keep the key information but improve clarity, professionalism, and impact.
 {style_instructions}
