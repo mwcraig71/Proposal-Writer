@@ -3992,6 +3992,107 @@ def download_rfp(id):
     )
 
 
+@app.route('/proposals/<int:id>/upload-final', methods=['POST'])
+def upload_final_document(id):
+    proposal = Proposal.query.get_or_404(id)
+    file = request.files.get('file')
+    file_type = request.form.get('file_type')
+    
+    if not file or not file_type:
+        return jsonify({'success': False, 'error': 'No file or type specified'}), 400
+    
+    if file_type not in ('pdf', 'word'):
+        return jsonify({'success': False, 'error': 'Invalid file type'}), 400
+    
+    filename = file.filename
+    file_data = file.read()
+    
+    storage_path = f'proposals/{id}/final_{file_type}/{filename}'
+    
+    try:
+        client = get_storage_client()
+        client.upload_from_bytes(storage_path, file_data)
+        
+        if file_type == 'pdf':
+            proposal.final_pdf_filename = filename
+        else:
+            proposal.final_word_filename = filename
+        
+        db.session.commit()
+        return jsonify({'success': True, 'filename': filename})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/proposals/<int:id>/download-final/<file_type>')
+def download_final_document(id, file_type):
+    proposal = Proposal.query.get_or_404(id)
+    
+    if file_type == 'pdf':
+        filename = proposal.final_pdf_filename
+    elif file_type == 'word':
+        filename = proposal.final_word_filename
+    else:
+        return jsonify({'error': 'Invalid file type'}), 400
+    
+    if not filename:
+        return jsonify({'error': 'No file uploaded'}), 404
+    
+    storage_path = f'proposals/{id}/final_{file_type}/{filename}'
+    
+    try:
+        client = get_storage_client()
+        file_data = client.download_as_bytes(storage_path)
+        if not file_data:
+            return jsonify({'error': 'File not found in storage'}), 404
+        
+        from io import BytesIO
+        mime_types = {
+            'pdf': 'application/pdf',
+            'word': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        }
+        
+        return send_file(
+            BytesIO(file_data),
+            mimetype=mime_types.get(file_type, 'application/octet-stream'),
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/proposals/<int:id>/delete-final/<file_type>', methods=['DELETE'])
+def delete_final_document(id, file_type):
+    proposal = Proposal.query.get_or_404(id)
+    
+    if file_type == 'pdf':
+        filename = proposal.final_pdf_filename
+    elif file_type == 'word':
+        filename = proposal.final_word_filename
+    else:
+        return jsonify({'success': False, 'error': 'Invalid file type'}), 400
+    
+    if not filename:
+        return jsonify({'success': False, 'error': 'No file to delete'}), 404
+    
+    storage_path = f'proposals/{id}/final_{file_type}/{filename}'
+    
+    try:
+        client = get_storage_client()
+        client.delete(storage_path)
+    except:
+        pass
+    
+    if file_type == 'pdf':
+        proposal.final_pdf_filename = None
+    else:
+        proposal.final_word_filename = None
+    
+    db.session.commit()
+    return jsonify({'success': True})
+
+
 @app.route('/proposals/<int:id>/reference/<int:ref_id>/download')
 def download_reference(id, ref_id):
     """Download a reference document"""

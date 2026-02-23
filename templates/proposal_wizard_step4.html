@@ -250,6 +250,83 @@
 <div class="bg-white rounded-lg shadow p-6 mb-8">
     <div class="flex items-center justify-between mb-4">
         <div>
+            <h2 class="text-xl font-semibold text-gray-800">
+                <i class="fas fa-folder-open text-amber-600 mr-2"></i>Final Proposal Documents
+            </h2>
+            <p class="text-gray-600 text-sm">Upload the final Word and PDF versions of your completed proposal</p>
+        </div>
+    </div>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="border-2 border-dashed border-blue-200 rounded-lg p-5 text-center" id="final-word-zone">
+            <i class="fas fa-file-word text-4xl text-blue-500 mb-3"></i>
+            <h3 class="font-medium text-gray-700 mb-2">Final Word Document</h3>
+            {% if proposal.final_word_filename %}
+            <div id="final-word-info">
+                <p class="text-sm text-gray-600 mb-2"><i class="fas fa-check-circle text-green-500 mr-1"></i>{{ proposal.final_word_filename }}</p>
+                <div class="flex items-center justify-center gap-2">
+                    <a href="/proposals/{{ proposal.id }}/download-final/word" class="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">
+                        <i class="fas fa-download mr-1"></i>Download
+                    </a>
+                    <button onclick="deleteFinalDoc('word')" class="px-3 py-1 bg-red-100 text-red-600 rounded text-sm hover:bg-red-200">
+                        <i class="fas fa-trash mr-1"></i>Remove
+                    </button>
+                </div>
+            </div>
+            <div id="final-word-upload" class="hidden mt-2">
+                <label class="cursor-pointer px-4 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm hover:bg-blue-200 inline-block">
+                    <i class="fas fa-upload mr-1"></i>Replace File
+                    <input type="file" accept=".docx,.doc" class="hidden" onchange="uploadFinalDoc(this, 'word')">
+                </label>
+            </div>
+            {% else %}
+            <div id="final-word-info">
+                <p class="text-sm text-gray-400 mb-3">No Word document uploaded</p>
+            </div>
+            <label class="cursor-pointer px-4 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm hover:bg-blue-200 inline-block">
+                <i class="fas fa-upload mr-1"></i>Upload Word File
+                <input type="file" accept=".docx,.doc" class="hidden" onchange="uploadFinalDoc(this, 'word')">
+            </label>
+            {% endif %}
+        </div>
+        
+        <div class="border-2 border-dashed border-red-200 rounded-lg p-5 text-center" id="final-pdf-zone">
+            <i class="fas fa-file-pdf text-4xl text-red-500 mb-3"></i>
+            <h3 class="font-medium text-gray-700 mb-2">Final PDF Document</h3>
+            {% if proposal.final_pdf_filename %}
+            <div id="final-pdf-info">
+                <p class="text-sm text-gray-600 mb-2"><i class="fas fa-check-circle text-green-500 mr-1"></i>{{ proposal.final_pdf_filename }}</p>
+                <div class="flex items-center justify-center gap-2">
+                    <a href="/proposals/{{ proposal.id }}/download-final/pdf" class="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700">
+                        <i class="fas fa-download mr-1"></i>Download
+                    </a>
+                    <button onclick="deleteFinalDoc('pdf')" class="px-3 py-1 bg-red-100 text-red-600 rounded text-sm hover:bg-red-200">
+                        <i class="fas fa-trash mr-1"></i>Remove
+                    </button>
+                </div>
+            </div>
+            <div id="final-pdf-upload" class="hidden mt-2">
+                <label class="cursor-pointer px-4 py-2 bg-red-100 text-red-700 rounded-lg text-sm hover:bg-red-200 inline-block">
+                    <i class="fas fa-upload mr-1"></i>Replace File
+                    <input type="file" accept=".pdf" class="hidden" onchange="uploadFinalDoc(this, 'pdf')">
+                </label>
+            </div>
+            {% else %}
+            <div id="final-pdf-info">
+                <p class="text-sm text-gray-400 mb-3">No PDF document uploaded</p>
+            </div>
+            <label class="cursor-pointer px-4 py-2 bg-red-100 text-red-700 rounded-lg text-sm hover:bg-red-200 inline-block">
+                <i class="fas fa-upload mr-1"></i>Upload PDF File
+                <input type="file" accept=".pdf" class="hidden" onchange="uploadFinalDoc(this, 'pdf')">
+            </label>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="bg-white rounded-lg shadow p-6 mb-8">
+    <div class="flex items-center justify-between mb-4">
+        <div>
             <h2 class="text-xl font-semibold text-gray-800">Section G: Key Personnel Participation Matrix</h2>
             <p class="text-gray-600 text-sm">This matrix shows which personnel worked on which projects. "X" marks are based on your Employee-Project links.</p>
         </div>
@@ -1562,5 +1639,53 @@ document.addEventListener('change', function(e) {
         document.querySelectorAll(`[data-key="${key}"]`).forEach(inp => inp.value = val);
     }
 });
+
+async function uploadFinalDoc(input, fileType) {
+    const file = input.files[0];
+    if (!file) return;
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('file_type', fileType);
+    
+    const zone = document.getElementById(`final-${fileType}-zone`);
+    const origHTML = zone.innerHTML;
+    zone.innerHTML = '<div class="py-8"><i class="fas fa-spinner fa-spin text-2xl text-gray-400"></i><p class="text-sm text-gray-500 mt-2">Uploading...</p></div>';
+    
+    try {
+        const response = await fetch(`/proposals/{{ proposal.id }}/upload-final`, {
+            method: 'POST',
+            body: formData
+        });
+        const result = await response.json();
+        if (result.success) {
+            location.reload();
+        } else {
+            alert('Upload failed: ' + (result.error || 'Unknown error'));
+            zone.innerHTML = origHTML;
+        }
+    } catch (error) {
+        alert('Upload error: ' + error.message);
+        zone.innerHTML = origHTML;
+    }
+}
+
+async function deleteFinalDoc(fileType) {
+    if (!confirm(`Remove this ${fileType === 'pdf' ? 'PDF' : 'Word'} document?`)) return;
+    
+    try {
+        const response = await fetch(`/proposals/{{ proposal.id }}/delete-final/${fileType}`, {
+            method: 'DELETE'
+        });
+        const result = await response.json();
+        if (result.success) {
+            location.reload();
+        } else {
+            alert('Delete failed: ' + (result.error || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Delete error: ' + error.message);
+    }
+}
 </script>
 {% endblock %}

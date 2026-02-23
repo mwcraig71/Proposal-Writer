@@ -82,6 +82,16 @@
                     <a href="/proposals/{{ proposal.id }}/export-json" class="text-yellow-600 hover:text-yellow-800 mr-3" title="Export Proposal JSON">
                         <i class="fas fa-file-export"></i>
                     </a>
+                    {% if proposal.final_pdf_filename %}
+                    <a href="/proposals/{{ proposal.id }}/download-final/pdf" class="text-red-600 hover:text-red-800 mr-3" title="Download Final PDF: {{ proposal.final_pdf_filename }}">
+                        <i class="fas fa-file-pdf"></i>
+                    </a>
+                    {% endif %}
+                    {% if proposal.final_word_filename %}
+                    <a href="/proposals/{{ proposal.id }}/download-final/word" class="text-blue-600 hover:text-blue-800 mr-3" title="Download Final Word: {{ proposal.final_word_filename }}">
+                        <i class="fas fa-file-word"></i>
+                    </a>
+                    {% endif %}
                     {% if proposal.archived %}
                     <form method="POST" action="/proposals/{{ proposal.id }}/restore" class="inline">
                         <button type="submit" class="text-green-600 hover:text-green-800" title="Restore">
