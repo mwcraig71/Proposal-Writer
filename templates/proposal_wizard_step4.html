@@ -240,6 +240,36 @@
     <p class="text-gray-600 mb-4">Generate a strategic proposal outline based on the RFP requirements and all linked proposal data. This outline will guide the cover letter and written sections.</p>
     
     <div class="mb-4">
+        <div class="border rounded-lg">
+            <button onclick="toggleDataSources('outline')" class="w-full flex items-center justify-between px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition">
+                <span><i class="fas fa-database mr-2 text-indigo-500"></i>Data Sources <span id="outline-ds-summary" class="text-gray-500 font-normal">- All selected</span></span>
+                <i class="fas fa-chevron-down text-gray-400 transition-transform" id="outline-ds-chevron"></i>
+            </button>
+            <div id="outline-ds-panel" class="hidden border-t px-4 py-3">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs text-gray-500">Select which data to include in AI context</span>
+                    <div class="flex gap-2">
+                        <button onclick="setAllDataSources('outline', true)" class="text-xs text-blue-600 hover:text-blue-800">Select All</button>
+                        <span class="text-xs text-gray-300">|</span>
+                        <button onclick="setAllDataSources('outline', false)" class="text-xs text-blue-600 hover:text-blue-800">Deselect All</button>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="ds-outline rounded text-indigo-600" value="rfp" checked><i class="fas fa-file-contract text-gray-400 text-xs"></i>RFP/RFQ</label>
+                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="ds-outline rounded text-indigo-600" value="firm_info" checked><i class="fas fa-building text-gray-400 text-xs"></i>Firm Info</label>
+                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="ds-outline rounded text-indigo-600" value="personnel" checked><i class="fas fa-users text-gray-400 text-xs"></i>Personnel</label>
+                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="ds-outline rounded text-indigo-600" value="projects" checked><i class="fas fa-project-diagram text-gray-400 text-xs"></i>Projects</label>
+                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="ds-outline rounded text-indigo-600" value="org_chart" checked><i class="fas fa-sitemap text-gray-400 text-xs"></i>Org Chart</label>
+                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="ds-outline rounded text-indigo-600" value="section_g" checked><i class="fas fa-table text-gray-400 text-xs"></i>Section G Matrix</label>
+                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="ds-outline rounded text-indigo-600" value="linked_responses" checked><i class="fas fa-bookmark text-gray-400 text-xs"></i>Linked Responses</label>
+                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="ds-outline rounded text-indigo-600" value="performance_references" checked><i class="fas fa-star text-gray-400 text-xs"></i>Performance Refs</label>
+                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="ds-outline rounded text-indigo-600" value="win_theme" checked><i class="fas fa-trophy text-gray-400 text-xs"></i>Win Theme</label>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mb-4">
         <label class="block text-sm font-medium text-gray-700 mb-2">Response Length</label>
         <div class="flex items-center gap-3">
             <span class="text-xs text-gray-500 w-10">35</span>
@@ -281,6 +311,36 @@
         <i class="fas fa-file-alt text-purple-600 mr-2"></i> AI Cover Letter & Written Sections
     </h2>
     <p class="text-gray-600 mb-4">Generate a cover letter and written sections using the RFP, firm, personnel, project data, and the proposal outline above.</p>
+    
+    <div class="mb-4">
+        <div class="border rounded-lg">
+            <button onclick="toggleDataSources('cover')" class="w-full flex items-center justify-between px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition">
+                <span><i class="fas fa-database mr-2 text-purple-500"></i>Data Sources <span id="cover-ds-summary" class="text-gray-500 font-normal">- All selected</span></span>
+                <i class="fas fa-chevron-down text-gray-400 transition-transform" id="cover-ds-chevron"></i>
+            </button>
+            <div id="cover-ds-panel" class="hidden border-t px-4 py-3">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs text-gray-500">Select which data to include in AI context</span>
+                    <div class="flex gap-2">
+                        <button onclick="setAllDataSources('cover', true)" class="text-xs text-blue-600 hover:text-blue-800">Select All</button>
+                        <span class="text-xs text-gray-300">|</span>
+                        <button onclick="setAllDataSources('cover', false)" class="text-xs text-blue-600 hover:text-blue-800">Deselect All</button>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="ds-cover rounded text-purple-600" value="rfp" checked><i class="fas fa-file-contract text-gray-400 text-xs"></i>RFP/RFQ</label>
+                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="ds-cover rounded text-purple-600" value="firm_info" checked><i class="fas fa-building text-gray-400 text-xs"></i>Firm Info</label>
+                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="ds-cover rounded text-purple-600" value="personnel" checked><i class="fas fa-users text-gray-400 text-xs"></i>Personnel</label>
+                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="ds-cover rounded text-purple-600" value="projects" checked><i class="fas fa-project-diagram text-gray-400 text-xs"></i>Projects</label>
+                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="ds-cover rounded text-purple-600" value="org_chart" checked><i class="fas fa-sitemap text-gray-400 text-xs"></i>Org Chart</label>
+                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="ds-cover rounded text-purple-600" value="section_g" checked><i class="fas fa-table text-gray-400 text-xs"></i>Section G Matrix</label>
+                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="ds-cover rounded text-purple-600" value="references" checked><i class="fas fa-file-alt text-gray-400 text-xs"></i>Reference Docs</label>
+                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="ds-cover rounded text-purple-600" value="proposal_outline" checked><i class="fas fa-list-alt text-gray-400 text-xs"></i>Proposal Outline</label>
+                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="ds-cover rounded text-purple-600" value="win_theme" checked><i class="fas fa-trophy text-gray-400 text-xs"></i>Win Theme</label>
+                </div>
+            </div>
+        </div>
+    </div>
     
     <div class="mb-4">
         <label class="block text-sm font-medium text-gray-700 mb-2">Response Length</label>
@@ -410,6 +470,38 @@
     <p class="text-gray-600 mb-4">Ask questions or request content about this proposal. The AI has access to all proposal data including personnel, projects, firm info, org chart, RFP, win themes, performance references, and library responses.</p>
     
     <div id="ai-assistant-content" class="hidden">
+        <div class="mb-4">
+            <div class="border rounded-lg">
+                <button onclick="toggleDataSources('chat')" class="w-full flex items-center justify-between px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition">
+                    <span><i class="fas fa-database mr-2 text-blue-500"></i>Data Sources <span id="chat-ds-summary" class="text-gray-500 font-normal">- All selected</span></span>
+                    <i class="fas fa-chevron-down text-gray-400 transition-transform" id="chat-ds-chevron"></i>
+                </button>
+                <div id="chat-ds-panel" class="hidden border-t px-4 py-3">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-xs text-gray-500">Select which data to include in AI context</span>
+                        <div class="flex gap-2">
+                            <button onclick="setAllDataSources('chat', true)" class="text-xs text-blue-600 hover:text-blue-800">Select All</button>
+                            <span class="text-xs text-gray-300">|</span>
+                            <button onclick="setAllDataSources('chat', false)" class="text-xs text-blue-600 hover:text-blue-800">Deselect All</button>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="ds-chat rounded text-blue-600" value="rfp" checked><i class="fas fa-file-contract text-gray-400 text-xs"></i>RFP/RFQ</label>
+                        <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="ds-chat rounded text-blue-600" value="firm_info" checked><i class="fas fa-building text-gray-400 text-xs"></i>Firm Info</label>
+                        <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="ds-chat rounded text-blue-600" value="personnel" checked><i class="fas fa-users text-gray-400 text-xs"></i>Personnel</label>
+                        <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="ds-chat rounded text-blue-600" value="projects" checked><i class="fas fa-project-diagram text-gray-400 text-xs"></i>Projects</label>
+                        <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="ds-chat rounded text-blue-600" value="org_chart" checked><i class="fas fa-sitemap text-gray-400 text-xs"></i>Org Chart</label>
+                        <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="ds-chat rounded text-blue-600" value="section_g" checked><i class="fas fa-table text-gray-400 text-xs"></i>Section G Matrix</label>
+                        <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="ds-chat rounded text-blue-600" value="references" checked><i class="fas fa-file-alt text-gray-400 text-xs"></i>Reference Docs</label>
+                        <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="ds-chat rounded text-blue-600" value="intelligence" checked><i class="fas fa-brain text-gray-400 text-xs"></i>Intel Docs</label>
+                        <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="ds-chat rounded text-blue-600" value="linked_responses" checked><i class="fas fa-bookmark text-gray-400 text-xs"></i>Linked Responses</label>
+                        <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="ds-chat rounded text-blue-600" value="performance_references" checked><i class="fas fa-star text-gray-400 text-xs"></i>Performance Refs</label>
+                        <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="ds-chat rounded text-blue-600" value="win_theme" checked><i class="fas fa-trophy text-gray-400 text-xs"></i>Win Theme</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
         <div id="ai-chat-messages" class="bg-gray-50 rounded-lg border mb-4 h-96 overflow-y-auto p-4 space-y-4">
             <div class="text-center text-gray-500 py-8" id="ai-chat-empty">
                 <i class="fas fa-robot text-4xl text-gray-300 mb-3"></i>
@@ -477,6 +569,44 @@ document.addEventListener('click', function(e) {
     });
 });
 
+function toggleDataSources(prefix) {
+    const panel = document.getElementById(prefix + '-ds-panel');
+    const chevron = document.getElementById(prefix + '-ds-chevron');
+    panel.classList.toggle('hidden');
+    chevron.style.transform = panel.classList.contains('hidden') ? '' : 'rotate(180deg)';
+}
+
+function getSelectedDataSources(prefix) {
+    const checkboxes = document.querySelectorAll('.ds-' + prefix + ':checked');
+    const allCheckboxes = document.querySelectorAll('.ds-' + prefix);
+    if (checkboxes.length === allCheckboxes.length) return null;
+    return Array.from(checkboxes).map(cb => cb.value);
+}
+
+function setAllDataSources(prefix, checked) {
+    document.querySelectorAll('.ds-' + prefix).forEach(cb => cb.checked = checked);
+    updateDataSourceSummary(prefix);
+}
+
+function updateDataSourceSummary(prefix) {
+    const all = document.querySelectorAll('.ds-' + prefix);
+    const checked = document.querySelectorAll('.ds-' + prefix + ':checked');
+    const summary = document.getElementById(prefix + '-ds-summary');
+    if (checked.length === all.length) {
+        summary.textContent = '- All selected';
+    } else if (checked.length === 0) {
+        summary.textContent = '- None selected';
+    } else {
+        summary.textContent = '- ' + checked.length + ' of ' + all.length + ' selected';
+    }
+}
+
+document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('ds-outline')) updateDataSourceSummary('outline');
+    if (e.target.classList.contains('ds-cover')) updateDataSourceSummary('cover');
+    if (e.target.classList.contains('ds-chat')) updateDataSourceSummary('chat');
+});
+
 async function generateOutline() {
     const btn = document.getElementById('generate-outline-btn');
     const instructions = document.getElementById('outline-instructions').value;
@@ -488,7 +618,7 @@ async function generateOutline() {
         const response = await fetch('/proposals/{{ proposal.id }}/generate-outline', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({custom_instructions: instructions, word_count: parseInt(document.getElementById('outline-word-count').value)})
+            body: JSON.stringify({custom_instructions: instructions, word_count: parseInt(document.getElementById('outline-word-count').value), included_sections: getSelectedDataSources('outline')})
         });
         const result = await response.json();
         
@@ -570,7 +700,7 @@ async function generateCoverLetter() {
         const response = await fetch('/proposals/{{ proposal.id }}/generate-cover-letter', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({custom_instructions: instructions, word_count: parseInt(document.getElementById('cover-word-count').value)})
+            body: JSON.stringify({custom_instructions: instructions, word_count: parseInt(document.getElementById('cover-word-count').value), included_sections: getSelectedDataSources('cover')})
         });
         const result = await response.json();
         
@@ -740,7 +870,7 @@ async function sendChatMessage() {
         const response = await fetch('/api/proposals/{{ proposal.id }}/ai-chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: prompt, history: chatHistory.slice(-10), word_count: parseInt(document.getElementById('chat-word-count').value) })
+            body: JSON.stringify({ message: prompt, history: chatHistory.slice(-10), word_count: parseInt(document.getElementById('chat-word-count').value), included_sections: getSelectedDataSources('chat') })
         });
         
         const data = await response.json();

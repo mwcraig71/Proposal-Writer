@@ -1081,6 +1081,7 @@ def generate_cover_letter_ai(
     org_chart_data: str = '',
     org_chart_notes: str = '',
     proposal_outline: str = '',
+    section_g_matrix: str = '',
     word_count: int = 2000
 ) -> dict:
     """Generate a cover letter and written sections using RFP + firm + staff + project data."""
@@ -1159,6 +1160,7 @@ RFP/RFQ REQUIREMENTS (if available):
 {rfp_text[:15000] if rfp_text else 'RFP text not available'}
 {reference_section}
 {org_chart_section}
+{section_g_matrix}
 {f'''
 PROPOSAL OUTLINE (IMPORTANT - Use this as your primary guide):
 The following outline was created to guide the proposal writing. Follow its themes, emphasis areas, and win strategies closely:
@@ -1225,6 +1227,7 @@ def generate_proposal_outline_ai(
     org_chart_notes: str = '',
     linked_responses: list = None,
     linked_references: list = None,
+    section_g_matrix: str = '',
     word_count: int = 2000
 ) -> str:
     """Generate a proposal outline based on RFP requirements and all linked proposal data."""
@@ -1308,6 +1311,7 @@ FULL TEAM:
 RELEVANT PROJECTS:
 {projects_summary or 'None selected'}
 {org_chart_section}
+{section_g_matrix}
 {responses_section}
 {references_section}
 

@@ -3989,12 +3989,14 @@ def generate_proposal_outline(id):
     data = request.json
     custom_instructions = data.get('custom_instructions', '')
     word_count = max(35, min(10000, int(data.get('word_count', 2000))))
+    included_sections = data.get('included_sections', None)
+    include_all = not included_sections
     
-    from models import FirmAlternateDescription, ProposalLinkedResponse, ProposalLinkedReference
+    from models import FirmAlternateDescription, ProposalLinkedResponse, ProposalLinkedReference, EmployeeProjectLink
     from gemini_service import generate_proposal_outline_ai
     
     firm_bio = ''
-    if proposal.firm:
+    if (include_all or 'firm_info' in included_sections) and proposal.firm:
         firm_bio = proposal.firm.bio or ''
         if proposal.firm_bio_alternate_id:
             alt = FirmAlternateDescription.query.get(proposal.firm_bio_alternate_id)
@@ -4002,48 +4004,74 @@ def generate_proposal_outline(id):
                 firm_bio = alt.description or firm_bio
     
     employees_data = []
-    for pse in proposal.selected_employees:
-        emp = pse.employee
-        employees_data.append({
-            'name': emp.name,
-            'title': emp.title,
-            'role_in_contract': pse.role_in_contract,
-            'years_experience': emp.years_experience_total,
-            'bio': emp.bio,
-            'education': emp.education,
-            'registrations': emp.registrations
-        })
+    if include_all or 'personnel' in included_sections:
+        for pse in proposal.selected_employees:
+            emp = pse.employee
+            employees_data.append({
+                'name': emp.name,
+                'title': emp.title,
+                'role_in_contract': pse.role_in_contract,
+                'years_experience': emp.years_experience_total,
+                'bio': emp.bio,
+                'education': emp.education,
+                'registrations': emp.registrations
+            })
     
     projects_data = []
-    for psp in proposal.selected_projects:
-        proj = psp.project
-        projects_data.append({
-            'title': proj.title,
-            'location': proj.location,
-            'owner': proj.owner_name,
-            'description': proj.brief_description
-        })
+    if include_all or 'projects' in included_sections:
+        for psp in proposal.selected_projects:
+            proj = psp.project
+            projects_data.append({
+                'title': proj.title,
+                'location': proj.location,
+                'owner': proj.owner_name,
+                'description': proj.brief_description
+            })
     
     linked_responses = []
-    for link in ProposalLinkedResponse.query.filter_by(proposal_id=id).all():
-        resp = link.response
-        linked_responses.append({
-            'question': resp.question,
-            'response': resp.response
-        })
+    if include_all or 'linked_responses' in included_sections:
+        for link in ProposalLinkedResponse.query.filter_by(proposal_id=id).all():
+            resp = link.response
+            linked_responses.append({
+                'question': resp.question,
+                'response': resp.response
+            })
     
     linked_references = []
-    for link in ProposalLinkedReference.query.filter_by(proposal_id=id).all():
-        ref = link.reference
-        linked_references.append({
-            'project_name': ref.project_name,
-            'final_score': ref.final_score,
-            'client': ref.client
-        })
+    if include_all or 'performance_references' in included_sections:
+        for link in ProposalLinkedReference.query.filter_by(proposal_id=id).all():
+            ref = link.reference
+            linked_references.append({
+                'project_name': ref.project_name,
+                'final_score': ref.final_score,
+                'client': ref.client
+            })
+    
+    section_g_text = ''
+    if include_all or 'section_g' in included_sections:
+        selected_emps = proposal.selected_employees
+        selected_projs = proposal.selected_projects
+        if selected_emps and selected_projs:
+            lines = []
+            for pse in selected_emps:
+                emp = pse.employee
+                if emp:
+                    emp_proj_lines = []
+                    for psp in selected_projs:
+                        proj = psp.project
+                        if proj:
+                            link = EmployeeProjectLink.query.filter_by(employee_id=emp.id, project_id=proj.id).first()
+                            if link:
+                                emp_proj_lines.append(f"  * {proj.title}: {link.role_on_project or 'Participated'}")
+                    if emp_proj_lines:
+                        lines.append(f"- {emp.display_name} ({pse.role_in_contract or 'N/A'}):")
+                        lines.extend(emp_proj_lines)
+            if lines:
+                section_g_text = "SECTION G MATRIX (Personnel-Project Roles):\n" + "\n".join(lines)
     
     try:
         outline = generate_proposal_outline_ai(
-            rfp_text=proposal.rfp_text or '',
+            rfp_text=(proposal.rfp_text or '') if (include_all or 'rfp' in included_sections) else '',
             firm_name=proposal.firm.name if proposal.firm else '',
             firm_bio=firm_bio,
             employees=employees_data,
@@ -4051,10 +4079,11 @@ def generate_proposal_outline(id):
             contract_title=proposal.contract_title or '',
             solicitation_number=proposal.solicitation_number or '',
             custom_instructions=custom_instructions,
-            org_chart_data=proposal.org_chart_data or '',
-            org_chart_notes=proposal.org_chart_notes or '',
+            org_chart_data=(proposal.org_chart_data or '') if (include_all or 'org_chart' in included_sections) else '',
+            org_chart_notes=(proposal.org_chart_notes or '') if (include_all or 'org_chart' in included_sections) else '',
             linked_responses=linked_responses,
             linked_references=linked_references,
+            section_g_matrix=section_g_text,
             word_count=word_count
         )
         
@@ -4308,15 +4337,17 @@ def generate_cover_letter(id):
     data = request.json
     custom_instructions = data.get('custom_instructions', '')
     word_count = max(35, min(10000, int(data.get('word_count', 2000))))
+    included_sections = data.get('included_sections', None)
+    include_all = not included_sections
     
-    from models import AISettings, FirmAlternateDescription
+    from models import AISettings, FirmAlternateDescription, EmployeeProjectLink
     from gemini_service import generate_cover_letter_ai
     
     style = AISettings.get_value('writing_style', '')
     tone = AISettings.get_value('writing_tone', '')
     
     firm_bio = ''
-    if proposal.firm:
+    if (include_all or 'firm_info' in included_sections) and proposal.firm:
         firm_bio = proposal.firm.bio or ''
         if proposal.firm_bio_alternate_id:
             alt = FirmAlternateDescription.query.get(proposal.firm_bio_alternate_id)
@@ -4324,35 +4355,59 @@ def generate_cover_letter(id):
                 firm_bio = alt.description or firm_bio
     
     employees_data = []
-    for pse in proposal.selected_employees:
-        emp = pse.employee
-        employees_data.append({
-            'name': emp.name,
-            'title': emp.title,
-            'role_in_contract': pse.role_in_contract,
-            'years_experience': emp.years_experience_total,
-            'education': emp.education,
-            'registrations': emp.registrations
-        })
+    if include_all or 'personnel' in included_sections:
+        for pse in proposal.selected_employees:
+            emp = pse.employee
+            employees_data.append({
+                'name': emp.name,
+                'title': emp.title,
+                'role_in_contract': pse.role_in_contract,
+                'years_experience': emp.years_experience_total,
+                'education': emp.education,
+                'registrations': emp.registrations
+            })
     
     projects_data = []
-    for psp in proposal.selected_projects:
-        proj = psp.project
-        projects_data.append({
-            'title': proj.title,
-            'location': proj.location,
-            'owner': proj.owner_name,
-            'description': proj.brief_description
-        })
+    if include_all or 'projects' in included_sections:
+        for psp in proposal.selected_projects:
+            proj = psp.project
+            projects_data.append({
+                'title': proj.title,
+                'location': proj.location,
+                'owner': proj.owner_name,
+                'description': proj.brief_description
+            })
     
-    # Gather reference proposal text from uploaded previous proposals
     reference_proposals_text = ""
-    for ref_doc in proposal.reference_documents:
-        if ref_doc.extracted_text:
-            reference_proposals_text += f"\n\n--- Reference: {ref_doc.filename} ---\n{ref_doc.extracted_text}"
+    if include_all or 'references' in included_sections:
+        for ref_doc in proposal.reference_documents:
+            if ref_doc.extracted_text:
+                reference_proposals_text += f"\n\n--- Reference: {ref_doc.filename} ---\n{ref_doc.extracted_text}"
+    
+    section_g_text = ''
+    if include_all or 'section_g' in included_sections:
+        selected_emps = proposal.selected_employees
+        selected_projs = proposal.selected_projects
+        if selected_emps and selected_projs:
+            lines = []
+            for pse in selected_emps:
+                emp = pse.employee
+                if emp:
+                    emp_proj_lines = []
+                    for psp in selected_projs:
+                        proj = psp.project
+                        if proj:
+                            link = EmployeeProjectLink.query.filter_by(employee_id=emp.id, project_id=proj.id).first()
+                            if link:
+                                emp_proj_lines.append(f"  * {proj.title}: {link.role_on_project or 'Participated'}")
+                    if emp_proj_lines:
+                        lines.append(f"- {emp.display_name} ({pse.role_in_contract or 'N/A'}):")
+                        lines.extend(emp_proj_lines)
+            if lines:
+                section_g_text = "SECTION G MATRIX (Personnel-Project Roles):\n" + "\n".join(lines)
     
     result = generate_cover_letter_ai(
-        rfp_text=proposal.rfp_text or '',
+        rfp_text=(proposal.rfp_text or '') if (include_all or 'rfp' in included_sections) else '',
         firm_name=proposal.firm.name if proposal.firm else '',
         firm_bio=firm_bio,
         employees=employees_data,
@@ -4363,9 +4418,10 @@ def generate_cover_letter(id):
         tone=tone,
         custom_instructions=custom_instructions,
         reference_proposals=reference_proposals_text,
-        org_chart_data=proposal.org_chart_data or '',
-        org_chart_notes=proposal.org_chart_notes or '',
-        proposal_outline=proposal.proposal_outline or '',
+        org_chart_data=(proposal.org_chart_data or '') if (include_all or 'org_chart' in included_sections) else '',
+        org_chart_notes=(proposal.org_chart_notes or '') if (include_all or 'org_chart' in included_sections) else '',
+        proposal_outline=(proposal.proposal_outline or '') if (include_all or 'proposal_outline' in included_sections) else '',
+        section_g_matrix=section_g_text,
         word_count=word_count
     )
     
@@ -9158,10 +9214,11 @@ def api_proposal_ai_response(proposal_id):
         word_limit = word_limits.get(length, 250)
     
     # Collect all proposal data
-    def collect_proposal_data():
+    def collect_proposal_data(included_sections=None):
         sections = {}
+        include_all = not included_sections
         
-        # Basic proposal info
+        # Basic proposal info (always included)
         proposal_info = f"""PROPOSAL INFORMATION:
 Name: {proposal.name}
 Tracking Number: {proposal.tracking_number or 'N/A'}
@@ -9169,12 +9226,15 @@ Contract Title: {proposal.contract_title or 'N/A'}
 Contract Location: {proposal.contract_location or 'N/A'}
 Solicitation Number: {proposal.solicitation_number or 'N/A'}
 Status: {proposal.status}
-Win Theme: {proposal.win_theme or 'Not defined'}
 """
         sections['proposal_info'] = proposal_info
         
+        if include_all or 'win_theme' in included_sections:
+            if proposal.win_theme:
+                sections['win_theme'] = f"WIN THEME:\n{proposal.win_theme}\n"
+        
         # Firm info
-        if proposal.firm:
+        if (include_all or 'firm_info' in included_sections) and proposal.firm:
             firm = proposal.firm
             firm_info = f"""FIRM INFORMATION:
 Name: {firm.name}
@@ -9187,7 +9247,7 @@ UEI: {firm.uei or 'N/A'}
         
         # Selected personnel with roles
         selected_employees = ProposalSelectedEmployee.query.filter_by(proposal_id=proposal_id).all()
-        if selected_employees:
+        if (include_all or 'personnel' in included_sections) and selected_employees:
             personnel_info = "SELECTED PERSONNEL:\n"
             for pse in selected_employees:
                 emp = pse.employee
@@ -9204,7 +9264,7 @@ UEI: {firm.uei or 'N/A'}
         
         selected_projects = ProposalSelectedProject.query.filter_by(proposal_id=proposal_id)\
             .order_by(ProposalSelectedProject.display_order.asc()).all()
-        if selected_projects:
+        if (include_all or 'projects' in included_sections) and selected_projects:
             projects_info = "SELECTED PROJECTS (ordered by relevance to this proposal, #1 = most relevant):\n"
             for psp in selected_projects:
                 proj = psp.project
@@ -9220,8 +9280,29 @@ UEI: {firm.uei or 'N/A'}
 """
             sections['projects'] = projects_info
         
+        # Section G Matrix - personnel/project participation roles
+        if (include_all or 'section_g' in included_sections) and selected_employees and selected_projects:
+            matrix_info = "SECTION G MATRIX (Personnel-Project Participation & Roles):\n"
+            has_entries = False
+            for pse in selected_employees:
+                emp = pse.employee
+                if emp:
+                    emp_projects = []
+                    for psp in selected_projects:
+                        proj = psp.project
+                        if proj:
+                            link = EmployeeProjectLink.query.filter_by(employee_id=emp.id, project_id=proj.id).first()
+                            if link:
+                                emp_projects.append(f"  * {proj.title}: {link.role_on_project or 'Participated'}")
+                    if emp_projects:
+                        has_entries = True
+                        matrix_info += f"\n{emp.display_name} ({pse.role_in_contract or 'N/A'}):\n"
+                        matrix_info += "\n".join(emp_projects) + "\n"
+            if has_entries:
+                sections['section_g'] = matrix_info
+        
         # Org chart data
-        if proposal.org_chart_data:
+        if (include_all or 'org_chart' in included_sections) and proposal.org_chart_data:
             try:
                 org_data = json.loads(proposal.org_chart_data) if isinstance(proposal.org_chart_data, str) else proposal.org_chart_data
                 nodes = org_data.get('nodes', [])
@@ -9237,12 +9318,12 @@ UEI: {firm.uei or 'N/A'}
                 pass
         
         # RFP content
-        if proposal.rfp_text:
+        if (include_all or 'rfp' in included_sections) and proposal.rfp_text:
             rfp_text = proposal.rfp_text[:3000] if len(proposal.rfp_text) > 3000 else proposal.rfp_text
             sections['rfp'] = f"RFP/RFQ CONTENT:\n{rfp_text}\n"
         
         # Reference documents
-        if proposal.reference_documents:
+        if (include_all or 'references' in included_sections) and proposal.reference_documents:
             refs_info = "REFERENCE DOCUMENTS:\n"
             for ref in proposal.reference_documents:
                 if ref.extracted_text:
@@ -9251,7 +9332,7 @@ UEI: {firm.uei or 'N/A'}
                 sections['references'] = refs_info
         
         # Intelligence documents
-        if proposal.intelligence_documents:
+        if (include_all or 'intelligence' in included_sections) and proposal.intelligence_documents:
             intel_info = "INTELLIGENCE DOCUMENTS:\n"
             for intel in proposal.intelligence_documents:
                 intel_info += f"\n--- {intel.filename} ({intel.description or 'No description'}) ---\n"
@@ -9262,7 +9343,8 @@ UEI: {firm.uei or 'N/A'}
         
         return sections
     
-    sections = collect_proposal_data()
+    included_sections = data.get('included_sections', None)
+    sections = collect_proposal_data(included_sections)
     
     # Estimate total size (rough character count)
     total_chars = sum(len(s) for s in sections.values())
@@ -9377,8 +9459,9 @@ def api_proposal_ai_chat(proposal_id):
         return jsonify({'success': False, 'error': 'Proposal not found'}), 404
     
     # Collect proposal data (reuse the same logic)
-    def collect_proposal_data():
+    def collect_proposal_data(included_sections=None):
         sections = {}
+        include_all = not included_sections
         
         proposal_info = f"""PROPOSAL INFORMATION:
 Name: {proposal.name}
@@ -9387,11 +9470,14 @@ Contract Title: {proposal.contract_title or 'N/A'}
 Contract Location: {proposal.contract_location or 'N/A'}
 Solicitation Number: {proposal.solicitation_number or 'N/A'}
 Status: {proposal.status}
-Win Theme: {proposal.win_theme or 'Not defined'}
 """
         sections['proposal_info'] = proposal_info
         
-        if proposal.firm:
+        if include_all or 'win_theme' in included_sections:
+            if proposal.win_theme:
+                sections['win_theme'] = f"WIN THEME:\n{proposal.win_theme}\n"
+        
+        if (include_all or 'firm_info' in included_sections) and proposal.firm:
             firm = proposal.firm
             sections['firm_info'] = f"""FIRM INFORMATION:
 Name: {firm.name}
@@ -9402,7 +9488,7 @@ UEI: {firm.uei or 'N/A'}
 """
         
         selected_employees = ProposalSelectedEmployee.query.filter_by(proposal_id=proposal_id).all()
-        if selected_employees:
+        if (include_all or 'personnel' in included_sections) and selected_employees:
             personnel_info = "SELECTED PERSONNEL:\n"
             for pse in selected_employees:
                 emp = pse.employee
@@ -9418,7 +9504,6 @@ UEI: {firm.uei or 'N/A'}
                     if emp.bio:
                         personnel_info += f"Bio: {emp.bio[:500]}\n"
                     
-                    # Include Block 19 selected projects (ProposalEmployeeRelevantProject)
                     if pse.relevant_projects:
                         personnel_info += "Block 19 Selected Projects (for SF330 Resume):\n"
                         for rp in pse.relevant_projects:
@@ -9430,7 +9515,6 @@ UEI: {firm.uei or 'N/A'}
                                 if proj.year_completed_professional:
                                     personnel_info += f" | {proj.year_completed_professional}"
                                 personnel_info += "\n"
-                                # Get employee's role on this project
                                 link = EmployeeProjectLink.query.filter_by(employee_id=emp.id, project_id=proj.id).first()
                                 if link and link.role_on_project:
                                     personnel_info += f"    Role: {link.role_on_project}\n"
@@ -9456,7 +9540,7 @@ UEI: {firm.uei or 'N/A'}
         
         selected_projects = ProposalSelectedProject.query.filter_by(proposal_id=proposal_id)\
             .order_by(ProposalSelectedProject.display_order.asc()).all()
-        if selected_projects:
+        if (include_all or 'projects' in included_sections) and selected_projects:
             projects_info = "SELECTED PROJECTS (ordered by relevance, #1 = most relevant):\n"
             for psp in selected_projects:
                 proj = psp.project
@@ -9465,7 +9549,28 @@ UEI: {firm.uei or 'N/A'}
                     projects_info += f"- #{psp.display_order} {proj.title} | Location: {proj.location or 'N/A'} | Owner: {proj.owner_name or 'N/A'} | Year: {proj.year_completed_professional or 'N/A'}\n  Description: {desc[:300]}\n"
             sections['projects'] = projects_info
         
-        if proposal.org_chart_data:
+        # Section G Matrix - personnel/project participation roles
+        if (include_all or 'section_g' in included_sections) and selected_employees and selected_projects:
+            matrix_info = "SECTION G MATRIX (Personnel-Project Participation & Roles):\n"
+            has_entries = False
+            for pse in selected_employees:
+                emp = pse.employee
+                if emp:
+                    emp_projects = []
+                    for psp in selected_projects:
+                        proj = psp.project
+                        if proj:
+                            link = EmployeeProjectLink.query.filter_by(employee_id=emp.id, project_id=proj.id).first()
+                            if link:
+                                emp_projects.append(f"  * {proj.title}: {link.role_on_project or 'Participated'}")
+                    if emp_projects:
+                        has_entries = True
+                        matrix_info += f"\n{emp.display_name} ({pse.role_in_contract or 'N/A'}):\n"
+                        matrix_info += "\n".join(emp_projects) + "\n"
+            if has_entries:
+                sections['section_g'] = matrix_info
+        
+        if (include_all or 'org_chart' in included_sections) and proposal.org_chart_data:
             try:
                 org_data = json.loads(proposal.org_chart_data) if isinstance(proposal.org_chart_data, str) else proposal.org_chart_data
                 nodes = org_data.get('nodes', [])
@@ -9478,17 +9583,17 @@ UEI: {firm.uei or 'N/A'}
             except:
                 pass
         
-        if proposal.rfp_text:
+        if (include_all or 'rfp' in included_sections) and proposal.rfp_text:
             sections['rfp'] = f"RFP/RFQ CONTENT:\n{proposal.rfp_text[:4000]}\n"
         
-        if proposal.reference_documents:
+        if (include_all or 'references' in included_sections) and proposal.reference_documents:
             refs_info = "REFERENCE DOCUMENTS:\n"
             for ref in proposal.reference_documents[:3]:
                 if ref.extracted_text:
                     refs_info += f"--- {ref.filename} ---\n{ref.extracted_text[:1500]}\n"
             sections['references'] = refs_info
         
-        if proposal.intelligence_documents:
+        if (include_all or 'intelligence' in included_sections) and proposal.intelligence_documents:
             intel_info = "INTELLIGENCE DOCUMENTS:\n"
             for intel in proposal.intelligence_documents[:3]:
                 intel_info += f"--- {intel.filename} ({intel.description or 'No description'}) ---\n"
@@ -9496,48 +9601,51 @@ UEI: {firm.uei or 'N/A'}
                     intel_info += f"{intel.extracted_text[:1000]}\n"
             sections['intelligence'] = intel_info
         
-        linked_responses = ProposalLinkedResponse.query.filter_by(proposal_id=proposal_id).all()
-        if linked_responses:
-            responses_info = "LINKED RESPONSE LIBRARY:\n"
-            for link in linked_responses[:10]:
-                r = link.response
-                if r:
-                    responses_info += f"\n--- {r.question or 'Response'} (Grade: {r.grade or 'N/A'}) ---\n"
-                    responses_info += f"Client: {r.client or 'N/A'} | Year: {r.year or 'N/A'}\n"
-                    if r.response:
-                        responses_info += f"{r.response[:800]}\n"
-            sections['linked_responses'] = responses_info
+        if include_all or 'linked_responses' in included_sections:
+            linked_responses = ProposalLinkedResponse.query.filter_by(proposal_id=proposal_id).all()
+            if linked_responses:
+                responses_info = "LINKED RESPONSE LIBRARY:\n"
+                for link in linked_responses[:10]:
+                    r = link.response
+                    if r:
+                        responses_info += f"\n--- {r.question or 'Response'} (Grade: {r.grade or 'N/A'}) ---\n"
+                        responses_info += f"Client: {r.client or 'N/A'} | Year: {r.year or 'N/A'}\n"
+                        if r.response:
+                            responses_info += f"{r.response[:800]}\n"
+                sections['linked_responses'] = responses_info
         
-        linked_refs = ProposalLinkedReference.query.filter_by(proposal_id=proposal_id).all()
-        if linked_refs:
-            refs_context = "PERFORMANCE REFERENCES (Client Evaluations & Testimonials):\n"
-            for link in linked_refs[:10]:
-                ref = link.reference
-                if ref:
-                    refs_context += f"\n--- {ref.project_name or ref.client or 'Performance Reference'} ---\n"
-                    refs_context += f"Client: {ref.client or 'N/A'} | Firm: {ref.firm or 'N/A'}\n"
-                    if ref.final_score:
-                        refs_context += f"Score: {ref.final_score}/10"
-                        if ref.quality_score:
-                            refs_context += f" | Quality: {ref.quality_score}"
-                        if ref.schedule_score:
-                            refs_context += f" | Schedule: {ref.schedule_score}"
-                        if ref.responsiveness_score:
-                            refs_context += f" | Responsiveness: {ref.responsiveness_score}"
-                        refs_context += "\n"
-                    if ref.evaluation_date:
-                        refs_context += f"Date: {ref.evaluation_date.strftime('%B %Y')}\n"
-                    if ref.consultant_pm:
-                        refs_context += f"Consultant PM: {ref.consultant_pm}\n"
-                    if ref.score_summary:
-                        refs_context += f"Summary: {ref.score_summary[:500]}\n"
-                    if ref.quotes:
-                        refs_context += f"Notable Quotes: \"{ref.quotes[:500]}\"\n"
-            sections['performance_references'] = refs_context
+        if include_all or 'performance_references' in included_sections:
+            linked_refs = ProposalLinkedReference.query.filter_by(proposal_id=proposal_id).all()
+            if linked_refs:
+                refs_context = "PERFORMANCE REFERENCES (Client Evaluations & Testimonials):\n"
+                for link in linked_refs[:10]:
+                    ref = link.reference
+                    if ref:
+                        refs_context += f"\n--- {ref.project_name or ref.client or 'Performance Reference'} ---\n"
+                        refs_context += f"Client: {ref.client or 'N/A'} | Firm: {ref.firm or 'N/A'}\n"
+                        if ref.final_score:
+                            refs_context += f"Score: {ref.final_score}/10"
+                            if ref.quality_score:
+                                refs_context += f" | Quality: {ref.quality_score}"
+                            if ref.schedule_score:
+                                refs_context += f" | Schedule: {ref.schedule_score}"
+                            if ref.responsiveness_score:
+                                refs_context += f" | Responsiveness: {ref.responsiveness_score}"
+                            refs_context += "\n"
+                        if ref.evaluation_date:
+                            refs_context += f"Date: {ref.evaluation_date.strftime('%B %Y')}\n"
+                        if ref.consultant_pm:
+                            refs_context += f"Consultant PM: {ref.consultant_pm}\n"
+                        if ref.score_summary:
+                            refs_context += f"Summary: {ref.score_summary[:500]}\n"
+                        if ref.quotes:
+                            refs_context += f"Notable Quotes: \"{ref.quotes[:500]}\"\n"
+                sections['performance_references'] = refs_context
         
         return sections
     
-    sections = collect_proposal_data()
+    included_sections = data.get('included_sections', None)
+    sections = collect_proposal_data(included_sections)
     
     # Get writing style/tone
     ai_style = AISettings.get_value('ai_writing_style', '')
