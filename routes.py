@@ -4093,6 +4093,208 @@ def delete_final_document(id, file_type):
     return jsonify({'success': True})
 
 
+@app.route('/api/proposals/<int:id>/reviews', methods=['GET'])
+def api_get_reviews(id):
+    from models import ProposalReview
+    reviews = ProposalReview.query.filter_by(proposal_id=id).order_by(ProposalReview.updated_at.desc()).all()
+    return jsonify({'success': True, 'reviews': [{
+        'id': r.id,
+        'review_type': r.review_type,
+        'review_content': r.review_content or '',
+        'review_filename': r.review_filename or '',
+        'created_at': r.created_at.strftime('%Y-%m-%d %H:%M') if r.created_at else '',
+        'updated_at': r.updated_at.strftime('%Y-%m-%d %H:%M') if r.updated_at else ''
+    } for r in reviews]})
+
+
+@app.route('/api/proposals/<int:id>/reviews/<int:review_id>', methods=['PUT'])
+def api_update_review(id, review_id):
+    from models import ProposalReview
+    review = ProposalReview.query.filter_by(id=review_id, proposal_id=id).first_or_404()
+    data = request.get_json() or {}
+    if 'review_content' in data:
+        review.review_content = data['review_content']
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/api/proposals/<int:id>/reviews/<int:review_id>', methods=['DELETE'])
+def api_delete_review(id, review_id):
+    from models import ProposalReview
+    review = ProposalReview.query.filter_by(id=review_id, proposal_id=id).first_or_404()
+    db.session.delete(review)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/api/proposals/<int:id>/run-review', methods=['POST'])
+def api_run_proposal_review(id):
+    from models import ProposalReview
+    proposal = Proposal.query.get_or_404(id)
+    
+    data = request.get_json() or {}
+    review_type = data.get('review_type', 'compliance')
+    
+    review_doc_content = None
+    review_filename = None
+    
+    if proposal.final_pdf_filename:
+        storage_path = f'proposals/{id}/final_pdf/{proposal.final_pdf_filename}'
+        review_filename = proposal.final_pdf_filename
+        try:
+            client = get_storage_client()
+            file_data = client.download_as_bytes(storage_path)
+            if file_data:
+                import fitz
+                doc = fitz.open(stream=file_data, filetype="pdf")
+                review_doc_content = "\n".join([page.get_text() for page in doc])
+                doc.close()
+        except Exception as e:
+            pass
+    
+    if not review_doc_content and proposal.final_word_filename:
+        storage_path = f'proposals/{id}/final_word/{proposal.final_word_filename}'
+        review_filename = proposal.final_word_filename
+        try:
+            client = get_storage_client()
+            file_data = client.download_as_bytes(storage_path)
+            if file_data:
+                from docx import Document as DocxDocument
+                from io import BytesIO
+                doc = DocxDocument(BytesIO(file_data))
+                review_doc_content = "\n".join([p.text for p in doc.paragraphs if p.text.strip()])
+        except Exception as e:
+            pass
+    
+    if not review_doc_content:
+        return jsonify({'success': False, 'error': 'No proposal document found. Please upload a final PDF or Word document first.'}), 400
+    
+    rfp_text = proposal.rfp_text or ''
+    
+    if review_type == 'compliance':
+        prompt = f"""You are an expert RFP compliance reviewer for government A/E (Architect-Engineer) proposals.
+
+Carefully review the following proposal against the RFP/RFQ requirements and identify:
+
+1. **COMPLIANCE CHECKLIST**: Go through each RFP requirement and mark whether the proposal addresses it (Compliant / Non-Compliant / Partially Compliant)
+2. **MISSING ITEMS**: List any RFP requirements that are not addressed in the proposal
+3. **FORMATTING ISSUES**: Note any formatting, page limit, or organizational issues
+4. **STRENGTHS**: What the proposal does well in terms of compliance
+5. **RECOMMENDATIONS**: Specific actions to improve compliance
+
+RFP/RFQ REQUIREMENTS:
+{rfp_text[:30000] if rfp_text else 'No RFP text available - provide a general compliance assessment based on standard SF330 requirements.'}
+
+PROPOSAL DOCUMENT:
+{review_doc_content[:50000]}
+
+Provide a thorough, section-by-section compliance review with clear ratings and actionable feedback."""
+
+    elif review_type == 'marketing':
+        custom_prompt = AISettings.get_value('review_prompt_marketing', '')
+        if custom_prompt:
+            prompt = f"""{custom_prompt}
+
+RFP/RFQ REQUIREMENTS:
+{rfp_text[:20000] if rfp_text else 'No RFP text available.'}
+
+PROPOSAL DOCUMENT:
+{review_doc_content[:50000]}"""
+        else:
+            prompt = f"""You are a senior A&E Marketing Professional with 20+ years of experience in winning government contracts. You are reviewing this proposal with a critical eye toward persuasiveness, client focus, and competitive positioning.
+
+Evaluate the proposal on these criteria:
+
+1. **WIN THEMES & MESSAGING** [Score: 1-10]: Are the win themes clear, compelling, and woven throughout? Do they differentiate the firm?
+2. **CLIENT FOCUS** [Score: 1-10]: Does the proposal speak to the client's specific needs, or is it generic?
+3. **EXECUTIVE SUMMARY** [Score: 1-10]: Does it grab attention and make the case for selection in the first page?
+4. **VISUAL & ORGANIZATIONAL APPEAL** [Score: 1-10]: Is the proposal well-organized, easy to navigate, with clear headers and logical flow?
+5. **PERSONNEL PRESENTATION** [Score: 1-10]: Are key staff presented as problem-solvers with relevant experience, not just resume dumps?
+6. **PROJECT RELEVANCE** [Score: 1-10]: Are past projects presented to show direct relevance and lessons learned?
+7. **COMPETITIVE POSITIONING** [Score: 1-10]: Does the proposal position the firm as the obvious choice over competitors?
+8. **CALL TO ACTION & CLOSING** [Score: 1-10]: Does the proposal end strong with a clear, confident closing?
+
+For each criterion provide:
+- Score (1-10)
+- Strengths observed
+- Weaknesses identified
+- Specific recommendations to improve
+
+**OVERALL MARKETING SCORE**: [Total/80]
+**TOP 3 PRIORITIES** to improve this proposal's competitiveness.
+
+RFP/RFQ REQUIREMENTS:
+{rfp_text[:20000] if rfp_text else 'No RFP text available.'}
+
+PROPOSAL DOCUMENT:
+{review_doc_content[:50000]}"""
+
+    elif review_type == 'engineer':
+        custom_prompt = AISettings.get_value('review_prompt_engineer', '')
+        if custom_prompt:
+            prompt = f"""{custom_prompt}
+
+RFP/RFQ REQUIREMENTS:
+{rfp_text[:20000] if rfp_text else 'No RFP text available.'}
+
+PROPOSAL DOCUMENT:
+{review_doc_content[:50000]}"""
+        else:
+            prompt = f"""You are a Senior DOT Maintenance Engineer and lead member of a Selection Committee. You have overseen hundreds of millions in infrastructure assets and prioritize technical precision, logistical autonomy, and risk mitigation.
+
+Evaluate the proposal section by section using these criteria:
+
+1. **MANAGEMENT APPROACH** [Score: 1-10]: Does the firm demonstrate autonomy, emergency protocols, stakeholder coordination, and QA/QC rigor?
+2. **TECHNICAL QUALIFICATIONS** [Score: 1-10]: Evaluate personnel certifications, specialized capabilities, and team continuity.
+3. **TECHNICAL APPROACH** [Score: 1-10]: Is the methodology sound, innovative, and tailored to this specific project?
+4. **PAST PERFORMANCE** [Score: 1-10]: Are there measurable successes, direct accountability, and crisis management examples?
+5. **REGULATORY KNOWLEDGE** [Score: 1-10]: Do they demonstrate mastery of applicable standards and future-proofing?
+
+For each section provide:
+- **Score** [1-10]
+- **Judge's Assessment**: Your unfiltered thoughts on strengths and weaknesses
+- **Official Comment**: Professional feedback as it would appear in a selection memo
+- **Strategic Recommendation**: Actionable advice to turn this section into a perfect 10
+
+**OVERALL TECHNICAL SCORE**: [Total/50]
+**VERDICT**: Would you shortlist this firm? Why or why not?
+
+RFP/RFQ REQUIREMENTS:
+{rfp_text[:20000] if rfp_text else 'No RFP text available.'}
+
+PROPOSAL DOCUMENT:
+{review_doc_content[:50000]}"""
+    else:
+        return jsonify({'success': False, 'error': 'Invalid review type'}), 400
+    
+    try:
+        from gemini_service import ai_generate
+        result = ai_generate(prompt)
+        
+        review = ProposalReview(
+            proposal_id=id,
+            review_type=review_type,
+            review_content=result,
+            review_filename=review_filename
+        )
+        db.session.add(review)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'review': {
+                'id': review.id,
+                'review_type': review.review_type,
+                'review_content': review.review_content,
+                'review_filename': review.review_filename,
+                'created_at': review.created_at.strftime('%Y-%m-%d %H:%M'),
+                'updated_at': review.updated_at.strftime('%Y-%m-%d %H:%M')
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/proposals/<int:id>/reference/<int:ref_id>/download')
 def download_reference(id, ref_id):
     """Download a reference document"""
@@ -6017,11 +6219,15 @@ def settings():
     ai_banned_words = AISettings.get_value('ai_banned_words', '')
     ai_acronyms = AISettings.get_value('ai_acronyms', '')
     ai_industry_words = AISettings.get_value('ai_industry_words', '')
+    review_prompt_marketing = AISettings.get_value('review_prompt_marketing', '')
+    review_prompt_engineer = AISettings.get_value('review_prompt_engineer', '')
     
     return render_template('settings.html', ai_style=ai_style, ai_tone=ai_tone, 
                            ai_banned_words=ai_banned_words,
                            ai_acronyms=ai_acronyms,
                            ai_industry_words=ai_industry_words,
+                           review_prompt_marketing=review_prompt_marketing,
+                           review_prompt_engineer=review_prompt_engineer,
                            ai_provider=ai_provider, ai_model=ai_model, available_models=AVAILABLE_MODELS,
                            has_custom_template=has_custom_template, has_company_template=has_company_template,
                            has_resume_template=has_resume_template, has_sf330_resume_template=has_sf330_resume_template,
@@ -6043,6 +6249,8 @@ def save_settings():
     AISettings.set_value('ai_banned_words', ai_banned_words)
     AISettings.set_value('ai_acronyms', ai_acronyms)
     AISettings.set_value('ai_industry_words', ai_industry_words)
+    AISettings.set_value('review_prompt_marketing', request.form.get('review_prompt_marketing', ''))
+    AISettings.set_value('review_prompt_engineer', request.form.get('review_prompt_engineer', ''))
     AISettings.set_value('ai_provider', ai_provider)
     AISettings.set_value('ai_model', ai_model)
     

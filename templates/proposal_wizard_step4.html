@@ -327,6 +327,54 @@
 <div class="bg-white rounded-lg shadow p-6 mb-8">
     <div class="flex items-center justify-between mb-4">
         <div>
+            <h2 class="text-xl font-semibold text-gray-800">
+                <i class="fas fa-clipboard-check text-indigo-600 mr-2"></i>Proposal Review
+            </h2>
+            <p class="text-gray-600 text-sm">Run AI-powered reviews of your uploaded proposal document against the RFP requirements</p>
+        </div>
+    </div>
+    
+    {% if proposal.final_pdf_filename or proposal.final_word_filename %}
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <button onclick="runReview('compliance')" id="btn-review-compliance" class="flex flex-col items-center p-4 border-2 border-green-200 rounded-lg hover:bg-green-50 hover:border-green-400 transition group">
+            <i class="fas fa-check-double text-2xl text-green-600 mb-2 group-hover:scale-110 transition"></i>
+            <span class="font-medium text-gray-800">RFP Compliance Check</span>
+            <span class="text-xs text-gray-500 mt-1 text-center">Verify proposal meets all RFP requirements</span>
+        </button>
+        <button onclick="runReview('marketing')" id="btn-review-marketing" class="flex flex-col items-center p-4 border-2 border-pink-200 rounded-lg hover:bg-pink-50 hover:border-pink-400 transition group">
+            <i class="fas fa-bullhorn text-2xl text-pink-600 mb-2 group-hover:scale-110 transition"></i>
+            <span class="font-medium text-gray-800">Marketing Review</span>
+            <span class="text-xs text-gray-500 mt-1 text-center">A&E Marketing Professional evaluation</span>
+        </button>
+        <button onclick="runReview('engineer')" id="btn-review-engineer" class="flex flex-col items-center p-4 border-2 border-orange-200 rounded-lg hover:bg-orange-50 hover:border-orange-400 transition group">
+            <i class="fas fa-hard-hat text-2xl text-orange-600 mb-2 group-hover:scale-110 transition"></i>
+            <span class="font-medium text-gray-800">Technical Review</span>
+            <span class="text-xs text-gray-500 mt-1 text-center">Senior Technical Engineer evaluation</span>
+        </button>
+    </div>
+    
+    <div id="review-progress" class="hidden mb-6">
+        <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-4 text-center">
+            <i class="fas fa-spinner fa-spin text-2xl text-indigo-600 mb-2"></i>
+            <p class="text-indigo-700 font-medium" id="review-progress-text">Running review...</p>
+            <p class="text-indigo-500 text-sm">This may take a minute depending on the document size</p>
+        </div>
+    </div>
+    {% else %}
+    <div class="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
+        <i class="fas fa-file-upload text-3xl text-gray-400 mb-3"></i>
+        <p class="text-gray-500">Upload a final PDF or Word document above to enable proposal reviews</p>
+    </div>
+    {% endif %}
+    
+    <div id="reviews-container">
+        <div id="reviews-list"></div>
+    </div>
+</div>
+
+<div class="bg-white rounded-lg shadow p-6 mb-8">
+    <div class="flex items-center justify-between mb-4">
+        <div>
             <h2 class="text-xl font-semibold text-gray-800">Section G: Key Personnel Participation Matrix</h2>
             <p class="text-gray-600 text-sm">This matrix shows which personnel worked on which projects. "X" marks are based on your Employee-Project links.</p>
         </div>
@@ -1669,6 +1717,180 @@ async function uploadFinalDoc(input, fileType) {
         zone.innerHTML = origHTML;
     }
 }
+
+const reviewTypeLabels = {
+    'compliance': {name: 'RFP Compliance Check', icon: 'fa-check-double', color: 'green'},
+    'marketing': {name: 'A&E Marketing Review', icon: 'fa-bullhorn', color: 'pink'},
+    'engineer': {name: 'Senior Technical Review', icon: 'fa-hard-hat', color: 'orange'}
+};
+
+async function runReview(reviewType) {
+    const labels = reviewTypeLabels[reviewType];
+    const btn = document.getElementById('btn-review-' + reviewType);
+    const progress = document.getElementById('review-progress');
+    const progressText = document.getElementById('review-progress-text');
+    
+    document.querySelectorAll('[id^="btn-review-"]').forEach(b => { b.disabled = true; b.classList.add('opacity-50'); });
+    progress.classList.remove('hidden');
+    progressText.textContent = `Running ${labels.name}... This may take a minute.`;
+    
+    try {
+        const response = await fetch(`/api/proposals/{{ proposal.id }}/run-review`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({review_type: reviewType})
+        });
+        const result = await response.json();
+        if (result.success) {
+            renderReview(result.review, true);
+        } else {
+            alert('Review failed: ' + (result.error || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Review error: ' + error.message);
+    } finally {
+        progress.classList.add('hidden');
+        document.querySelectorAll('[id^="btn-review-"]').forEach(b => { b.disabled = false; b.classList.remove('opacity-50'); });
+    }
+}
+
+function renderReview(review, prepend = false) {
+    const labels = reviewTypeLabels[review.review_type] || {name: review.review_type, icon: 'fa-file', color: 'gray'};
+    const borderColor = `border-${labels.color}-200`;
+    const bgColor = `bg-${labels.color}-50`;
+    const textColor = `text-${labels.color}-600`;
+    
+    const div = document.createElement('div');
+    div.id = `review-${review.id}`;
+    div.className = `border-2 ${borderColor} rounded-lg mb-4 overflow-hidden`;
+    div.innerHTML = `
+        <div class="flex items-center justify-between px-4 py-3 ${bgColor} cursor-pointer" onclick="toggleReview(${review.id})">
+            <div class="flex items-center gap-2">
+                <i class="fas ${labels.icon} ${textColor}"></i>
+                <span class="font-medium text-gray-800">${labels.name}</span>
+                <span class="text-xs text-gray-500">${review.created_at}</span>
+                ${review.review_filename ? `<span class="text-xs text-gray-400">| ${review.review_filename}</span>` : ''}
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="event.stopPropagation(); deleteReview(${review.id})" class="text-red-400 hover:text-red-600 text-sm" title="Delete review">
+                    <i class="fas fa-trash"></i>
+                </button>
+                <i class="fas fa-chevron-down text-gray-400 transition" id="review-chevron-${review.id}"></i>
+            </div>
+        </div>
+        <div class="px-4 py-4 bg-white hidden" id="review-body-${review.id}">
+            <div class="prose prose-sm max-w-none review-content" id="review-content-${review.id}">${formatReviewContent(review.review_content)}</div>
+            <div class="flex items-center gap-2 mt-4 pt-3 border-t">
+                <button onclick="editReview(${review.id})" class="px-3 py-1 text-sm border rounded hover:bg-gray-50">
+                    <i class="fas fa-edit mr-1"></i>Edit
+                </button>
+                <button onclick="copyReview(${review.id})" class="px-3 py-1 text-sm border rounded hover:bg-gray-50">
+                    <i class="fas fa-copy mr-1"></i>Copy
+                </button>
+            </div>
+        </div>
+    `;
+    
+    const list = document.getElementById('reviews-list');
+    if (prepend) {
+        list.insertBefore(div, list.firstChild);
+        toggleReview(review.id);
+    } else {
+        list.appendChild(div);
+    }
+}
+
+function formatReviewContent(content) {
+    if (!content) return '';
+    let html = content
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/^### (.+)$/gm, '<h3 class="text-lg font-semibold mt-4 mb-2">$1</h3>')
+        .replace(/^## (.+)$/gm, '<h2 class="text-xl font-bold mt-4 mb-2">$1</h2>')
+        .replace(/^# (.+)$/gm, '<h1 class="text-2xl font-bold mt-4 mb-2">$1</h1>')
+        .replace(/\[Score: (\d+)\/10\]/g, '<span class="inline-block px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-sm font-medium">Score: $1/10</span>')
+        .replace(/\[Score: (\d+)-(\d+)\]/g, '<span class="inline-block px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-sm font-medium">Score: $1-$2</span>')
+        .replace(/\n/g, '<br>');
+    return html;
+}
+
+function toggleReview(id) {
+    const body = document.getElementById('review-body-' + id);
+    const chevron = document.getElementById('review-chevron-' + id);
+    body.classList.toggle('hidden');
+    chevron.classList.toggle('rotate-180');
+}
+
+async function deleteReview(id) {
+    if (!confirm('Delete this review?')) return;
+    try {
+        const res = await fetch(`/api/proposals/{{ proposal.id }}/reviews/${id}`, {method: 'DELETE'});
+        const data = await res.json();
+        if (data.success) {
+            const el = document.getElementById('review-' + id);
+            if (el) el.remove();
+        }
+    } catch (e) { alert('Error: ' + e.message); }
+}
+
+function editReview(id) {
+    const contentEl = document.getElementById('review-content-' + id);
+    const currentHTML = contentEl.innerHTML;
+    const currentText = contentEl.innerText;
+    
+    contentEl.innerHTML = `
+        <textarea id="review-edit-textarea-${id}" class="w-full h-64 p-3 border rounded-lg text-sm font-mono">${currentText}</textarea>
+        <div class="flex gap-2 mt-2">
+            <button onclick="saveReviewEdit(${id})" class="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">Save</button>
+            <button onclick="cancelReviewEdit(${id}, '${btoa(encodeURIComponent(currentHTML))}')" class="px-3 py-1 border rounded text-sm hover:bg-gray-50">Cancel</button>
+        </div>
+    `;
+}
+
+function cancelReviewEdit(id, encodedHTML) {
+    const contentEl = document.getElementById('review-content-' + id);
+    contentEl.innerHTML = decodeURIComponent(atob(encodedHTML));
+}
+
+async function saveReviewEdit(id) {
+    const textarea = document.getElementById('review-edit-textarea-' + id);
+    const newContent = textarea.value;
+    
+    try {
+        const res = await fetch(`/api/proposals/{{ proposal.id }}/reviews/${id}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({review_content: newContent})
+        });
+        const data = await res.json();
+        if (data.success) {
+            const contentEl = document.getElementById('review-content-' + id);
+            contentEl.innerHTML = formatReviewContent(newContent);
+        }
+    } catch (e) { alert('Error: ' + e.message); }
+}
+
+function copyReview(id) {
+    const contentEl = document.getElementById('review-content-' + id);
+    const text = contentEl.innerText;
+    navigator.clipboard.writeText(text).then(() => {
+        const btn = event.target.closest('button');
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check mr-1"></i>Copied!';
+        setTimeout(() => btn.innerHTML = orig, 2000);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    fetch(`/api/proposals/{{ proposal.id }}/reviews`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.success && data.reviews.length > 0) {
+                data.reviews.forEach(r => renderReview(r));
+            }
+        })
+        .catch(e => console.error('Error loading reviews:', e));
+});
 
 async function deleteFinalDoc(fileType) {
     if (!confirm(`Remove this ${fileType === 'pdf' ? 'PDF' : 'Word'} document?`)) return;
