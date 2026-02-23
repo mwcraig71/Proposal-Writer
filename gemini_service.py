@@ -720,6 +720,8 @@ def merge_field_values(field_key: str, values: list) -> str:
     style = AISettings.get_value('writing_style', 'professional and technical')
     tone = AISettings.get_value('writing_tone', 'formal but accessible')
     banned_words = AISettings.get_value('ai_banned_words', '')
+    acronyms = AISettings.get_value('ai_acronyms', '')
+    industry_words = AISettings.get_value('ai_industry_words', '')
     
     field_labels = {
         'project_title': 'Project Title',
@@ -745,6 +747,8 @@ Merge these project descriptions into ONE comprehensive description:
 WRITING STYLE: {style}
 WRITING TONE: {tone}
 {f"BANNED WORDS/PHRASES (Do NOT use any of these): {banned_words}" if banned_words else ""}
+{f"ACRONYMS (Use these acronyms appropriately — spell out on first use, then abbreviate): {acronyms}" if acronyms else ""}
+{f"INDUSTRY TERMS (Work these industry-specific words/phrases into the content where appropriate): {industry_words}" if industry_words else ""}
 
 {values_text}
 
@@ -787,6 +791,8 @@ def merge_project_experiences(experiences: list, custom_instructions: str = '') 
     style = AISettings.get_value('writing_style', 'professional and technical')
     tone = AISettings.get_value('writing_tone', 'formal but accessible')
     banned_words = AISettings.get_value('ai_banned_words', '')
+    acronyms = AISettings.get_value('ai_acronyms', '')
+    industry_words = AISettings.get_value('ai_industry_words', '')
     
     projects_text = ""
     for i, exp in enumerate(experiences, 1):
@@ -809,6 +815,8 @@ Merge the following {len(experiences)} project experiences into ONE combined pro
 WRITING STYLE: {style}
 WRITING TONE: {tone}
 {f"BANNED WORDS/PHRASES (Do NOT use any of these): {banned_words}" if banned_words else ""}
+{f"ACRONYMS (Use these acronyms appropriately — spell out on first use, then abbreviate): {acronyms}" if acronyms else ""}
+{f"INDUSTRY TERMS (Work these industry-specific words/phrases into the content where appropriate): {industry_words}" if industry_words else ""}
 
 {f'CUSTOM INSTRUCTIONS: {custom_instructions}' if custom_instructions else ''}
 
@@ -850,6 +858,8 @@ def rewrite_description(description: str, custom_instructions: str = '', word_co
     style = AISettings.get_value('writing_style', 'professional and technical')
     tone = AISettings.get_value('writing_tone', 'formal but accessible')
     banned_words = AISettings.get_value('ai_banned_words', '')
+    acronyms = AISettings.get_value('ai_acronyms', '')
+    industry_words = AISettings.get_value('ai_industry_words', '')
     
     prompt = f"""You are a professional technical writer specializing in structural engineering documentation for federal SF330 forms.
 
@@ -858,6 +868,8 @@ Rewrite the following description according to these specifications:
 WRITING STYLE: {style}
 WRITING TONE: {tone}
 {f"BANNED WORDS/PHRASES (Do NOT use any of these): {banned_words}" if banned_words else ""}
+{f"ACRONYMS (Use these acronyms appropriately — spell out on first use, then abbreviate): {acronyms}" if acronyms else ""}
+{f"INDUSTRY TERMS (Work these industry-specific words/phrases into the content where appropriate): {industry_words}" if industry_words else ""}
 TARGET LENGTH: Approximately {word_count} words
 
 {f'CUSTOM INSTRUCTIONS: {custom_instructions}' if custom_instructions else ''}
@@ -892,6 +904,8 @@ def ai_create_project_experience(
     style = AISettings.get_value('writing_style', 'professional and technical')
     tone = AISettings.get_value('writing_tone', 'formal but accessible')
     banned_words = AISettings.get_value('ai_banned_words', '')
+    acronyms = AISettings.get_value('ai_acronyms', '')
+    industry_words = AISettings.get_value('ai_industry_words', '')
     
     role_descriptions = {
         'team_leader': f"{employee_info.get('name', 'This person')} served as the Team Leader for inspections on this project, directing field inspection teams, coordinating inspection schedules, and ensuring quality control compliance.",
@@ -918,6 +932,8 @@ Generate a project experience description for an employee based on a firm's proj
 WRITING STYLE: {style}
 WRITING TONE: {tone}
 {f"BANNED WORDS/PHRASES (Do NOT use any of these): {banned_words}" if banned_words else ""}
+{f"ACRONYMS (Use these acronyms appropriately — spell out on first use, then abbreviate): {acronyms}" if acronyms else ""}
+{f"INDUSTRY TERMS (Work these industry-specific words/phrases into the content where appropriate): {industry_words}" if industry_words else ""}
 
 EMPLOYEE INFORMATION:
 - Name: {employee_info.get('name', 'Unknown')}
@@ -978,6 +994,8 @@ def enhance_personnel_writeup(
     style = AISettings.get_value('writing_style', 'professional and technical')
     tone = AISettings.get_value('writing_tone', 'formal but accessible')
     banned_words = AISettings.get_value('ai_banned_words', '')
+    acronyms = AISettings.get_value('ai_acronyms', '')
+    industry_words = AISettings.get_value('ai_industry_words', '')
     
     prompt = f"""You are a professional technical writer specializing in A/E qualification documentation for federal SF330 forms.
 
@@ -989,6 +1007,8 @@ ROLE ON PROJECT: {role or 'Not specified'}
 WRITING STYLE: {style}
 WRITING TONE: {tone}
 {f"BANNED WORDS/PHRASES (Do NOT use any of these): {banned_words}" if banned_words else ""}
+{f"ACRONYMS (Use these acronyms appropriately — spell out on first use, then abbreviate): {acronyms}" if acronyms else ""}
+{f"INDUSTRY TERMS (Work these industry-specific words/phrases into the content where appropriate): {industry_words}" if industry_words else ""}
 
 {f'ADDITIONAL INSTRUCTIONS: {instructions}' if instructions else ''}
 
@@ -1029,6 +1049,8 @@ def generate_alternate_project_writeup(
     style = AISettings.get_value('writing_style', 'professional and technical')
     tone = AISettings.get_value('writing_tone', 'formal but accessible')
     banned_words = AISettings.get_value('ai_banned_words', '')
+    acronyms = AISettings.get_value('ai_acronyms', '')
+    industry_words = AISettings.get_value('ai_industry_words', '')
     
     context_parts = []
     context_parts.append(f"PROJECT TITLE: {project_title}")
@@ -1056,6 +1078,8 @@ Your task is to generate an alternate project description for an employee's resu
 WRITING STYLE: {style}
 WRITING TONE: {tone}
 {f"BANNED WORDS/PHRASES (Do NOT use any of these): {banned_words}" if banned_words else ""}
+{f"ACRONYMS (Use these acronyms appropriately — spell out on first use, then abbreviate): {acronyms}" if acronyms else ""}
+{f"INDUSTRY TERMS (Work these industry-specific words/phrases into the content where appropriate): {industry_words}" if industry_words else ""}
 
 {f'ADDITIONAL DIRECTION: {direction}' if direction else ''}
 
@@ -1191,6 +1215,8 @@ WRITING SPECIFICATIONS:
 - Tone: {tone or 'Formal but accessible'}
 {f'- Custom Instructions: {custom_instructions}' if custom_instructions else ''}
 {f"BANNED WORDS/PHRASES (Do NOT use any of these): {AISettings.get_value('ai_banned_words', '')}" if AISettings.get_value('ai_banned_words', '') else ''}
+{f"ACRONYMS (Use these acronyms appropriately — spell out on first use, then abbreviate): {AISettings.get_value('ai_acronyms', '')}" if AISettings.get_value('ai_acronyms', '') else ''}
+{f"INDUSTRY TERMS (Work these industry-specific words/phrases into the content where appropriate): {AISettings.get_value('ai_industry_words', '')}" if AISettings.get_value('ai_industry_words', '') else ''}
 
 TARGET TOTAL LENGTH: Approximately {word_count} words across all sections combined.
 
@@ -1342,6 +1368,8 @@ RFP/RFQ REQUIREMENTS:
 
 {importance_weights}
 {f"BANNED WORDS/PHRASES (Do NOT use any of these): {AISettings.get_value('ai_banned_words', '')}" if AISettings.get_value('ai_banned_words', '') else ''}
+{f"ACRONYMS (Use these acronyms appropriately — spell out on first use, then abbreviate): {AISettings.get_value('ai_acronyms', '')}" if AISettings.get_value('ai_acronyms', '') else ''}
+{f"INDUSTRY TERMS (Work these industry-specific words/phrases into the content where appropriate): {AISettings.get_value('ai_industry_words', '')}" if AISettings.get_value('ai_industry_words', '') else ''}
 {f'CUSTOM INSTRUCTIONS FROM USER: {custom_instructions}' if custom_instructions else ''}
 
 Generate a comprehensive PROPOSAL OUTLINE that includes:

@@ -5914,9 +5914,13 @@ def settings():
         pass
     
     ai_banned_words = AISettings.get_value('ai_banned_words', '')
+    ai_acronyms = AISettings.get_value('ai_acronyms', '')
+    ai_industry_words = AISettings.get_value('ai_industry_words', '')
     
     return render_template('settings.html', ai_style=ai_style, ai_tone=ai_tone, 
                            ai_banned_words=ai_banned_words,
+                           ai_acronyms=ai_acronyms,
+                           ai_industry_words=ai_industry_words,
                            ai_provider=ai_provider, ai_model=ai_model, available_models=AVAILABLE_MODELS,
                            has_custom_template=has_custom_template, has_company_template=has_company_template,
                            has_resume_template=has_resume_template, has_sf330_resume_template=has_sf330_resume_template,
@@ -5928,12 +5932,16 @@ def save_settings():
     ai_style = request.form.get('ai_writing_style', '')
     ai_tone = request.form.get('ai_writing_tone', '')
     ai_banned_words = request.form.get('ai_banned_words', '')
+    ai_acronyms = request.form.get('ai_acronyms', '')
+    ai_industry_words = request.form.get('ai_industry_words', '')
     ai_provider = request.form.get('ai_provider', 'gemini')
     ai_model = request.form.get('ai_model', 'gemini-2.5-flash')
     
     AISettings.set_value('ai_writing_style', ai_style)
     AISettings.set_value('ai_writing_tone', ai_tone)
     AISettings.set_value('ai_banned_words', ai_banned_words)
+    AISettings.set_value('ai_acronyms', ai_acronyms)
+    AISettings.set_value('ai_industry_words', ai_industry_words)
     AISettings.set_value('ai_provider', ai_provider)
     AISettings.set_value('ai_model', ai_model)
     
@@ -9139,6 +9147,8 @@ def api_employees_ai_response():
     ai_style = AISettings.get_value('ai_writing_style', '')
     ai_tone = AISettings.get_value('ai_writing_tone', '')
     ai_banned = AISettings.get_value('ai_banned_words', '')
+    ai_acronyms = AISettings.get_value('ai_acronyms', '')
+    ai_industry_words = AISettings.get_value('ai_industry_words', '')
     
     style_instructions = ""
     if ai_style or ai_tone:
@@ -9149,6 +9159,10 @@ def api_employees_ai_response():
             style_instructions += f"\n- Tone: {ai_tone}"
     if ai_banned:
         style_instructions += f"\n\nBANNED WORDS/PHRASES (Do NOT use any of these): {ai_banned}"
+    if ai_acronyms:
+        style_instructions += f"\n\nACRONYMS (Use these acronyms appropriately — spell out on first use, then abbreviate): {ai_acronyms}"
+    if ai_industry_words:
+        style_instructions += f"\n\nINDUSTRY TERMS (Work these industry-specific words/phrases into the content where appropriate): {ai_industry_words}"
     
     full_prompt = f"""You are a professional proposal writer. Based on the following staff information, {prompt}
 
@@ -9308,6 +9322,8 @@ def api_projects_ai_response():
     ai_style = AISettings.get_value('ai_writing_style', '')
     ai_tone = AISettings.get_value('ai_writing_tone', '')
     ai_banned = AISettings.get_value('ai_banned_words', '')
+    ai_acronyms = AISettings.get_value('ai_acronyms', '')
+    ai_industry_words = AISettings.get_value('ai_industry_words', '')
     
     style_instructions = ""
     if ai_style or ai_tone:
@@ -9318,6 +9334,10 @@ def api_projects_ai_response():
             style_instructions += f"\n- Tone: {ai_tone}"
     if ai_banned:
         style_instructions += f"\n\nBANNED WORDS/PHRASES (Do NOT use any of these): {ai_banned}"
+    if ai_acronyms:
+        style_instructions += f"\n\nACRONYMS (Use these acronyms appropriately — spell out on first use, then abbreviate): {ai_acronyms}"
+    if ai_industry_words:
+        style_instructions += f"\n\nINDUSTRY TERMS (Work these industry-specific words/phrases into the content where appropriate): {ai_industry_words}"
     
     system_prompt = f"""You are a professional proposal writer specializing in SF330 government proposals for architecture and engineering firms.
 You are helping to write content about the following projects:
@@ -9524,6 +9544,8 @@ UEI: {firm.uei or 'N/A'}
     ai_style = AISettings.get_value('ai_writing_style', '')
     ai_tone = AISettings.get_value('ai_writing_tone', '')
     ai_banned = AISettings.get_value('ai_banned_words', '')
+    ai_acronyms = AISettings.get_value('ai_acronyms', '')
+    ai_industry_words = AISettings.get_value('ai_industry_words', '')
     
     style_instructions = ""
     if ai_style or ai_tone:
@@ -9534,6 +9556,10 @@ UEI: {firm.uei or 'N/A'}
             style_instructions += f"\n- Tone: {ai_tone}"
     if ai_banned:
         style_instructions += f"\n\nBANNED WORDS/PHRASES (Do NOT use any of these): {ai_banned}"
+    if ai_acronyms:
+        style_instructions += f"\n\nACRONYMS (Use these acronyms appropriately — spell out on first use, then abbreviate): {ai_acronyms}"
+    if ai_industry_words:
+        style_instructions += f"\n\nINDUSTRY TERMS (Work these industry-specific words/phrases into the content where appropriate): {ai_industry_words}"
     
     source_weights = data.get('source_weights', None)
     weights_instruction = ''
@@ -9850,6 +9876,8 @@ UEI: {firm.uei or 'N/A'}
     ai_style = AISettings.get_value('ai_writing_style', '')
     ai_tone = AISettings.get_value('ai_writing_tone', '')
     ai_banned = AISettings.get_value('ai_banned_words', '')
+    ai_acronyms = AISettings.get_value('ai_acronyms', '')
+    ai_industry_words = AISettings.get_value('ai_industry_words', '')
     
     style_instructions = ""
     if ai_style or ai_tone:
@@ -9860,6 +9888,10 @@ UEI: {firm.uei or 'N/A'}
             style_instructions += f"\n- Tone: {ai_tone}"
     if ai_banned:
         style_instructions += f"\n\nBANNED WORDS/PHRASES (Do NOT use any of these): {ai_banned}"
+    if ai_acronyms:
+        style_instructions += f"\n\nACRONYMS (Use these acronyms appropriately — spell out on first use, then abbreviate): {ai_acronyms}"
+    if ai_industry_words:
+        style_instructions += f"\n\nINDUSTRY TERMS (Work these industry-specific words/phrases into the content where appropriate): {ai_industry_words}"
     
     source_weights = data.get('source_weights', None)
     weights_instruction = ''
@@ -10440,6 +10472,8 @@ def rewrite_response_with_ai(id):
     ai_style = AISettings.get_value('ai_writing_style', '')
     ai_tone = AISettings.get_value('ai_writing_tone', '')
     ai_banned = AISettings.get_value('ai_banned_words', '')
+    ai_acronyms = AISettings.get_value('ai_acronyms', '')
+    ai_industry_words = AISettings.get_value('ai_industry_words', '')
     
     style_instructions = ""
     if ai_style:
@@ -10448,6 +10482,10 @@ def rewrite_response_with_ai(id):
         style_instructions += f"\nTone: {ai_tone}"
     if ai_banned:
         style_instructions += f"\nBANNED WORDS/PHRASES (Do NOT use any of these): {ai_banned}"
+    if ai_acronyms:
+        style_instructions += f"\nACRONYMS (Use these acronyms appropriately — spell out on first use, then abbreviate): {ai_acronyms}"
+    if ai_industry_words:
+        style_instructions += f"\nINDUSTRY TERMS (Work these industry-specific words/phrases into the content where appropriate): {ai_industry_words}"
     
     prompt = f"""Rewrite the following proposal response. Keep the key information but improve clarity, professionalism, and impact.
 {style_instructions}
