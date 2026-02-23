@@ -3799,6 +3799,7 @@ def proposal_step3(id):
 
 @app.route('/proposals/<int:id>/step4')
 def proposal_step4(id):
+    from models import ProposalSubconsultant, ProposalDataSourceWeight
     proposal = Proposal.query.get_or_404(id)
     
     selected_employees = ProposalSelectedEmployee.query.filter_by(proposal_id=id)\
@@ -3816,11 +3817,99 @@ def proposal_step4(id):
             ).first()
             matrix[pse.employee_id][psp.project_id] = link is not None
     
+    all_firms = Firm.query.order_by(Firm.name).all()
+    subconsultants = ProposalSubconsultant.query.filter_by(proposal_id=id).all()
+    
+    weights = {}
+    for w in ProposalDataSourceWeight.query.filter_by(proposal_id=id).all():
+        weights[w.source_key] = w.weight
+    
     return render_template('proposal_wizard_step4.html',
                          proposal=proposal,
                          selected_employees=selected_employees,
                          selected_projects=selected_projects,
-                         matrix=matrix)
+                         matrix=matrix,
+                         all_firms=all_firms,
+                         subconsultants=subconsultants,
+                         data_source_weights=weights)
+
+
+@app.route('/api/proposals/<int:id>/subconsultants', methods=['GET'])
+def api_get_subconsultants(id):
+    from models import ProposalSubconsultant
+    subs = ProposalSubconsultant.query.filter_by(proposal_id=id).all()
+    return jsonify({'success': True, 'subconsultants': [{
+        'id': s.id, 'firm_id': s.firm_id, 'firm_name': s.firm.name if s.firm else '',
+        'role': s.role or '', 'percent_of_work': s.percent_of_work or 0
+    } for s in subs]})
+
+
+@app.route('/api/proposals/<int:id>/subconsultants', methods=['POST'])
+def api_add_subconsultant(id):
+    from models import ProposalSubconsultant
+    data = request.get_json()
+    firm_id = data.get('firm_id')
+    if not firm_id:
+        return jsonify({'success': False, 'error': 'Firm is required'}), 400
+    existing = ProposalSubconsultant.query.filter_by(proposal_id=id, firm_id=firm_id).first()
+    if existing:
+        return jsonify({'success': False, 'error': 'This firm is already a subconsultant'}), 400
+    sub = ProposalSubconsultant(
+        proposal_id=id, firm_id=int(firm_id),
+        role=data.get('role', ''),
+        percent_of_work=float(data.get('percent_of_work', 0))
+    )
+    db.session.add(sub)
+    db.session.commit()
+    return jsonify({'success': True, 'subconsultant': {
+        'id': sub.id, 'firm_id': sub.firm_id, 'firm_name': sub.firm.name if sub.firm else '',
+        'role': sub.role, 'percent_of_work': sub.percent_of_work
+    }})
+
+
+@app.route('/api/proposals/<int:id>/subconsultants/<int:sub_id>', methods=['PUT'])
+def api_update_subconsultant(id, sub_id):
+    from models import ProposalSubconsultant
+    sub = ProposalSubconsultant.query.get_or_404(sub_id)
+    data = request.get_json()
+    if 'role' in data:
+        sub.role = data['role']
+    if 'percent_of_work' in data:
+        sub.percent_of_work = float(data['percent_of_work'])
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/api/proposals/<int:id>/subconsultants/<int:sub_id>', methods=['DELETE'])
+def api_delete_subconsultant(id, sub_id):
+    from models import ProposalSubconsultant
+    sub = ProposalSubconsultant.query.get_or_404(sub_id)
+    db.session.delete(sub)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/api/proposals/<int:id>/data-source-weights', methods=['GET'])
+def api_get_data_source_weights(id):
+    from models import ProposalDataSourceWeight
+    weights = ProposalDataSourceWeight.query.filter_by(proposal_id=id).all()
+    return jsonify({'success': True, 'weights': {w.source_key: w.weight for w in weights}})
+
+
+@app.route('/api/proposals/<int:id>/data-source-weights', methods=['POST'])
+def api_save_data_source_weights(id):
+    from models import ProposalDataSourceWeight
+    data = request.get_json()
+    weights_data = data.get('weights', {})
+    for source_key, weight_val in weights_data.items():
+        weight_val = max(1, min(20, int(weight_val)))
+        existing = ProposalDataSourceWeight.query.filter_by(proposal_id=id, source_key=source_key).first()
+        if existing:
+            existing.weight = weight_val
+        else:
+            db.session.add(ProposalDataSourceWeight(proposal_id=id, source_key=source_key, weight=weight_val))
+    db.session.commit()
+    return jsonify({'success': True})
 
 
 @app.route('/proposals/<int:id>/download-section-g')
@@ -4069,6 +4158,34 @@ def generate_proposal_outline(id):
             if lines:
                 section_g_text = "SECTION G MATRIX (Personnel-Project Roles):\n" + "\n".join(lines)
     
+    subconsultants_text = ''
+    if include_all or 'subconsultants' in included_sections:
+        from models import ProposalSubconsultant
+        subs = ProposalSubconsultant.query.filter_by(proposal_id=id).all()
+        if subs:
+            sub_lines = ["SUBCONSULTANT FIRMS:"]
+            for s in subs:
+                firm = s.firm
+                line = f"- {firm.name if firm else 'Unknown'}"
+                if s.role:
+                    line += f" | Role: {s.role}"
+                if s.percent_of_work:
+                    line += f" | {s.percent_of_work}% of work"
+                if firm and firm.bio:
+                    line += f"\n  Bio: {firm.bio[:300]}"
+                sub_lines.append(line)
+            subconsultants_text = "\n".join(sub_lines)
+    
+    source_weights = data.get('source_weights', None)
+    weights_text = ''
+    if source_weights:
+        wt_parts = []
+        source_labels = {'rfp': 'RFP/RFQ', 'firm_info': 'Firm Info', 'personnel': 'Personnel', 'projects': 'Projects', 'org_chart': 'Org Chart', 'section_g': 'Section G Matrix', 'subconsultants': 'Subconsultants', 'linked_responses': 'Linked Responses', 'performance_references': 'Performance References', 'win_theme': 'Win Theme', 'references': 'Reference Docs', 'intelligence': 'Intelligence Docs', 'proposal_outline': 'Proposal Outline'}
+        for key, weight in sorted(source_weights.items(), key=lambda x: -int(x[1])):
+            label = source_labels.get(key, key)
+            wt_parts.append(f"{label}={weight}")
+        weights_text = "IMPORTANCE WEIGHTS (higher = more important, scale 1-20): " + ", ".join(wt_parts)
+    
     try:
         outline = generate_proposal_outline_ai(
             rfp_text=(proposal.rfp_text or '') if (include_all or 'rfp' in included_sections) else '',
@@ -4084,6 +4201,8 @@ def generate_proposal_outline(id):
             linked_responses=linked_responses,
             linked_references=linked_references,
             section_g_matrix=section_g_text,
+            subconsultants_text=subconsultants_text,
+            importance_weights=weights_text,
             word_count=word_count
         )
         
@@ -4406,6 +4525,34 @@ def generate_cover_letter(id):
             if lines:
                 section_g_text = "SECTION G MATRIX (Personnel-Project Roles):\n" + "\n".join(lines)
     
+    subconsultants_text = ''
+    if include_all or 'subconsultants' in included_sections:
+        from models import ProposalSubconsultant
+        subs = ProposalSubconsultant.query.filter_by(proposal_id=id).all()
+        if subs:
+            sub_lines = ["SUBCONSULTANT FIRMS:"]
+            for s in subs:
+                firm = s.firm
+                line = f"- {firm.name if firm else 'Unknown'}"
+                if s.role:
+                    line += f" | Role: {s.role}"
+                if s.percent_of_work:
+                    line += f" | {s.percent_of_work}% of work"
+                if firm and firm.bio:
+                    line += f"\n  Bio: {firm.bio[:300]}"
+                sub_lines.append(line)
+            subconsultants_text = "\n".join(sub_lines)
+    
+    source_weights = data.get('source_weights', None)
+    weights_text = ''
+    if source_weights:
+        wt_parts = []
+        source_labels = {'rfp': 'RFP/RFQ', 'firm_info': 'Firm Info', 'personnel': 'Personnel', 'projects': 'Projects', 'org_chart': 'Org Chart', 'section_g': 'Section G Matrix', 'subconsultants': 'Subconsultants', 'linked_responses': 'Linked Responses', 'performance_references': 'Performance References', 'win_theme': 'Win Theme', 'references': 'Reference Docs', 'intelligence': 'Intelligence Docs', 'proposal_outline': 'Proposal Outline'}
+        for key, weight in sorted(source_weights.items(), key=lambda x: -int(x[1])):
+            label = source_labels.get(key, key)
+            wt_parts.append(f"{label}={weight}")
+        weights_text = "IMPORTANCE WEIGHTS (higher = more important, scale 1-20): " + ", ".join(wt_parts)
+    
     result = generate_cover_letter_ai(
         rfp_text=(proposal.rfp_text or '') if (include_all or 'rfp' in included_sections) else '',
         firm_name=proposal.firm.name if proposal.firm else '',
@@ -4422,6 +4569,8 @@ def generate_cover_letter(id):
         org_chart_notes=(proposal.org_chart_notes or '') if (include_all or 'org_chart' in included_sections) else '',
         proposal_outline=(proposal.proposal_outline or '') if (include_all or 'proposal_outline' in included_sections) else '',
         section_g_matrix=section_g_text,
+        subconsultants_text=subconsultants_text,
+        importance_weights=weights_text,
         word_count=word_count
     )
     
@@ -9301,7 +9450,23 @@ UEI: {firm.uei or 'N/A'}
             if has_entries:
                 sections['section_g'] = matrix_info
         
-        # Org chart data
+        if include_all or 'subconsultants' in included_sections:
+            from models import ProposalSubconsultant
+            subs = ProposalSubconsultant.query.filter_by(proposal_id=proposal_id).all()
+            if subs:
+                sub_info = "SUBCONSULTANT FIRMS:\n"
+                for s in subs:
+                    firm = s.firm
+                    sub_info += f"- {firm.name if firm else 'Unknown'}"
+                    if s.role:
+                        sub_info += f" | Role: {s.role}"
+                    if s.percent_of_work:
+                        sub_info += f" | {s.percent_of_work}% of work"
+                    if firm and firm.bio:
+                        sub_info += f"\n  Bio: {firm.bio[:300]}"
+                    sub_info += "\n"
+                sections['subconsultants'] = sub_info
+        
         if (include_all or 'org_chart' in included_sections) and proposal.org_chart_data:
             try:
                 org_data = json.loads(proposal.org_chart_data) if isinstance(proposal.org_chart_data, str) else proposal.org_chart_data
@@ -9317,12 +9482,10 @@ UEI: {firm.uei or 'N/A'}
             except:
                 pass
         
-        # RFP content
         if (include_all or 'rfp' in included_sections) and proposal.rfp_text:
             rfp_text = proposal.rfp_text[:3000] if len(proposal.rfp_text) > 3000 else proposal.rfp_text
             sections['rfp'] = f"RFP/RFQ CONTENT:\n{rfp_text}\n"
         
-        # Reference documents
         if (include_all or 'references' in included_sections) and proposal.reference_documents:
             refs_info = "REFERENCE DOCUMENTS:\n"
             for ref in proposal.reference_documents:
@@ -9331,7 +9494,6 @@ UEI: {firm.uei or 'N/A'}
             if len(refs_info) > 50:
                 sections['references'] = refs_info
         
-        # Intelligence documents
         if (include_all or 'intelligence' in included_sections) and proposal.intelligence_documents:
             intel_info = "INTELLIGENCE DOCUMENTS:\n"
             for intel in proposal.intelligence_documents:
@@ -9346,10 +9508,8 @@ UEI: {firm.uei or 'N/A'}
     included_sections = data.get('included_sections', None)
     sections = collect_proposal_data(included_sections)
     
-    # Estimate total size (rough character count)
     total_chars = sum(len(s) for s in sections.values())
     
-    # Get writing style/tone
     ai_style = AISettings.get_value('ai_writing_style', '')
     ai_tone = AISettings.get_value('ai_writing_tone', '')
     
@@ -9361,7 +9521,16 @@ UEI: {firm.uei or 'N/A'}
         if ai_tone:
             style_instructions += f"\n- Tone: {ai_tone}"
     
-    # If total content is manageable (< 50K chars ~= 12K tokens), send directly
+    source_weights = data.get('source_weights', None)
+    weights_instruction = ''
+    if source_weights:
+        wt_parts = []
+        source_labels = {'rfp': 'RFP/RFQ', 'firm_info': 'Firm Info', 'personnel': 'Personnel', 'projects': 'Projects', 'org_chart': 'Org Chart', 'section_g': 'Section G Matrix', 'subconsultants': 'Subconsultants', 'linked_responses': 'Linked Responses', 'performance_references': 'Performance References', 'win_theme': 'Win Theme', 'references': 'Reference Docs', 'intelligence': 'Intelligence Docs', 'proposal_outline': 'Proposal Outline'}
+        for key, weight in sorted(source_weights.items(), key=lambda x: -int(x[1])):
+            label = source_labels.get(key, key)
+            wt_parts.append(f"{label}={weight}")
+        weights_instruction = "\n\nIMPORTANCE WEIGHTS (higher = more important, scale 1-20, emphasize high-weight sources more): " + ", ".join(wt_parts)
+    
     if total_chars < 50000:
         full_context = "\n\n".join(sections.values())
         
@@ -9370,7 +9539,7 @@ UEI: {firm.uei or 'N/A'}
 Here is all the proposal data:
 
 {full_context}
-{style_instructions}
+{style_instructions}{weights_instruction}
 
 Based on this proposal data, respond to the user's request. Write approximately {word_limit} words.
 Be specific, professional, and use actual data from the proposal."""
@@ -9570,6 +9739,23 @@ UEI: {firm.uei or 'N/A'}
             if has_entries:
                 sections['section_g'] = matrix_info
         
+        if include_all or 'subconsultants' in included_sections:
+            from models import ProposalSubconsultant
+            subs = ProposalSubconsultant.query.filter_by(proposal_id=proposal_id).all()
+            if subs:
+                sub_info = "SUBCONSULTANT FIRMS:\n"
+                for s in subs:
+                    firm = s.firm
+                    sub_info += f"- {firm.name if firm else 'Unknown'}"
+                    if s.role:
+                        sub_info += f" | Role: {s.role}"
+                    if s.percent_of_work:
+                        sub_info += f" | {s.percent_of_work}% of work"
+                    if firm and firm.bio:
+                        sub_info += f"\n  Bio: {firm.bio[:300]}"
+                    sub_info += "\n"
+                sections['subconsultants'] = sub_info
+        
         if (include_all or 'org_chart' in included_sections) and proposal.org_chart_data:
             try:
                 org_data = json.loads(proposal.org_chart_data) if isinstance(proposal.org_chart_data, str) else proposal.org_chart_data
@@ -9647,7 +9833,6 @@ UEI: {firm.uei or 'N/A'}
     included_sections = data.get('included_sections', None)
     sections = collect_proposal_data(included_sections)
     
-    # Get writing style/tone
     ai_style = AISettings.get_value('ai_writing_style', '')
     ai_tone = AISettings.get_value('ai_writing_tone', '')
     
@@ -9659,10 +9844,18 @@ UEI: {firm.uei or 'N/A'}
         if ai_tone:
             style_instructions += f"\n- Tone: {ai_tone}"
     
-    # Build context from proposal data
+    source_weights = data.get('source_weights', None)
+    weights_instruction = ''
+    if source_weights:
+        wt_parts = []
+        source_labels = {'rfp': 'RFP/RFQ', 'firm_info': 'Firm Info', 'personnel': 'Personnel', 'projects': 'Projects', 'org_chart': 'Org Chart', 'section_g': 'Section G Matrix', 'subconsultants': 'Subconsultants', 'linked_responses': 'Linked Responses', 'performance_references': 'Performance References', 'win_theme': 'Win Theme', 'references': 'Reference Docs', 'intelligence': 'Intelligence Docs', 'proposal_outline': 'Proposal Outline'}
+        for key, weight in sorted(source_weights.items(), key=lambda x: -int(x[1])):
+            label = source_labels.get(key, key)
+            wt_parts.append(f"{label}={weight}")
+        weights_instruction = "\n\nIMPORTANCE WEIGHTS (higher = more important, scale 1-20, emphasize high-weight sources more): " + ", ".join(wt_parts)
+    
     total_chars = sum(len(s) for s in sections.values())
     
-    # For large proposals, summarize
     if total_chars > 40000:
         try:
             summaries = {}
@@ -9677,12 +9870,11 @@ UEI: {firm.uei or 'N/A'}
     else:
         proposal_context = "\n\n".join(sections.values())
     
-    # Build conversation for Gemini
     system_prompt = f"""You are a professional SF330 proposal writer helping with a government architecture/engineering proposal. You have access to all the proposal data and can help write content, answer questions, and provide strategic advice.
 
 PROPOSAL DATA:
 {proposal_context}
-{style_instructions}
+{style_instructions}{weights_instruction}
 
 TARGET RESPONSE LENGTH: Approximately {word_count} words.
 

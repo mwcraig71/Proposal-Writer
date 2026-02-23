@@ -1082,6 +1082,8 @@ def generate_cover_letter_ai(
     org_chart_notes: str = '',
     proposal_outline: str = '',
     section_g_matrix: str = '',
+    subconsultants_text: str = '',
+    importance_weights: str = '',
     word_count: int = 2000
 ) -> dict:
     """Generate a cover letter and written sections using RFP + firm + staff + project data."""
@@ -1161,6 +1163,7 @@ RFP/RFQ REQUIREMENTS (if available):
 {reference_section}
 {org_chart_section}
 {section_g_matrix}
+{subconsultants_text}
 {f'''
 PROPOSAL OUTLINE (IMPORTANT - Use this as your primary guide):
 The following outline was created to guide the proposal writing. Follow its themes, emphasis areas, and win strategies closely:
@@ -1169,6 +1172,7 @@ The following outline was created to guide the proposal writing. Follow its them
 
 ---END PROPOSAL OUTLINE---
 ''' if proposal_outline else ''}
+{importance_weights}
 WRITING SPECIFICATIONS:
 - Style: {style or 'Professional and technical'}
 - Tone: {tone or 'Formal but accessible'}
@@ -1228,6 +1232,8 @@ def generate_proposal_outline_ai(
     linked_responses: list = None,
     linked_references: list = None,
     section_g_matrix: str = '',
+    subconsultants_text: str = '',
+    importance_weights: str = '',
     word_count: int = 2000
 ) -> str:
     """Generate a proposal outline based on RFP requirements and all linked proposal data."""
@@ -1312,12 +1318,14 @@ RELEVANT PROJECTS:
 {projects_summary or 'None selected'}
 {org_chart_section}
 {section_g_matrix}
+{subconsultants_text}
 {responses_section}
 {references_section}
 
 RFP/RFQ REQUIREMENTS:
 {rfp_text[:20000] if rfp_text else 'RFP text not available - create a general outline for an engineering services proposal'}
 
+{importance_weights}
 {f'CUSTOM INSTRUCTIONS FROM USER: {custom_instructions}' if custom_instructions else ''}
 
 Generate a comprehensive PROPOSAL OUTLINE that includes:

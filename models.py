@@ -292,6 +292,34 @@ class Proposal(db.Model):
     saved_org_chart = db.relationship('SavedOrgChart', backref='proposals')
     selected_employees = db.relationship('ProposalSelectedEmployee', backref='proposal', lazy=True, cascade='all, delete-orphan')
     selected_projects = db.relationship('ProposalSelectedProject', backref='proposal', lazy=True, cascade='all, delete-orphan')
+    subconsultants = db.relationship('ProposalSubconsultant', backref='proposal', lazy=True, cascade='all, delete-orphan')
+    data_source_weights = db.relationship('ProposalDataSourceWeight', backref='proposal', lazy=True, cascade='all, delete-orphan')
+
+
+class ProposalSubconsultant(db.Model):
+    __tablename__ = 'proposal_subconsultants'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    proposal_id = db.Column(db.Integer, db.ForeignKey('proposals.id'), nullable=False)
+    firm_id = db.Column(db.Integer, db.ForeignKey('firms.id'), nullable=False)
+    role = db.Column(db.String(500))
+    percent_of_work = db.Column(db.Float, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    firm = db.relationship('Firm')
+    
+    __table_args__ = (db.UniqueConstraint('proposal_id', 'firm_id', name='unique_proposal_subconsultant'),)
+
+
+class ProposalDataSourceWeight(db.Model):
+    __tablename__ = 'proposal_data_source_weights'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    proposal_id = db.Column(db.Integer, db.ForeignKey('proposals.id'), nullable=False)
+    source_key = db.Column(db.String(100), nullable=False)
+    weight = db.Column(db.Integer, default=10)
+    
+    __table_args__ = (db.UniqueConstraint('proposal_id', 'source_key', name='unique_proposal_source_weight'),)
 
 
 class ProposalSelectedEmployee(db.Model):
