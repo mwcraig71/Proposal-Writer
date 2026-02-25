@@ -9376,7 +9376,9 @@ def orgchart_app():
     import os
     dist_path = os.path.join(os.path.dirname(__file__), 'orgchart', 'dist', 'index.html')
     if os.path.exists(dist_path):
-        return send_file(dist_path)
+        response = send_file(dist_path)
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        return response
     else:
         return "Org chart not built. Please build with: cd orgchart && npm run build", 404
 
