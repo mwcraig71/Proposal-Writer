@@ -11,6 +11,13 @@ import os
 
 TEMPLATE_DIR = 'templates/sf330_word'
 
+def _get_employee_name(employee):
+    from models import AISettings
+    include_post_nominal = AISettings.get_value('resume_include_post_nominal', 'false') == 'true'
+    if include_post_nominal:
+        return employee.display_name or employee.name or ''
+    return employee.name or ''
+
 def get_cell_text(table, row, col):
     """Safely get cell text"""
     try:
@@ -302,9 +309,21 @@ def generate_section_e(employee, proposal, project_experiences):
         parts = [proposal.firm.city or '', proposal.firm.state or '']
         firm_location = ', '.join(p for p in parts if p)
 
+    from models import AISettings
+    include_post_nominal = AISettings.get_value('resume_include_post_nominal', 'false') == 'true'
+    last_name_value = employee.last_name or '' if hasattr(employee, 'last_name') else ''
+    if include_post_nominal and hasattr(employee, 'post_nominal') and employee.post_nominal:
+        last_name_value = f"{last_name_value}, {employee.post_nominal}"
+
     placeholders = {
-        '{{EMPLOYEE_NAME}}': employee.name or '',
+        '{{EMPLOYEE_NAME}}': _get_employee_name(employee),
+        '{{EMPLOYEE_FIRST_NAME}}': employee.first_name or '' if hasattr(employee, 'first_name') else '',
+        '{{EMPLOYEE_MIDDLE_NAME}}': employee.middle_name or '' if hasattr(employee, 'middle_name') else '',
+        '{{EMPLOYEE_LAST_NAME}}': last_name_value,
+        '{{EMPLOYEE_POST_NOMINAL}}': employee.post_nominal or '' if hasattr(employee, 'post_nominal') else '',
         '{{EMPLOYEE_ROLE}}': role,
+        '{{EMPLOYEE_CITY}}': employee.city or '' if hasattr(employee, 'city') else '',
+        '{{EMPLOYEE_STATE}}': employee.state or '' if hasattr(employee, 'state') else '',
         '{{YEARS_EXPERIENCE_TOTAL}}': str(employee.years_experience or '') if hasattr(employee, 'years_experience') else '',
         '{{YEARS_EXPERIENCE_FIRM}}': str(employee.years_with_firm or '') if hasattr(employee, 'years_with_firm') else '',
         '{{FIRM_NAME}}': firm_name,
@@ -313,6 +332,8 @@ def generate_section_e(employee, proposal, project_experiences):
         '{{EDUCATION}}': employee.education or '',
         '{{REGISTRATIONS}}': employee.registrations or '',
         '{{OTHER_QUALIFICATIONS}}': other_quals,
+        '{{BIO}}': employee.bio or '' if hasattr(employee, 'bio') else '',
+        '{{TRAINING}}': employee.training or '' if hasattr(employee, 'training') else '',
     }
 
     for idx, exp in enumerate(project_experiences):
@@ -553,7 +574,7 @@ def generate_section_g(employees_with_roles, projects, matrix, template_doc=None
         emp_num = emp_idx + 1
         employee = emp_data.get('employee')
         role = emp_data.get('role', '')
-        placeholders[f'{{{{EMPLOYEE_NAME_{emp_num}}}}}'] = employee.name if employee else ''
+        placeholders[f'{{{{EMPLOYEE_NAME_{emp_num}}}}}'] = _get_employee_name(employee) if employee else ''
         placeholders[f'{{{{EMPLOYEE_ROLE_{emp_num}}}}}'] = role
 
         if employee:
@@ -750,7 +771,7 @@ def generate_full_sf330_word(proposal, selected_employees, selected_projects, ma
             buffer = io.BytesIO()
             doc_e.save(buffer)
             section_e_docs.append({
-                'name': employee.name,
+                'name': _get_employee_name(employee),
                 'data': buffer.getvalue()
             })
     documents['section_e'] = section_e_docs
@@ -928,9 +949,9 @@ def generate_simple_sf330(proposal, employees_data, projects_data, firms_data, m
             continue
         
         doc.add_paragraph()
-        h = doc.add_heading(f"{emp.name}", 3)
+        h = doc.add_heading(f"{_get_employee_name(emp)}", 3)
         
-        add_field('12. Name', emp.name)
+        add_field('12. Name', _get_employee_name(emp))
         add_field('13. Role in This Contract', emp_data.get('role', '') or getattr(emp, 'role', ''))
         
         firm_name = ""
@@ -1038,7 +1059,7 @@ def generate_simple_sf330(proposal, employees_data, projects_data, firms_data, m
             if not emp:
                 continue
             row = table.add_row().cells
-            row[0].text = emp.name or ''
+            row[0].text = _get_employee_name(emp)
             row[1].text = emp_data.get('role', '') or ''
             
             # Check matrix for participation

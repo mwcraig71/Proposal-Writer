@@ -712,12 +712,15 @@ def download_employee_resume(id):
     from models import AISettings
     resume_include_post_nominal = AISettings.get_value('resume_include_post_nominal', 'false') == 'true'
     employee_name = employee.display_name if resume_include_post_nominal else (employee.name or '')
+    last_name_value = employee.last_name or ''
+    if resume_include_post_nominal and employee.post_nominal:
+        last_name_value = f"{last_name_value}, {employee.post_nominal}"
     
     placeholders = {
         '{{EMPLOYEE_NAME}}': employee_name,
         '{{EMPLOYEE_FIRST_NAME}}': employee.first_name or '',
         '{{EMPLOYEE_MIDDLE_NAME}}': employee.middle_name or '',
-        '{{EMPLOYEE_LAST_NAME}}': employee.last_name or '',
+        '{{EMPLOYEE_LAST_NAME}}': last_name_value,
         '{{EMPLOYEE_POST_NOMINAL}}': employee.post_nominal or '',
         '{{EMPLOYEE_TITLE}}': employee.title or '',
         '{{EMPLOYEE_ROLE}}': employee.role or '',
@@ -1058,12 +1061,15 @@ def download_employee_sf330_resume(id):
     from models import AISettings
     resume_include_post_nominal = AISettings.get_value('resume_include_post_nominal', 'false') == 'true'
     employee_name = employee.display_name if resume_include_post_nominal else (employee.name or '')
+    last_name_value = employee.last_name or ''
+    if resume_include_post_nominal and employee.post_nominal:
+        last_name_value = f"{last_name_value}, {employee.post_nominal}"
 
     placeholders = {
         '{{EMPLOYEE_NAME}}': employee_name,
         '{{EMPLOYEE_FIRST_NAME}}': employee.first_name or '',
         '{{EMPLOYEE_MIDDLE_NAME}}': employee.middle_name or '',
-        '{{EMPLOYEE_LAST_NAME}}': employee.last_name or '',
+        '{{EMPLOYEE_LAST_NAME}}': last_name_value,
         '{{EMPLOYEE_POST_NOMINAL}}': employee.post_nominal or '',
         '{{EMPLOYEE_TITLE}}': employee.title or '',
         '{{EMPLOYEE_ROLE}}': employee.role or '',
@@ -5695,12 +5701,15 @@ def download_all_resumes(id):
             from models import AISettings
             resume_include_post_nominal = AISettings.get_value('resume_include_post_nominal', 'false') == 'true'
             emp_name = employee.display_name if resume_include_post_nominal else (employee.name or '')
+            last_name_value = employee.last_name or ''
+            if resume_include_post_nominal and employee.post_nominal:
+                last_name_value = f"{last_name_value}, {employee.post_nominal}"
             
             placeholders = {
                 '{{EMPLOYEE_NAME}}': emp_name,
                 '{{EMPLOYEE_FIRST_NAME}}': employee.first_name or '',
                 '{{EMPLOYEE_MIDDLE_NAME}}': employee.middle_name or '',
-                '{{EMPLOYEE_LAST_NAME}}': employee.last_name or '',
+                '{{EMPLOYEE_LAST_NAME}}': last_name_value,
                 '{{EMPLOYEE_POST_NOMINAL}}': employee.post_nominal or '',
                 '{{EMPLOYEE_TITLE}}': employee.title or '',
                 '{{EMPLOYEE_ROLE}}': pse.role_in_contract or employee.role or '',
