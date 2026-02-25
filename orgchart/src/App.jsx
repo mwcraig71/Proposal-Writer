@@ -1072,7 +1072,7 @@ function OrgChartFlow() {
                   draggable
                   onDragStart={(e) => onDragStart(e, person)}
                 >
-                  <div className="font-medium text-gray-800 text-sm">{person.name}</div>
+                  <div className="font-medium text-gray-800 text-sm">{getStaffName(person)}</div>
                   {person.title && (
                     <div className="text-xs text-gray-500">{person.title}</div>
                   )}
