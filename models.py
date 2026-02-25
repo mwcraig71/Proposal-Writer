@@ -112,6 +112,7 @@ class Employee(db.Model):
     first_name = db.Column(db.String(100))
     middle_name = db.Column(db.String(100))
     last_name = db.Column(db.String(100))
+    post_nominal = db.Column(db.String(100))
     nickname = db.Column(db.String(100))
     title = db.Column(db.String(255))
     role = db.Column(db.String(255))
@@ -137,7 +138,10 @@ class Employee(db.Model):
         """Returns the display name combining first and last names (no middle name)"""
         if self.first_name or self.last_name:
             parts = [self.first_name or '', self.last_name or '']
-            return ' '.join(p for p in parts if p).strip()
+            base = ' '.join(p for p in parts if p).strip()
+            if self.post_nominal:
+                return f"{base}, {self.post_nominal}"
+            return base
         return self.name
 
 

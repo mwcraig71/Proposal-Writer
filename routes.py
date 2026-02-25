@@ -522,6 +522,7 @@ def add_employee():
         first_name = data.get('first_name', '').strip()
         middle_name = data.get('middle_name', '').strip()
         last_name = data.get('last_name', '').strip()
+        post_nominal = data.get('post_nominal', '').strip()
         nickname = data.get('nickname', '').strip()
         
         # Build full name from components
@@ -533,6 +534,7 @@ def add_employee():
             first_name=first_name if first_name else None,
             middle_name=middle_name if middle_name else None,
             last_name=last_name if last_name else None,
+            post_nominal=post_nominal if post_nominal else None,
             nickname=nickname if nickname else None,
             title=data.get('title'),
             role=data.get('role'),
@@ -712,6 +714,7 @@ def download_employee_resume(id):
         '{{EMPLOYEE_FIRST_NAME}}': employee.first_name or '',
         '{{EMPLOYEE_MIDDLE_NAME}}': employee.middle_name or '',
         '{{EMPLOYEE_LAST_NAME}}': employee.last_name or '',
+        '{{EMPLOYEE_POST_NOMINAL}}': employee.post_nominal or '',
         '{{EMPLOYEE_TITLE}}': employee.title or '',
         '{{EMPLOYEE_ROLE}}': employee.role or '',
         '{{EMPLOYEE_CITY}}': employee.city or '',
@@ -1053,6 +1056,7 @@ def download_employee_sf330_resume(id):
         '{{EMPLOYEE_FIRST_NAME}}': employee.first_name or '',
         '{{EMPLOYEE_MIDDLE_NAME}}': employee.middle_name or '',
         '{{EMPLOYEE_LAST_NAME}}': employee.last_name or '',
+        '{{EMPLOYEE_POST_NOMINAL}}': employee.post_nominal or '',
         '{{EMPLOYEE_TITLE}}': employee.title or '',
         '{{EMPLOYEE_ROLE}}': employee.role or '',
         '{{EMPLOYEE_CITY}}': employee.city or '',
@@ -1223,6 +1227,7 @@ def update_employee(id):
     first_name = data.get('first_name', employee.first_name) or ''
     middle_name = data.get('middle_name', employee.middle_name) or ''
     last_name = data.get('last_name', employee.last_name) or ''
+    post_nominal = data.get('post_nominal', employee.post_nominal) or ''
     nickname = data.get('nickname', employee.nickname)
     
     # Build full name from components
@@ -1232,6 +1237,7 @@ def update_employee(id):
     employee.first_name = first_name.strip() if first_name.strip() else None
     employee.middle_name = middle_name.strip() if middle_name.strip() else None
     employee.last_name = last_name.strip() if last_name.strip() else None
+    employee.post_nominal = post_nominal.strip() if post_nominal.strip() else None
     employee.nickname = nickname.strip() if nickname and nickname.strip() else None
     employee.name = full_name if full_name else data.get('name', employee.name)
     employee.city = data.get('city', employee.city) or None
@@ -5683,6 +5689,7 @@ def download_all_resumes(id):
                 '{{EMPLOYEE_FIRST_NAME}}': employee.first_name or '',
                 '{{EMPLOYEE_MIDDLE_NAME}}': employee.middle_name or '',
                 '{{EMPLOYEE_LAST_NAME}}': employee.last_name or '',
+                '{{EMPLOYEE_POST_NOMINAL}}': employee.post_nominal or '',
                 '{{EMPLOYEE_TITLE}}': employee.title or '',
                 '{{EMPLOYEE_ROLE}}': pse.role_in_contract or employee.role or '',
                 '{{EMPLOYEE_CITY}}': employee.city or '',
