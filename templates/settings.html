@@ -160,6 +160,13 @@
                     <p class="text-xs text-gray-500">Show post-nominal letters after personnel names in the organizational chart</p>
                 </div>
             </label>
+            <label class="flex items-center p-4 bg-purple-50 border border-purple-200 rounded-lg cursor-pointer hover:bg-purple-100 transition">
+                <input type="checkbox" name="orgchart_include_middle_name" class="mr-3 h-4 w-4 text-purple-600 rounded" {% if orgchart_include_middle_name == 'true' %}checked{% endif %}>
+                <div>
+                    <span class="font-medium text-gray-800">Include Middle Names in Org Chart</span>
+                    <p class="text-xs text-gray-500">Show middle names in personnel names in the organizational chart</p>
+                </div>
+            </label>
         </div>
         
         <hr class="my-8 border-gray-200">

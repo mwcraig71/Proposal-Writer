@@ -181,6 +181,7 @@ function OrgChartFlow() {
   const [borderStyle, setBorderStyle] = useState('default')
   const [exportAspectRatio, setExportAspectRatio] = useState('0.773')
   const [showPostNominal, setShowPostNominal] = useState(false)
+  const [showMiddleName, setShowMiddleName] = useState(false)
 
   const switchConnectionDirection = useCallback((direction) => {
     setConnectionDirection(direction)
@@ -483,6 +484,7 @@ function OrgChartFlow() {
       .then(res => res.json())
       .then(data => {
         setShowPostNominal(data.orgchart)
+        setShowMiddleName(data.orgchart_middle_name)
       })
       .catch(err => console.error('Failed to fetch post-nominal setting:', err))
     
@@ -663,8 +665,19 @@ function OrgChartFlow() {
   }, [nodes, edges, setNodes])
 
   const getStaffName = useCallback((member) => {
-    return showPostNominal && member.display_name ? member.display_name : member.name
-  }, [showPostNominal])
+    if (showMiddleName && member.first_name && member.last_name) {
+      const parts = [member.first_name, member.middle_name, member.last_name].filter(Boolean)
+      const base = parts.join(' ')
+      if (showPostNominal && member.post_nominal) {
+        return `${base}, ${member.post_nominal}`
+      }
+      return base
+    }
+    if (showPostNominal && member.display_name) {
+      return member.display_name
+    }
+    return member.name
+  }, [showPostNominal, showMiddleName])
 
   const onDragStart = (event, staffMember) => {
     setDraggedStaff(staffMember)
@@ -989,7 +1002,17 @@ function OrgChartFlow() {
 
   const staffDisplayMap = {}
   staff.forEach(s => {
-    if (s.id) staffDisplayMap[s.id] = s.display_name || s.name
+    if (s.id) {
+      if (showMiddleName && s.first_name && s.last_name) {
+        const parts = [s.first_name, s.middle_name, s.last_name].filter(Boolean)
+        const base = parts.join(' ')
+        staffDisplayMap[s.id] = (showPostNominal && s.post_nominal) ? `${base}, ${s.post_nominal}` : base
+      } else if (showPostNominal) {
+        staffDisplayMap[s.id] = s.display_name || s.name
+      } else {
+        staffDisplayMap[s.id] = s.name
+      }
+    }
   })
 
   const nodesWithCallbacks = nodes.map(node => ({
@@ -1004,6 +1027,7 @@ function OrgChartFlow() {
       firmColorMap: firmColorMap,
       borderStyle: borderStyle,
       showPostNominal: showPostNominal,
+      showMiddleName: showMiddleName,
       staffDisplayMap: staffDisplayMap,
     }
   }))

@@ -48,7 +48,7 @@ function CustomNode({ data, selected, id }) {
   const isTeamMember = data.isTeamMember
 
   const resolveStaffName = (name, staffId) => {
-    if (data.showPostNominal && staffId && data.staffDisplayMap && data.staffDisplayMap[staffId]) {
+    if ((data.showPostNominal || data.showMiddleName) && staffId && data.staffDisplayMap && data.staffDisplayMap[staffId]) {
       return data.staffDisplayMap[staffId]
     }
     return name

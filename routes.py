@@ -6174,7 +6174,8 @@ def api_settings_post_nominal():
     from models import AISettings
     return jsonify({
         'resume': AISettings.get_value('resume_include_post_nominal', 'false') == 'true',
-        'orgchart': AISettings.get_value('orgchart_include_post_nominal', 'false') == 'true'
+        'orgchart': AISettings.get_value('orgchart_include_post_nominal', 'false') == 'true',
+        'orgchart_middle_name': AISettings.get_value('orgchart_include_middle_name', 'false') == 'true'
     })
 
 
@@ -6188,6 +6189,9 @@ def api_employees():
         'id': e.id,
         'name': e.name,
         'display_name': e.display_name,
+        'first_name': e.first_name or '',
+        'middle_name': e.middle_name or '',
+        'last_name': e.last_name or '',
         'post_nominal': e.post_nominal or '',
         'title': e.title,
         'role': e.role,
@@ -6416,6 +6420,7 @@ def settings():
     review_prompt_engineer = AISettings.get_value('review_prompt_engineer', '')
     resume_include_post_nominal = AISettings.get_value('resume_include_post_nominal', 'false')
     orgchart_include_post_nominal = AISettings.get_value('orgchart_include_post_nominal', 'false')
+    orgchart_include_middle_name = AISettings.get_value('orgchart_include_middle_name', 'false')
     
     return render_template('settings.html', ai_style=ai_style, ai_tone=ai_tone, 
                            ai_banned_words=ai_banned_words,
@@ -6425,6 +6430,7 @@ def settings():
                            review_prompt_engineer=review_prompt_engineer,
                            resume_include_post_nominal=resume_include_post_nominal,
                            orgchart_include_post_nominal=orgchart_include_post_nominal,
+                           orgchart_include_middle_name=orgchart_include_middle_name,
                            ai_provider=ai_provider, ai_model=ai_model, available_models=AVAILABLE_MODELS,
                            has_custom_template=has_custom_template, has_company_template=has_company_template,
                            has_resume_template=has_resume_template, has_sf330_resume_template=has_sf330_resume_template,
@@ -6450,6 +6456,7 @@ def save_settings():
     AISettings.set_value('review_prompt_engineer', request.form.get('review_prompt_engineer', ''))
     AISettings.set_value('resume_include_post_nominal', 'true' if request.form.get('resume_include_post_nominal') == 'on' else 'false')
     AISettings.set_value('orgchart_include_post_nominal', 'true' if request.form.get('orgchart_include_post_nominal') == 'on' else 'false')
+    AISettings.set_value('orgchart_include_middle_name', 'true' if request.form.get('orgchart_include_middle_name') == 'on' else 'false')
     AISettings.set_value('ai_provider', ai_provider)
     AISettings.set_value('ai_model', ai_model)
     
