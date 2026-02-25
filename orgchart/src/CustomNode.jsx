@@ -47,6 +47,13 @@ function CustomNode({ data, selected, id }) {
   const isTaskLead = data.isTaskLead
   const isTeamMember = data.isTeamMember
 
+  const resolveStaffName = (name, staffId) => {
+    if (data.showPostNominal && staffId && data.staffDisplayMap && data.staffDisplayMap[staffId]) {
+      return data.staffDisplayMap[staffId]
+    }
+    return name
+  }
+
   const firmColor = data.staffFirmId && data.firmColorMap ? data.firmColorMap[data.staffFirmId] : null
   const bStyle = data.borderStyle || 'default'
 
@@ -132,7 +139,7 @@ function CustomNode({ data, selected, id }) {
             onDragStart={handleStaffDragStart}
             title="Drag to reassign to another role"
           >
-            {data.assignedStaff}
+            {resolveStaffName(data.assignedStaff, data.staffId)}
             {data.staffFirmName && (
               <div className="text-[9px] opacity-70 font-normal">{data.staffFirmName}</div>
             )}
@@ -141,7 +148,9 @@ function CustomNode({ data, selected, id }) {
         {(isTeamMember || data.useStaffList) && data.staffList && data.staffList.length > 0 && (
           <div className="mt-1 border-t border-gray-300 pt-1">
             {data.staffList.map((staffEntry, index) => {
-              const staffName = typeof staffEntry === 'string' ? staffEntry : staffEntry.name
+              const staffId = typeof staffEntry === 'object' ? staffEntry.id : null
+              const rawName = typeof staffEntry === 'string' ? staffEntry : staffEntry.name
+              const staffName = resolveStaffName(rawName, staffId)
               const staffFirmId = typeof staffEntry === 'object' ? staffEntry.firm_id : null
               const entryFirmColor = staffFirmId && data.firmColorMap ? data.firmColorMap[staffFirmId] : null
               const entryTextStyle = entryFirmColor?.useInline ? entryFirmColor.textStyle : {}

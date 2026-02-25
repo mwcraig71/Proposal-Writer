@@ -709,8 +709,12 @@ def download_employee_resume(id):
     employee_location_parts = [employee.city or '', employee.state or '']
     employee_location = ', '.join(p for p in employee_location_parts if p)
     
+    from models import AISettings
+    resume_include_post_nominal = AISettings.get_value('resume_include_post_nominal', 'false') == 'true'
+    employee_name = employee.display_name if resume_include_post_nominal else (employee.name or '')
+    
     placeholders = {
-        '{{EMPLOYEE_NAME}}': employee.display_name or employee.name or '',
+        '{{EMPLOYEE_NAME}}': employee_name,
         '{{EMPLOYEE_FIRST_NAME}}': employee.first_name or '',
         '{{EMPLOYEE_MIDDLE_NAME}}': employee.middle_name or '',
         '{{EMPLOYEE_LAST_NAME}}': employee.last_name or '',
@@ -1051,8 +1055,12 @@ def download_employee_sf330_resume(id):
     employee_location_parts = [employee.city or '', employee.state or '']
     employee_location = ', '.join(p for p in employee_location_parts if p)
 
+    from models import AISettings
+    resume_include_post_nominal = AISettings.get_value('resume_include_post_nominal', 'false') == 'true'
+    employee_name = employee.display_name if resume_include_post_nominal else (employee.name or '')
+
     placeholders = {
-        '{{EMPLOYEE_NAME}}': employee.display_name or employee.name or '',
+        '{{EMPLOYEE_NAME}}': employee_name,
         '{{EMPLOYEE_FIRST_NAME}}': employee.first_name or '',
         '{{EMPLOYEE_MIDDLE_NAME}}': employee.middle_name or '',
         '{{EMPLOYEE_LAST_NAME}}': employee.last_name or '',
@@ -6148,6 +6156,15 @@ def generate_proposal_word_simple(id):
     )
 
 
+@app.route('/api/settings/post-nominal')
+def api_settings_post_nominal():
+    from models import AISettings
+    return jsonify({
+        'resume': AISettings.get_value('resume_include_post_nominal', 'false') == 'true',
+        'orgchart': AISettings.get_value('orgchart_include_post_nominal', 'false') == 'true'
+    })
+
+
 @app.route('/api/employees')
 def api_employees():
     employees = Employee.query.order_by(Employee.name).all()
@@ -6157,6 +6174,8 @@ def api_employees():
     return jsonify([{
         'id': e.id,
         'name': e.name,
+        'display_name': e.display_name,
+        'post_nominal': e.post_nominal or '',
         'title': e.title,
         'role': e.role,
         'firm_id': e.firm_id,
@@ -6382,6 +6401,8 @@ def settings():
     ai_industry_words = AISettings.get_value('ai_industry_words', '')
     review_prompt_marketing = AISettings.get_value('review_prompt_marketing', '')
     review_prompt_engineer = AISettings.get_value('review_prompt_engineer', '')
+    resume_include_post_nominal = AISettings.get_value('resume_include_post_nominal', 'false')
+    orgchart_include_post_nominal = AISettings.get_value('orgchart_include_post_nominal', 'false')
     
     return render_template('settings.html', ai_style=ai_style, ai_tone=ai_tone, 
                            ai_banned_words=ai_banned_words,
@@ -6389,6 +6410,8 @@ def settings():
                            ai_industry_words=ai_industry_words,
                            review_prompt_marketing=review_prompt_marketing,
                            review_prompt_engineer=review_prompt_engineer,
+                           resume_include_post_nominal=resume_include_post_nominal,
+                           orgchart_include_post_nominal=orgchart_include_post_nominal,
                            ai_provider=ai_provider, ai_model=ai_model, available_models=AVAILABLE_MODELS,
                            has_custom_template=has_custom_template, has_company_template=has_company_template,
                            has_resume_template=has_resume_template, has_sf330_resume_template=has_sf330_resume_template,
@@ -6412,6 +6435,8 @@ def save_settings():
     AISettings.set_value('ai_industry_words', ai_industry_words)
     AISettings.set_value('review_prompt_marketing', request.form.get('review_prompt_marketing', ''))
     AISettings.set_value('review_prompt_engineer', request.form.get('review_prompt_engineer', ''))
+    AISettings.set_value('resume_include_post_nominal', 'true' if request.form.get('resume_include_post_nominal') == 'on' else 'false')
+    AISettings.set_value('orgchart_include_post_nominal', 'true' if request.form.get('orgchart_include_post_nominal') == 'on' else 'false')
     AISettings.set_value('ai_provider', ai_provider)
     AISettings.set_value('ai_model', ai_model)
     

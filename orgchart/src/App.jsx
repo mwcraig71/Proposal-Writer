@@ -180,6 +180,7 @@ function OrgChartFlow() {
   const [lineWeight, setLineWeight] = useState('medium')
   const [borderStyle, setBorderStyle] = useState('default')
   const [exportAspectRatio, setExportAspectRatio] = useState('0.773')
+  const [showPostNominal, setShowPostNominal] = useState(false)
 
   const switchConnectionDirection = useCallback((direction) => {
     setConnectionDirection(direction)
@@ -478,6 +479,13 @@ function OrgChartFlow() {
       })
       .catch(err => console.error('Failed to fetch staff:', err))
     
+    fetch('/api/settings/post-nominal')
+      .then(res => res.json())
+      .then(data => {
+        setShowPostNominal(data.orgchart)
+      })
+      .catch(err => console.error('Failed to fetch post-nominal setting:', err))
+    
     fetch('/api/firms/list')
       .then(res => res.json())
       .then(data => {
@@ -654,10 +662,15 @@ function OrgChartFlow() {
     setNodes(layouted)
   }, [nodes, edges, setNodes])
 
+  const getStaffName = useCallback((member) => {
+    return showPostNominal && member.display_name ? member.display_name : member.name
+  }, [showPostNominal])
+
   const onDragStart = (event, staffMember) => {
     setDraggedStaff(staffMember)
     event.dataTransfer.setData('application/reactflow', JSON.stringify({
       ...staffMember,
+      name: getStaffName(staffMember),
       fromSidebar: true
     }))
     event.dataTransfer.effectAllowed = 'move'
@@ -974,6 +987,11 @@ function OrgChartFlow() {
     )
   }, [setNodes])
 
+  const staffDisplayMap = {}
+  staff.forEach(s => {
+    if (s.id) staffDisplayMap[s.id] = s.display_name || s.name
+  })
+
   const nodesWithCallbacks = nodes.map(node => ({
     ...node,
     data: {
@@ -985,6 +1003,8 @@ function OrgChartFlow() {
       onAddChildBranch: addChildBranch,
       firmColorMap: firmColorMap,
       borderStyle: borderStyle,
+      showPostNominal: showPostNominal,
+      staffDisplayMap: staffDisplayMap,
     }
   }))
 
