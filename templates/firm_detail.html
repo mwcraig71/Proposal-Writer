@@ -20,10 +20,20 @@
     
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <div>
-            <h3 class="text-sm font-medium text-gray-500 uppercase mb-2">Address</h3>
-            <p class="text-gray-800">{{ firm.street_address or '-' }}</p>
-            <p class="text-gray-800">{{ firm.city or '' }}, {{ firm.state or '' }} {{ firm.zip_code or '' }}</p>
-            <p class="text-gray-800">{{ firm.country or 'USA' }}</p>
+            <h3 class="text-sm font-medium text-gray-500 uppercase mb-2">Addresses</h3>
+            {% if firm.addresses %}
+                {% for addr in firm.addresses %}
+                <div class="mb-2 {% if not loop.last %}pb-2 border-b{% endif %}">
+                    <p class="text-xs font-medium text-gray-500">{{ addr.label or 'Address' }}{% if addr.is_primary %} <span class="text-blue-600">(Primary)</span>{% endif %}</p>
+                    <p class="text-gray-800">{{ addr.street_address or '' }}</p>
+                    <p class="text-gray-800">{{ addr.city or '' }}, {{ addr.state or '' }} {{ addr.zip_code or '' }}</p>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-gray-800">{{ firm.street_address or '-' }}</p>
+                <p class="text-gray-800">{{ firm.city or '' }}, {{ firm.state or '' }} {{ firm.zip_code or '' }}</p>
+                <p class="text-gray-800">{{ firm.country or 'USA' }}</p>
+            {% endif %}
         </div>
         
         <div>
@@ -34,10 +44,21 @@
         </div>
         
         <div>
-            <h3 class="text-sm font-medium text-gray-500 uppercase mb-2">Contact</h3>
-            <p class="text-gray-800"><span class="font-medium">Contact:</span> {{ firm.point_of_contact_name or '-' }}</p>
-            <p class="text-gray-800"><span class="font-medium">Phone:</span> {{ firm.phone or '-' }}</p>
-            <p class="text-gray-800"><span class="font-medium">Email:</span> {{ firm.email or '-' }}</p>
+            <h3 class="text-sm font-medium text-gray-500 uppercase mb-2">Contacts</h3>
+            {% if firm.contacts %}
+                {% for contact in firm.contacts %}
+                <div class="mb-2 {% if not loop.last %}pb-2 border-b{% endif %}">
+                    <p class="text-xs font-medium text-gray-500">{{ contact.label or 'Contact' }}{% if contact.is_primary %} <span class="text-blue-600">(Primary)</span>{% endif %}</p>
+                    <p class="text-gray-800"><span class="font-medium">Name:</span> {{ contact.name or '-' }}{% if contact.title %}, {{ contact.title }}{% endif %}</p>
+                    <p class="text-gray-800"><span class="font-medium">Phone:</span> {{ contact.phone or '-' }}</p>
+                    <p class="text-gray-800"><span class="font-medium">Email:</span> {{ contact.email or '-' }}</p>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-gray-800"><span class="font-medium">Contact:</span> {{ firm.point_of_contact_name or '-' }}</p>
+                <p class="text-gray-800"><span class="font-medium">Phone:</span> {{ firm.phone or '-' }}</p>
+                <p class="text-gray-800"><span class="font-medium">Email:</span> {{ firm.email or '-' }}</p>
+            {% endif %}
         </div>
         
         <div>

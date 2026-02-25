@@ -89,6 +89,22 @@
                 <p class="text-sm text-gray-500 mt-1">Choose which firm bio/writeup to use for this proposal.</p>
             </div>
             
+            <div id="firm-address-section" class="{% if not proposal.firm_id %}hidden{% endif %}">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Select Firm Address for Proposal</label>
+                <select name="firm_address_id" id="firm_address_id" class="w-full p-3 border rounded-lg">
+                    <option value="">-- Use Primary Address --</option>
+                </select>
+                <p class="text-sm text-gray-500 mt-1">Choose which firm address to use on the SF330 form.</p>
+            </div>
+            
+            <div id="firm-contact-section" class="{% if not proposal.firm_id %}hidden{% endif %}">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Select Firm Contact for Proposal</label>
+                <select name="firm_contact_id" id="firm_contact_id" class="w-full p-3 border rounded-lg">
+                    <option value="">-- Use Primary Contact --</option>
+                </select>
+                <p class="text-sm text-gray-500 mt-1">Choose which firm contact to use on the SF330 form.</p>
+            </div>
+            
             <div id="firm-photos-section" class="{% if not proposal.firm_id %}hidden{% endif %}">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Select Firm Photos for Proposal</label>
                 <p class="text-sm text-gray-500 mb-2">Click photos to include them in the proposal</p>
@@ -276,6 +292,8 @@ async function handleRfpUpload(file) {
 
 const firmAlts = {{ firm_alts | tojson | safe }};
 const currentFirmBioAltId = {{ proposal.firm_bio_alternate_id | tojson | safe }};
+const currentFirmAddressId = {{ proposal.firm_address_id | tojson | safe }};
+const currentFirmContactId = {{ proposal.firm_contact_id | tojson | safe }};
 
 let selectedFirmPhotos = [];
 
@@ -307,10 +325,59 @@ function updateFirmBioOptions() {
     if (firmId) {
         loadFirmPhotos(firmId);
         photosSection.classList.remove('hidden');
+        loadFirmAddresses(firmId);
+        loadFirmContacts(firmId);
     } else {
         photosSection.classList.add('hidden');
         document.getElementById('firm-photos-grid').innerHTML = '';
+        document.getElementById('firm-address-section').classList.add('hidden');
+        document.getElementById('firm-contact-section').classList.add('hidden');
     }
+}
+
+async function loadFirmAddresses(firmId) {
+    const section = document.getElementById('firm-address-section');
+    const select = document.getElementById('firm_address_id');
+    try {
+        const resp = await fetch(`/api/firms/${firmId}/addresses`);
+        const addresses = await resp.json();
+        select.innerHTML = '<option value="">-- Use Primary Address --</option>';
+        if (addresses.length > 0) {
+            addresses.forEach(a => {
+                const opt = document.createElement('option');
+                opt.value = a.id;
+                const parts = [a.street_address, a.city, a.state, a.zip_code].filter(x => x).join(', ');
+                opt.textContent = (a.label ? a.label + ': ' : '') + parts + (a.is_primary ? ' (Primary)' : '');
+                if (a.id == currentFirmAddressId) opt.selected = true;
+                select.appendChild(opt);
+            });
+            section.classList.remove('hidden');
+        } else {
+            section.classList.add('hidden');
+        }
+    } catch(e) { section.classList.add('hidden'); }
+}
+
+async function loadFirmContacts(firmId) {
+    const section = document.getElementById('firm-contact-section');
+    const select = document.getElementById('firm_contact_id');
+    try {
+        const resp = await fetch(`/api/firms/${firmId}/contacts`);
+        const contacts = await resp.json();
+        select.innerHTML = '<option value="">-- Use Primary Contact --</option>';
+        if (contacts.length > 0) {
+            contacts.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = (c.label ? c.label + ': ' : '') + (c.name || '') + (c.title ? ', ' + c.title : '') + (c.is_primary ? ' (Primary)' : '');
+                if (c.id == currentFirmContactId) opt.selected = true;
+                select.appendChild(opt);
+            });
+            section.classList.remove('hidden');
+        } else {
+            section.classList.add('hidden');
+        }
+    } catch(e) { section.classList.add('hidden'); }
 }
 
 async function loadFirmPhotos(firmId) {

@@ -39,54 +39,100 @@
                 </div>
                 
                 <div class="border-t pt-4 mt-4">
-                    <h3 class="font-medium text-gray-700 mb-3">Address</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="md:col-span-2">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Street Address</label>
-                            <input type="text" name="street_address" value="{{ firm.street_address or '' }}" class="w-full p-2 border rounded-lg">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-medium text-gray-700">Addresses</h3>
+                        <button type="button" onclick="showAddressForm()" class="text-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition">
+                            <i class="fas fa-plus mr-1"></i> Add Address
+                        </button>
+                    </div>
+                    <div id="addressFormContainer" class="hidden mb-4 bg-gray-50 border rounded-lg p-4">
+                        <input type="hidden" id="editAddressId" value="">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Label</label>
+                                <input type="text" id="addrLabel" class="w-full p-2 border rounded-lg text-sm" placeholder="e.g. Main Office, Branch Office">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Street Address</label>
+                                <input type="text" id="addrStreet" class="w-full p-2 border rounded-lg text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">City</label>
+                                <input type="text" id="addrCity" class="w-full p-2 border rounded-lg text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">State</label>
+                                <input type="text" id="addrState" class="w-full p-2 border rounded-lg text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">ZIP Code</label>
+                                <input type="text" id="addrZip" class="w-full p-2 border rounded-lg text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Country</label>
+                                <input type="text" id="addrCountry" class="w-full p-2 border rounded-lg text-sm" value="USA">
+                            </div>
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">City</label>
-                            <input type="text" name="city" value="{{ firm.city or '' }}" class="w-full p-2 border rounded-lg">
+                        <div class="flex items-center mt-3 gap-3">
+                            <label class="flex items-center text-sm text-gray-700">
+                                <input type="checkbox" id="addrPrimary" class="mr-2"> Primary Address
+                            </label>
+                            <div class="flex-1"></div>
+                            <button type="button" onclick="hideAddressForm()" class="text-sm text-gray-500 hover:text-gray-700 px-3 py-1">Cancel</button>
+                            <button type="button" onclick="saveAddress()" class="text-sm bg-green-600 text-white px-4 py-1.5 rounded hover:bg-green-700 transition">Save</button>
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">State</label>
-                            <input type="text" name="state" value="{{ firm.state or '' }}" class="w-full p-2 border rounded-lg">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">ZIP Code</label>
-                            <input type="text" name="zip_code" value="{{ firm.zip_code or '' }}" class="w-full p-2 border rounded-lg">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Country</label>
-                            <input type="text" name="country" value="{{ firm.country or 'USA' }}" class="w-full p-2 border rounded-lg">
-                        </div>
+                    </div>
+                    <div id="addressList" class="space-y-2">
+                        <p class="text-sm text-gray-400 italic">Loading addresses...</p>
                     </div>
                 </div>
                 
                 <div class="border-t pt-4 mt-4">
-                    <h3 class="font-medium text-gray-700 mb-3">Contact Information</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                            <input type="text" name="phone" value="{{ firm.phone or '' }}" class="w-full p-2 border rounded-lg">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-medium text-gray-700">Contacts</h3>
+                        <button type="button" onclick="showContactForm()" class="text-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition">
+                            <i class="fas fa-plus mr-1"></i> Add Contact
+                        </button>
+                    </div>
+                    <div id="contactFormContainer" class="hidden mb-4 bg-gray-50 border rounded-lg p-4">
+                        <input type="hidden" id="editContactId" value="">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Label</label>
+                                <input type="text" id="contactLabel" class="w-full p-2 border rounded-lg text-sm" placeholder="e.g. Primary Contact, Contracts Manager">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Name</label>
+                                <input type="text" id="contactName" class="w-full p-2 border rounded-lg text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Title</label>
+                                <input type="text" id="contactTitle" class="w-full p-2 border rounded-lg text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Phone</label>
+                                <input type="text" id="contactPhone" class="w-full p-2 border rounded-lg text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Fax</label>
+                                <input type="text" id="contactFax" class="w-full p-2 border rounded-lg text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 mb-1">Email</label>
+                                <input type="email" id="contactEmail" class="w-full p-2 border rounded-lg text-sm">
+                            </div>
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Fax</label>
-                            <input type="text" name="fax" value="{{ firm.fax or '' }}" class="w-full p-2 border rounded-lg">
+                        <div class="flex items-center mt-3 gap-3">
+                            <label class="flex items-center text-sm text-gray-700">
+                                <input type="checkbox" id="contactPrimary" class="mr-2"> Primary Contact
+                            </label>
+                            <div class="flex-1"></div>
+                            <button type="button" onclick="hideContactForm()" class="text-sm text-gray-500 hover:text-gray-700 px-3 py-1">Cancel</button>
+                            <button type="button" onclick="saveContact()" class="text-sm bg-green-600 text-white px-4 py-1.5 rounded hover:bg-green-700 transition">Save</button>
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                            <input type="email" name="email" value="{{ firm.email or '' }}" class="w-full p-2 border rounded-lg">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Point of Contact Name</label>
-                            <input type="text" name="point_of_contact_name" value="{{ firm.point_of_contact_name or '' }}" class="w-full p-2 border rounded-lg">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Point of Contact Title</label>
-                            <input type="text" name="point_of_contact_title" value="{{ firm.point_of_contact_title or '' }}" class="w-full p-2 border rounded-lg">
-                        </div>
+                    </div>
+                    <div id="contactList" class="space-y-2">
+                        <p class="text-sm text-gray-400 italic">Loading contacts...</p>
                     </div>
                 </div>
                 
@@ -598,10 +644,171 @@ async function deleteDocument(docId) {
     }
 }
 
+function showAddressForm(addr = null) {
+    document.getElementById('addressFormContainer').classList.remove('hidden');
+    document.getElementById('editAddressId').value = addr ? addr.id : '';
+    document.getElementById('addrLabel').value = addr ? addr.label : '';
+    document.getElementById('addrStreet').value = addr ? addr.street_address : '';
+    document.getElementById('addrCity').value = addr ? addr.city : '';
+    document.getElementById('addrState').value = addr ? addr.state : '';
+    document.getElementById('addrZip').value = addr ? addr.zip_code : '';
+    document.getElementById('addrCountry').value = addr ? addr.country : 'USA';
+    document.getElementById('addrPrimary').checked = addr ? addr.is_primary : false;
+}
+
+function hideAddressForm() {
+    document.getElementById('addressFormContainer').classList.add('hidden');
+}
+
+async function saveAddress() {
+    const editId = document.getElementById('editAddressId').value;
+    const data = {
+        label: document.getElementById('addrLabel').value,
+        street_address: document.getElementById('addrStreet').value,
+        city: document.getElementById('addrCity').value,
+        state: document.getElementById('addrState').value,
+        zip_code: document.getElementById('addrZip').value,
+        country: document.getElementById('addrCountry').value,
+        is_primary: document.getElementById('addrPrimary').checked
+    };
+    const url = editId ? `/api/firms/${firmId}/addresses/${editId}` : `/api/firms/${firmId}/addresses`;
+    const method = editId ? 'PUT' : 'POST';
+    try {
+        const resp = await fetch(url, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
+        if (resp.ok) { hideAddressForm(); loadAddresses(); }
+        else alert('Error saving address');
+    } catch(e) { alert('Error saving address'); }
+}
+
+async function deleteAddress(id) {
+    if (!confirm('Delete this address?')) return;
+    try {
+        const resp = await fetch(`/api/firms/${firmId}/addresses/${id}`, { method: 'DELETE' });
+        if (resp.ok) loadAddresses();
+    } catch(e) { alert('Error deleting address'); }
+}
+
+async function setPrimaryAddress(id) {
+    try {
+        const resp = await fetch(`/api/firms/${firmId}/addresses/${id}/set-primary`, { method: 'POST' });
+        if (resp.ok) loadAddresses();
+    } catch(e) { alert('Error setting primary'); }
+}
+
+async function loadAddresses() {
+    const container = document.getElementById('addressList');
+    try {
+        const resp = await fetch(`/api/firms/${firmId}/addresses`);
+        const addresses = await resp.json();
+        if (addresses.length === 0) {
+            container.innerHTML = '<p class="text-sm text-gray-400 italic">No addresses added yet.</p>';
+            return;
+        }
+        container.innerHTML = addresses.map(a => `
+            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border ${a.is_primary ? 'border-blue-300 bg-blue-50' : ''}">
+                <div class="flex-1">
+                    <div class="flex items-center gap-2">
+                        <span class="font-medium text-sm">${a.label || 'Address'}</span>
+                        ${a.is_primary ? '<span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Primary</span>' : ''}
+                    </div>
+                    <p class="text-sm text-gray-600">${[a.street_address, a.city, a.state, a.zip_code].filter(x=>x).join(', ')}${a.country && a.country !== 'USA' ? ', ' + a.country : ''}</p>
+                </div>
+                <div class="flex items-center gap-2 ml-3">
+                    ${!a.is_primary ? `<button type="button" onclick="setPrimaryAddress(${a.id})" class="text-blue-500 hover:text-blue-700 text-xs" title="Set as primary"><i class="fas fa-star"></i></button>` : '<span class="text-blue-500 text-xs"><i class="fas fa-star"></i></span>'}
+                    <button type="button" onclick='showAddressForm(${JSON.stringify(a)})' class="text-gray-500 hover:text-blue-600 text-sm" title="Edit"><i class="fas fa-edit"></i></button>
+                    <button type="button" onclick="deleteAddress(${a.id})" class="text-gray-500 hover:text-red-600 text-sm" title="Delete"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>
+        `).join('');
+    } catch(e) { container.innerHTML = '<p class="text-sm text-red-500">Error loading addresses</p>'; }
+}
+
+function showContactForm(contact = null) {
+    document.getElementById('contactFormContainer').classList.remove('hidden');
+    document.getElementById('editContactId').value = contact ? contact.id : '';
+    document.getElementById('contactLabel').value = contact ? contact.label : '';
+    document.getElementById('contactName').value = contact ? contact.name : '';
+    document.getElementById('contactTitle').value = contact ? contact.title : '';
+    document.getElementById('contactPhone').value = contact ? contact.phone : '';
+    document.getElementById('contactFax').value = contact ? contact.fax : '';
+    document.getElementById('contactEmail').value = contact ? contact.email : '';
+    document.getElementById('contactPrimary').checked = contact ? contact.is_primary : false;
+}
+
+function hideContactForm() {
+    document.getElementById('contactFormContainer').classList.add('hidden');
+}
+
+async function saveContact() {
+    const editId = document.getElementById('editContactId').value;
+    const data = {
+        label: document.getElementById('contactLabel').value,
+        name: document.getElementById('contactName').value,
+        title: document.getElementById('contactTitle').value,
+        phone: document.getElementById('contactPhone').value,
+        fax: document.getElementById('contactFax').value,
+        email: document.getElementById('contactEmail').value,
+        is_primary: document.getElementById('contactPrimary').checked
+    };
+    const url = editId ? `/api/firms/${firmId}/contacts/${editId}` : `/api/firms/${firmId}/contacts`;
+    const method = editId ? 'PUT' : 'POST';
+    try {
+        const resp = await fetch(url, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
+        if (resp.ok) { hideContactForm(); loadContacts(); }
+        else alert('Error saving contact');
+    } catch(e) { alert('Error saving contact'); }
+}
+
+async function deleteContact(id) {
+    if (!confirm('Delete this contact?')) return;
+    try {
+        const resp = await fetch(`/api/firms/${firmId}/contacts/${id}`, { method: 'DELETE' });
+        if (resp.ok) loadContacts();
+    } catch(e) { alert('Error deleting contact'); }
+}
+
+async function setPrimaryContact(id) {
+    try {
+        const resp = await fetch(`/api/firms/${firmId}/contacts/${id}/set-primary`, { method: 'POST' });
+        if (resp.ok) loadContacts();
+    } catch(e) { alert('Error setting primary'); }
+}
+
+async function loadContacts() {
+    const container = document.getElementById('contactList');
+    try {
+        const resp = await fetch(`/api/firms/${firmId}/contacts`);
+        const contacts = await resp.json();
+        if (contacts.length === 0) {
+            container.innerHTML = '<p class="text-sm text-gray-400 italic">No contacts added yet.</p>';
+            return;
+        }
+        container.innerHTML = contacts.map(c => `
+            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border ${c.is_primary ? 'border-blue-300 bg-blue-50' : ''}">
+                <div class="flex-1">
+                    <div class="flex items-center gap-2">
+                        <span class="font-medium text-sm">${c.label || 'Contact'}</span>
+                        ${c.is_primary ? '<span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Primary</span>' : ''}
+                    </div>
+                    <p class="text-sm text-gray-600">${c.name || ''}${c.title ? ', ' + c.title : ''}</p>
+                    <p class="text-xs text-gray-500">${[c.phone ? 'Ph: ' + c.phone : '', c.email ? 'Email: ' + c.email : '', c.fax ? 'Fax: ' + c.fax : ''].filter(x=>x).join(' | ')}</p>
+                </div>
+                <div class="flex items-center gap-2 ml-3">
+                    ${!c.is_primary ? `<button type="button" onclick="setPrimaryContact(${c.id})" class="text-blue-500 hover:text-blue-700 text-xs" title="Set as primary"><i class="fas fa-star"></i></button>` : '<span class="text-blue-500 text-xs"><i class="fas fa-star"></i></span>'}
+                    <button type="button" onclick='showContactForm(${JSON.stringify(c)})' class="text-gray-500 hover:text-blue-600 text-sm" title="Edit"><i class="fas fa-edit"></i></button>
+                    <button type="button" onclick="deleteContact(${c.id})" class="text-gray-500 hover:text-red-600 text-sm" title="Delete"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>
+        `).join('');
+    } catch(e) { container.innerHTML = '<p class="text-sm text-red-500">Error loading contacts</p>'; }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     loadAlternateBios();
     loadFirmPhotos();
     loadDocuments();
+    loadAddresses();
+    loadContacts();
 });
 </script>
 {% endblock %}

@@ -636,17 +636,25 @@ def generate_section_h(proposal, additional_info=""):
         from datetime import datetime
         set_cell_text(sig_table, 0, 1, datetime.now().strftime('%m/%d/%Y'))
         
-        # Name and title
+        # Name and title - use selected contact if available
         if proposal.firm:
-            poc_name = getattr(proposal.firm, 'point_of_contact_name', '') or ''
-            poc_title = getattr(proposal.firm, 'point_of_contact_title', '') or ''
+            contact = getattr(proposal, 'firm_contact', None)
+            if not contact:
+                from models import FirmContact
+                contact = FirmContact.query.filter_by(firm_id=proposal.firm.id, is_primary=True).first()
+            if contact:
+                poc_name = contact.name or ''
+                poc_title = contact.title or ''
+            else:
+                poc_name = getattr(proposal.firm, 'point_of_contact_name', '') or ''
+                poc_title = getattr(proposal.firm, 'point_of_contact_title', '') or ''
             poc_display = f"{poc_name}, {poc_title}" if poc_title else poc_name
             set_cell_text(sig_table, 2, 0, poc_display)
     
     return doc
 
 
-def generate_part_ii(firm):
+def generate_part_ii(firm, proposal=None):
     """
     Generate Part II (General Qualifications)
     Returns: Document object
@@ -659,22 +667,48 @@ def generate_part_ii(firm):
     set_cell_text(table, 2, 7, str(firm.year_established or ''))  # Block 3
     set_cell_text(table, 2, 10, firm.uei or '')  # Block 4
     
+    addr = None
+    contact = None
+    if proposal:
+        addr = getattr(proposal, 'firm_address', None)
+        contact = getattr(proposal, 'firm_contact', None)
+    if not addr:
+        from models import FirmAddress
+        addr = FirmAddress.query.filter_by(firm_id=firm.id, is_primary=True).first()
+    if not contact:
+        from models import FirmContact
+        contact = FirmContact.query.filter_by(firm_id=firm.id, is_primary=True).first()
+    
     # Row 3-5: Street, City, State, ZIP
-    set_cell_text(table, 4, 0, firm.street_address or '')  # Block 2b
-    set_cell_text(table, 6, 0, firm.city or '')  # Block 2c
-    set_cell_text(table, 6, 4, firm.state or '')  # Block 2d
-    set_cell_text(table, 6, 7, firm.zip_code or '')  # Block 2e
+    if addr:
+        set_cell_text(table, 4, 0, addr.street_address or '')  # Block 2b
+        set_cell_text(table, 6, 0, addr.city or '')  # Block 2c
+        set_cell_text(table, 6, 4, addr.state or '')  # Block 2d
+        set_cell_text(table, 6, 7, addr.zip_code or '')  # Block 2e
+    else:
+        set_cell_text(table, 4, 0, firm.street_address or '')  # Block 2b
+        set_cell_text(table, 6, 0, firm.city or '')  # Block 2c
+        set_cell_text(table, 6, 4, firm.state or '')  # Block 2d
+        set_cell_text(table, 6, 7, firm.zip_code or '')  # Block 2e
     
     # Ownership type
     set_cell_text(table, 4, 7, firm.ownership_type or '')  # Block 5a
     
     # Point of Contact (Block 6)
-    poc_name = getattr(firm, 'point_of_contact_name', '') or ''
-    poc_title = getattr(firm, 'point_of_contact_title', '') or ''
-    poc_display = f"{poc_name}, {poc_title}" if poc_title else poc_name
-    set_cell_text(table, 10, 0, poc_display)  # Block 6a
-    set_cell_text(table, 12, 0, getattr(firm, 'phone', '') or '')  # Block 6b
-    set_cell_text(table, 12, 7, getattr(firm, 'email', '') or '')  # Block 6c
+    if contact:
+        poc_name = contact.name or ''
+        poc_title = contact.title or ''
+        poc_display = f"{poc_name}, {poc_title}" if poc_title else poc_name
+        set_cell_text(table, 10, 0, poc_display)  # Block 6a
+        set_cell_text(table, 12, 0, contact.phone or '')  # Block 6b
+        set_cell_text(table, 12, 7, contact.email or '')  # Block 6c
+    else:
+        poc_name = getattr(firm, 'point_of_contact_name', '') or ''
+        poc_title = getattr(firm, 'point_of_contact_title', '') or ''
+        poc_display = f"{poc_name}, {poc_title}" if poc_title else poc_name
+        set_cell_text(table, 10, 0, poc_display)  # Block 6a
+        set_cell_text(table, 12, 0, getattr(firm, 'phone', '') or '')  # Block 6b
+        set_cell_text(table, 12, 7, getattr(firm, 'email', '') or '')  # Block 6c
     
     # Former firm names (Block 8) - if applicable
     # Employee disciplines (Block 9) - would need employee data
@@ -755,7 +789,7 @@ def generate_full_sf330_word(proposal, selected_employees, selected_projects, ma
     
     # Part II - Firm Qualifications
     if firm:
-        doc_ii = generate_part_ii(firm)
+        doc_ii = generate_part_ii(firm, proposal=proposal)
         buffer = io.BytesIO()
         doc_ii.save(buffer)
         documents['part_ii'] = buffer.getvalue()

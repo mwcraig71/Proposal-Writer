@@ -3278,6 +3278,156 @@ def delete_firm(id):
     return jsonify({'success': True})
 
 
+@app.route('/api/firms/<int:firm_id>/addresses', methods=['GET'])
+def get_firm_addresses(firm_id):
+    from models import FirmAddress
+    addresses = FirmAddress.query.filter_by(firm_id=firm_id).order_by(FirmAddress.is_primary.desc()).all()
+    return jsonify([{
+        'id': a.id,
+        'label': a.label or '',
+        'street_address': a.street_address or '',
+        'city': a.city or '',
+        'state': a.state or '',
+        'zip_code': a.zip_code or '',
+        'country': a.country or 'USA',
+        'is_primary': a.is_primary
+    } for a in addresses])
+
+
+@app.route('/api/firms/<int:firm_id>/addresses', methods=['POST'])
+def add_firm_address(firm_id):
+    from models import FirmAddress
+    Firm.query.get_or_404(firm_id)
+    data = request.json
+    if data.get('is_primary'):
+        FirmAddress.query.filter_by(firm_id=firm_id).update({'is_primary': False})
+    addr = FirmAddress(
+        firm_id=firm_id,
+        label=data.get('label', ''),
+        street_address=data.get('street_address', ''),
+        city=data.get('city', ''),
+        state=data.get('state', ''),
+        zip_code=data.get('zip_code', ''),
+        country=data.get('country', 'USA'),
+        is_primary=data.get('is_primary', False)
+    )
+    db.session.add(addr)
+    db.session.commit()
+    return jsonify({'success': True, 'id': addr.id})
+
+
+@app.route('/api/firms/<int:firm_id>/addresses/<int:addr_id>', methods=['PUT'])
+def update_firm_address(firm_id, addr_id):
+    from models import FirmAddress
+    addr = FirmAddress.query.filter_by(id=addr_id, firm_id=firm_id).first_or_404()
+    data = request.json
+    if data.get('is_primary'):
+        FirmAddress.query.filter_by(firm_id=firm_id).update({'is_primary': False})
+    addr.label = data.get('label', addr.label)
+    addr.street_address = data.get('street_address', addr.street_address)
+    addr.city = data.get('city', addr.city)
+    addr.state = data.get('state', addr.state)
+    addr.zip_code = data.get('zip_code', addr.zip_code)
+    addr.country = data.get('country', addr.country)
+    addr.is_primary = data.get('is_primary', addr.is_primary)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/api/firms/<int:firm_id>/addresses/<int:addr_id>', methods=['DELETE'])
+def delete_firm_address(firm_id, addr_id):
+    from models import FirmAddress
+    addr = FirmAddress.query.filter_by(id=addr_id, firm_id=firm_id).first_or_404()
+    db.session.delete(addr)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/api/firms/<int:firm_id>/addresses/<int:addr_id>/set-primary', methods=['POST'])
+def set_primary_firm_address(firm_id, addr_id):
+    from models import FirmAddress
+    FirmAddress.query.filter_by(firm_id=firm_id).update({'is_primary': False})
+    addr = FirmAddress.query.filter_by(id=addr_id, firm_id=firm_id).first_or_404()
+    addr.is_primary = True
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/api/firms/<int:firm_id>/contacts', methods=['GET'])
+def get_firm_contacts(firm_id):
+    from models import FirmContact
+    contacts = FirmContact.query.filter_by(firm_id=firm_id).order_by(FirmContact.is_primary.desc()).all()
+    return jsonify([{
+        'id': c.id,
+        'label': c.label or '',
+        'name': c.name or '',
+        'title': c.title or '',
+        'phone': c.phone or '',
+        'fax': c.fax or '',
+        'email': c.email or '',
+        'is_primary': c.is_primary
+    } for c in contacts])
+
+
+@app.route('/api/firms/<int:firm_id>/contacts', methods=['POST'])
+def add_firm_contact(firm_id):
+    from models import FirmContact
+    Firm.query.get_or_404(firm_id)
+    data = request.json
+    if data.get('is_primary'):
+        FirmContact.query.filter_by(firm_id=firm_id).update({'is_primary': False})
+    contact = FirmContact(
+        firm_id=firm_id,
+        label=data.get('label', ''),
+        name=data.get('name', ''),
+        title=data.get('title', ''),
+        phone=data.get('phone', ''),
+        fax=data.get('fax', ''),
+        email=data.get('email', ''),
+        is_primary=data.get('is_primary', False)
+    )
+    db.session.add(contact)
+    db.session.commit()
+    return jsonify({'success': True, 'id': contact.id})
+
+
+@app.route('/api/firms/<int:firm_id>/contacts/<int:contact_id>', methods=['PUT'])
+def update_firm_contact(firm_id, contact_id):
+    from models import FirmContact
+    contact = FirmContact.query.filter_by(id=contact_id, firm_id=firm_id).first_or_404()
+    data = request.json
+    if data.get('is_primary'):
+        FirmContact.query.filter_by(firm_id=firm_id).update({'is_primary': False})
+    contact.label = data.get('label', contact.label)
+    contact.name = data.get('name', contact.name)
+    contact.title = data.get('title', contact.title)
+    contact.phone = data.get('phone', contact.phone)
+    contact.fax = data.get('fax', contact.fax)
+    contact.email = data.get('email', contact.email)
+    contact.is_primary = data.get('is_primary', contact.is_primary)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/api/firms/<int:firm_id>/contacts/<int:contact_id>', methods=['DELETE'])
+def delete_firm_contact(firm_id, contact_id):
+    from models import FirmContact
+    contact = FirmContact.query.filter_by(id=contact_id, firm_id=firm_id).first_or_404()
+    db.session.delete(contact)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/api/firms/<int:firm_id>/contacts/<int:contact_id>/set-primary', methods=['POST'])
+def set_primary_firm_contact(firm_id, contact_id):
+    from models import FirmContact
+    FirmContact.query.filter_by(firm_id=firm_id).update({'is_primary': False})
+    contact = FirmContact.query.filter_by(id=contact_id, firm_id=firm_id).first_or_404()
+    contact.is_primary = True
+    db.session.commit()
+    return jsonify({'success': True})
+
+
 @app.route('/api/firms/<int:firm_id>/alternate-descriptions')
 def get_firm_alternate_descriptions(firm_id):
     from models import FirmAlternateDescription
@@ -3423,6 +3573,8 @@ def new_proposal():
         public_notice_date=data.get('public_notice_date'),
         solicitation_number=data.get('solicitation_number'),
         firm_id=data.get('firm_id') if data.get('firm_id') else None,
+        firm_address_id=data.get('firm_address_id') if data.get('firm_address_id') else None,
+        firm_contact_id=data.get('firm_contact_id') if data.get('firm_contact_id') else None,
         firm_bio_alternate_id=data.get('firm_bio_alternate_id') if data.get('firm_bio_alternate_id') else None,
         rfp_filename=rfp_filename,
         rfp_content=rfp_content,
@@ -3546,6 +3698,8 @@ def proposal_step1_edit(id):
     proposal.public_notice_date = data.get('public_notice_date') or None
     proposal.solicitation_number = data.get('solicitation_number')
     proposal.firm_id = data.get('firm_id') if data.get('firm_id') else None
+    proposal.firm_address_id = data.get('firm_address_id') if data.get('firm_address_id') else None
+    proposal.firm_contact_id = data.get('firm_contact_id') if data.get('firm_contact_id') else None
     proposal.firm_bio_alternate_id = data.get('firm_bio_alternate_id') if data.get('firm_bio_alternate_id') else None
     proposal.win_theme = data.get('win_theme')
     
@@ -5907,7 +6061,7 @@ def generate_proposal_word(id):
     documents['section_h_i'] = buffer.getvalue()
     
     if proposal.firm:
-        doc_ii = generate_part_ii(proposal.firm)
+        doc_ii = generate_part_ii(proposal.firm, proposal=proposal)
         buffer = io.BytesIO()
         doc_ii.save(buffer)
         documents['part_ii'] = buffer.getvalue()

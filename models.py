@@ -69,6 +69,38 @@ class Firm(db.Model):
     
     employees = db.relationship('Employee', backref='firm', lazy=True)
     branch_offices = db.relationship('Firm', backref=db.backref('parent_firm', remote_side=[id]), lazy=True)
+    addresses = db.relationship('FirmAddress', backref='firm', lazy=True, cascade='all, delete-orphan', order_by='FirmAddress.is_primary.desc()')
+    contacts = db.relationship('FirmContact', backref='firm', lazy=True, cascade='all, delete-orphan', order_by='FirmContact.is_primary.desc()')
+
+
+class FirmAddress(db.Model):
+    __tablename__ = 'firm_addresses'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    firm_id = db.Column(db.Integer, db.ForeignKey('firms.id'), nullable=False)
+    label = db.Column(db.String(100))
+    street_address = db.Column(db.String(255))
+    city = db.Column(db.String(100))
+    state = db.Column(db.String(50))
+    zip_code = db.Column(db.String(20))
+    country = db.Column(db.String(100), default='USA')
+    is_primary = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class FirmContact(db.Model):
+    __tablename__ = 'firm_contacts'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    firm_id = db.Column(db.Integer, db.ForeignKey('firms.id'), nullable=False)
+    label = db.Column(db.String(100))
+    name = db.Column(db.String(255))
+    title = db.Column(db.String(255))
+    phone = db.Column(db.String(50))
+    fax = db.Column(db.String(50))
+    email = db.Column(db.String(255))
+    is_primary = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
 class Employee(db.Model):
@@ -270,6 +302,8 @@ class Proposal(db.Model):
     public_notice_date = db.Column(db.String(100))
     solicitation_number = db.Column(db.String(255))
     firm_id = db.Column(db.Integer, db.ForeignKey('firms.id'), nullable=True)
+    firm_address_id = db.Column(db.Integer, db.ForeignKey('firm_addresses.id'), nullable=True)
+    firm_contact_id = db.Column(db.Integer, db.ForeignKey('firm_contacts.id'), nullable=True)
     firm_bio_alternate_id = db.Column(db.Integer, db.ForeignKey('firm_alternate_descriptions.id'), nullable=True)
     rfp_filename = db.Column(db.String(500))
     rfp_content = db.Column(db.LargeBinary)
@@ -290,6 +324,8 @@ class Proposal(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     firm = db.relationship('Firm', backref='proposals')
+    firm_address = db.relationship('FirmAddress')
+    firm_contact = db.relationship('FirmContact')
     firm_bio_alternate = db.relationship('FirmAlternateDescription')
     saved_org_chart = db.relationship('SavedOrgChart', backref='proposals')
     selected_employees = db.relationship('ProposalSelectedEmployee', backref='proposal', lazy=True, cascade='all, delete-orphan')
