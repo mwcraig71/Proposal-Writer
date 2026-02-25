@@ -5692,8 +5692,12 @@ def download_all_resumes(id):
             employee_location_parts = [employee.city or '', employee.state or '']
             employee_location = ', '.join(p for p in employee_location_parts if p)
             
+            from models import AISettings
+            resume_include_post_nominal = AISettings.get_value('resume_include_post_nominal', 'false') == 'true'
+            emp_name = employee.display_name if resume_include_post_nominal else (employee.name or '')
+            
             placeholders = {
-                '{{EMPLOYEE_NAME}}': employee.display_name or employee.name or '',
+                '{{EMPLOYEE_NAME}}': emp_name,
                 '{{EMPLOYEE_FIRST_NAME}}': employee.first_name or '',
                 '{{EMPLOYEE_MIDDLE_NAME}}': employee.middle_name or '',
                 '{{EMPLOYEE_LAST_NAME}}': employee.last_name or '',
