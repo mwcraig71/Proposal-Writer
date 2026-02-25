@@ -14,9 +14,19 @@ TEMPLATE_DIR = 'templates/sf330_word'
 def _get_employee_name(employee):
     from models import AISettings
     include_post_nominal = AISettings.get_value('resume_include_post_nominal', 'false') == 'true'
-    if include_post_nominal:
-        return employee.display_name or employee.name or ''
-    return employee.name or ''
+    include_middle_name = AISettings.get_value('resume_include_middle_name', 'false') == 'true'
+    first = getattr(employee, 'first_name', '') or ''
+    middle = getattr(employee, 'middle_name', '') or ''
+    last = getattr(employee, 'last_name', '') or ''
+    post = getattr(employee, 'post_nominal', '') or ''
+    parts = [first]
+    if include_middle_name and middle:
+        parts.append(middle)
+    parts.append(last)
+    name = ' '.join(p for p in parts if p)
+    if include_post_nominal and post:
+        name = f"{name}, {post}"
+    return name or (employee.name or '')
 
 def get_cell_text(table, row, col):
     """Safely get cell text"""
@@ -311,14 +321,16 @@ def generate_section_e(employee, proposal, project_experiences):
 
     from models import AISettings
     include_post_nominal = AISettings.get_value('resume_include_post_nominal', 'false') == 'true'
+    include_middle_name = AISettings.get_value('resume_include_middle_name', 'false') == 'true'
     last_name_value = employee.last_name or '' if hasattr(employee, 'last_name') else ''
     if include_post_nominal and hasattr(employee, 'post_nominal') and employee.post_nominal:
         last_name_value = f"{last_name_value}, {employee.post_nominal}"
+    middle_name_value = (employee.middle_name or '' if hasattr(employee, 'middle_name') else '') if include_middle_name else ''
 
     placeholders = {
         '{{EMPLOYEE_NAME}}': _get_employee_name(employee),
         '{{EMPLOYEE_FIRST_NAME}}': employee.first_name or '' if hasattr(employee, 'first_name') else '',
-        '{{EMPLOYEE_MIDDLE_NAME}}': employee.middle_name or '' if hasattr(employee, 'middle_name') else '',
+        '{{EMPLOYEE_MIDDLE_NAME}}': middle_name_value,
         '{{EMPLOYEE_LAST_NAME}}': last_name_value,
         '{{EMPLOYEE_POST_NOMINAL}}': employee.post_nominal or '' if hasattr(employee, 'post_nominal') else '',
         '{{EMPLOYEE_ROLE}}': role,

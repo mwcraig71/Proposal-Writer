@@ -154,6 +154,13 @@
                 </div>
             </label>
             <label class="flex items-center p-4 bg-purple-50 border border-purple-200 rounded-lg cursor-pointer hover:bg-purple-100 transition">
+                <input type="checkbox" name="resume_include_middle_name" class="mr-3 h-4 w-4 text-purple-600 rounded" {% if resume_include_middle_name == 'true' %}checked{% endif %}>
+                <div>
+                    <span class="font-medium text-gray-800">Include Middle Names in Resumes</span>
+                    <p class="text-xs text-gray-500">Show middle names in the {{EMPLOYEE_NAME}} placeholder on generated resumes and SF330 documents</p>
+                </div>
+            </label>
+            <label class="flex items-center p-4 bg-purple-50 border border-purple-200 rounded-lg cursor-pointer hover:bg-purple-100 transition">
                 <input type="checkbox" name="orgchart_include_post_nominal" class="mr-3 h-4 w-4 text-purple-600 rounded" {% if orgchart_include_post_nominal == 'true' %}checked{% endif %}>
                 <div>
                     <span class="font-medium text-gray-800">Include in Org Chart</span>

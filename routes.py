@@ -711,15 +711,25 @@ def download_employee_resume(id):
     
     from models import AISettings
     resume_include_post_nominal = AISettings.get_value('resume_include_post_nominal', 'false') == 'true'
-    employee_name = employee.display_name if resume_include_post_nominal else (employee.name or '')
+    resume_include_middle_name = AISettings.get_value('resume_include_middle_name', 'false') == 'true'
+    name_parts = [employee.first_name or '']
+    if resume_include_middle_name and employee.middle_name:
+        name_parts.append(employee.middle_name)
+    name_parts.append(employee.last_name or '')
+    employee_name = ' '.join(p for p in name_parts if p)
+    if resume_include_post_nominal and employee.post_nominal:
+        employee_name = f"{employee_name}, {employee.post_nominal}"
+    if not employee_name:
+        employee_name = employee.name or ''
     last_name_value = employee.last_name or ''
     if resume_include_post_nominal and employee.post_nominal:
         last_name_value = f"{last_name_value}, {employee.post_nominal}"
+    middle_name_value = employee.middle_name or '' if resume_include_middle_name else ''
     
     placeholders = {
         '{{EMPLOYEE_NAME}}': employee_name,
         '{{EMPLOYEE_FIRST_NAME}}': employee.first_name or '',
-        '{{EMPLOYEE_MIDDLE_NAME}}': employee.middle_name or '',
+        '{{EMPLOYEE_MIDDLE_NAME}}': middle_name_value,
         '{{EMPLOYEE_LAST_NAME}}': last_name_value,
         '{{EMPLOYEE_POST_NOMINAL}}': employee.post_nominal or '',
         '{{EMPLOYEE_TITLE}}': employee.title or '',
@@ -1060,15 +1070,25 @@ def download_employee_sf330_resume(id):
 
     from models import AISettings
     resume_include_post_nominal = AISettings.get_value('resume_include_post_nominal', 'false') == 'true'
-    employee_name = employee.display_name if resume_include_post_nominal else (employee.name or '')
+    resume_include_middle_name = AISettings.get_value('resume_include_middle_name', 'false') == 'true'
+    name_parts = [employee.first_name or '']
+    if resume_include_middle_name and employee.middle_name:
+        name_parts.append(employee.middle_name)
+    name_parts.append(employee.last_name or '')
+    employee_name = ' '.join(p for p in name_parts if p)
+    if resume_include_post_nominal and employee.post_nominal:
+        employee_name = f"{employee_name}, {employee.post_nominal}"
+    if not employee_name:
+        employee_name = employee.name or ''
     last_name_value = employee.last_name or ''
     if resume_include_post_nominal and employee.post_nominal:
         last_name_value = f"{last_name_value}, {employee.post_nominal}"
+    middle_name_value = employee.middle_name or '' if resume_include_middle_name else ''
 
     placeholders = {
         '{{EMPLOYEE_NAME}}': employee_name,
         '{{EMPLOYEE_FIRST_NAME}}': employee.first_name or '',
-        '{{EMPLOYEE_MIDDLE_NAME}}': employee.middle_name or '',
+        '{{EMPLOYEE_MIDDLE_NAME}}': middle_name_value,
         '{{EMPLOYEE_LAST_NAME}}': last_name_value,
         '{{EMPLOYEE_POST_NOMINAL}}': employee.post_nominal or '',
         '{{EMPLOYEE_TITLE}}': employee.title or '',
@@ -5700,15 +5720,25 @@ def download_all_resumes(id):
             
             from models import AISettings
             resume_include_post_nominal = AISettings.get_value('resume_include_post_nominal', 'false') == 'true'
-            emp_name = employee.display_name if resume_include_post_nominal else (employee.name or '')
+            resume_include_middle_name = AISettings.get_value('resume_include_middle_name', 'false') == 'true'
+            name_parts = [employee.first_name or '']
+            if resume_include_middle_name and employee.middle_name:
+                name_parts.append(employee.middle_name)
+            name_parts.append(employee.last_name or '')
+            emp_name = ' '.join(p for p in name_parts if p)
+            if resume_include_post_nominal and employee.post_nominal:
+                emp_name = f"{emp_name}, {employee.post_nominal}"
+            if not emp_name:
+                emp_name = employee.name or ''
             last_name_value = employee.last_name or ''
             if resume_include_post_nominal and employee.post_nominal:
                 last_name_value = f"{last_name_value}, {employee.post_nominal}"
+            middle_name_value = employee.middle_name or '' if resume_include_middle_name else ''
             
             placeholders = {
                 '{{EMPLOYEE_NAME}}': emp_name,
                 '{{EMPLOYEE_FIRST_NAME}}': employee.first_name or '',
-                '{{EMPLOYEE_MIDDLE_NAME}}': employee.middle_name or '',
+                '{{EMPLOYEE_MIDDLE_NAME}}': middle_name_value,
                 '{{EMPLOYEE_LAST_NAME}}': last_name_value,
                 '{{EMPLOYEE_POST_NOMINAL}}': employee.post_nominal or '',
                 '{{EMPLOYEE_TITLE}}': employee.title or '',
@@ -6421,6 +6451,7 @@ def settings():
     resume_include_post_nominal = AISettings.get_value('resume_include_post_nominal', 'false')
     orgchart_include_post_nominal = AISettings.get_value('orgchart_include_post_nominal', 'false')
     orgchart_include_middle_name = AISettings.get_value('orgchart_include_middle_name', 'false')
+    resume_include_middle_name = AISettings.get_value('resume_include_middle_name', 'false')
     
     return render_template('settings.html', ai_style=ai_style, ai_tone=ai_tone, 
                            ai_banned_words=ai_banned_words,
@@ -6431,6 +6462,7 @@ def settings():
                            resume_include_post_nominal=resume_include_post_nominal,
                            orgchart_include_post_nominal=orgchart_include_post_nominal,
                            orgchart_include_middle_name=orgchart_include_middle_name,
+                           resume_include_middle_name=resume_include_middle_name,
                            ai_provider=ai_provider, ai_model=ai_model, available_models=AVAILABLE_MODELS,
                            has_custom_template=has_custom_template, has_company_template=has_company_template,
                            has_resume_template=has_resume_template, has_sf330_resume_template=has_sf330_resume_template,
@@ -6457,6 +6489,7 @@ def save_settings():
     AISettings.set_value('resume_include_post_nominal', 'true' if request.form.get('resume_include_post_nominal') == 'on' else 'false')
     AISettings.set_value('orgchart_include_post_nominal', 'true' if request.form.get('orgchart_include_post_nominal') == 'on' else 'false')
     AISettings.set_value('orgchart_include_middle_name', 'true' if request.form.get('orgchart_include_middle_name') == 'on' else 'false')
+    AISettings.set_value('resume_include_middle_name', 'true' if request.form.get('resume_include_middle_name') == 'on' else 'false')
     AISettings.set_value('ai_provider', ai_provider)
     AISettings.set_value('ai_model', ai_model)
     
