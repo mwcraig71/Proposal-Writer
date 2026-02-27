@@ -3326,8 +3326,16 @@ async function rewriteAltDesc(id) {
     }
 }
 
+function getActiveExpId() {
+    const editModal = document.getElementById('experience-modal');
+    if (editModal && !editModal.classList.contains('hidden')) {
+        return document.getElementById('exp-id').value;
+    }
+    return document.getElementById('alt-exp-id').value;
+}
+
 function showAIGenerateDescModal() {
-    const expId = document.getElementById('alt-exp-id').value;
+    const expId = getActiveExpId();
     
     if (typeof projectExperiences === 'undefined' || !Array.isArray(projectExperiences)) {
         alert('Project context not available');
@@ -3372,7 +3380,7 @@ function closeAIGenerateDescModal() {
 }
 
 async function generateAIDescription() {
-    const expId = document.getElementById('alt-exp-id').value;
+    const expId = getActiveExpId();
     const label = document.getElementById('ai-desc-label').value.trim();
     const direction = document.getElementById('ai-desc-direction').value.trim();
     
@@ -3415,7 +3423,7 @@ async function generateAIDescription() {
 }
 
 async function saveAIGeneratedDesc() {
-    const expId = document.getElementById('alt-exp-id').value;
+    const expId = getActiveExpId();
     const label = document.getElementById('ai-desc-label').value.trim();
     const description = document.getElementById('ai-desc-result').value.trim();
     
@@ -3433,7 +3441,12 @@ async function saveAIGeneratedDesc() {
         const result = await response.json();
         if (result.success) {
             closeAIGenerateDescModal();
-            loadAltDescriptions(expId);
+            const editModal = document.getElementById('experience-modal');
+            if (editModal && !editModal.classList.contains('hidden')) {
+                loadModalAltDescriptions(expId);
+            } else {
+                loadAltDescriptions(expId);
+            }
         } else {
             alert('Error saving description');
         }
