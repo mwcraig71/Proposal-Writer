@@ -4959,8 +4959,8 @@ def generate_cover_letter(id):
     from models import AISettings, FirmAlternateDescription, EmployeeProjectLink
     from gemini_service import generate_cover_letter_ai
     
-    style = AISettings.get_value('writing_style', '')
-    tone = AISettings.get_value('writing_tone', '')
+    style = AISettings.get_value('ai_writing_style', '') or ''
+    tone = AISettings.get_value('ai_writing_tone', '') or ''
     
     firm_bio = ''
     if (include_all or 'firm_info' in included_sections) and proposal.firm:

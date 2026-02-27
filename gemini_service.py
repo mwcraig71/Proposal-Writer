@@ -717,8 +717,8 @@ def merge_field_values(field_key: str, values: list) -> str:
     """Merge multiple field values into one using AI."""
     from models import AISettings
     
-    style = AISettings.get_value('writing_style', 'professional and technical')
-    tone = AISettings.get_value('writing_tone', 'formal but accessible')
+    style = AISettings.get_value('ai_writing_style', '') or 'professional and technical'
+    tone = AISettings.get_value('ai_writing_tone', '') or 'formal but accessible'
     banned_words = AISettings.get_value('ai_banned_words', '')
     acronyms = AISettings.get_value('ai_acronyms', '')
     industry_words = AISettings.get_value('ai_industry_words', '')
@@ -788,8 +788,8 @@ def merge_project_experiences(experiences: list, custom_instructions: str = '') 
     """Merge multiple project experiences into one using AI."""
     from models import AISettings
     
-    style = AISettings.get_value('writing_style', 'professional and technical')
-    tone = AISettings.get_value('writing_tone', 'formal but accessible')
+    style = AISettings.get_value('ai_writing_style', '') or 'professional and technical'
+    tone = AISettings.get_value('ai_writing_tone', '') or 'formal but accessible'
     banned_words = AISettings.get_value('ai_banned_words', '')
     acronyms = AISettings.get_value('ai_acronyms', '')
     industry_words = AISettings.get_value('ai_industry_words', '')
@@ -855,8 +855,8 @@ def rewrite_description(description: str, custom_instructions: str = '', word_co
     """Rewrite a description using AI with global settings and custom instructions."""
     from models import AISettings
     
-    style = AISettings.get_value('writing_style', 'professional and technical')
-    tone = AISettings.get_value('writing_tone', 'formal but accessible')
+    style = AISettings.get_value('ai_writing_style', '') or 'professional and technical'
+    tone = AISettings.get_value('ai_writing_tone', '') or 'formal but accessible'
     banned_words = AISettings.get_value('ai_banned_words', '')
     acronyms = AISettings.get_value('ai_acronyms', '')
     industry_words = AISettings.get_value('ai_industry_words', '')
@@ -901,8 +901,8 @@ def ai_create_project_experience(
     """Generate a complete project experience entry from a firm project using AI."""
     from models import AISettings
     
-    style = AISettings.get_value('writing_style', 'professional and technical')
-    tone = AISettings.get_value('writing_tone', 'formal but accessible')
+    style = AISettings.get_value('ai_writing_style', '') or 'professional and technical'
+    tone = AISettings.get_value('ai_writing_tone', '') or 'formal but accessible'
     banned_words = AISettings.get_value('ai_banned_words', '')
     acronyms = AISettings.get_value('ai_acronyms', '')
     industry_words = AISettings.get_value('ai_industry_words', '')
@@ -991,8 +991,8 @@ def enhance_personnel_writeup(
     """Enhance a personnel project writeup using the linked project's description."""
     from models import AISettings
     
-    style = AISettings.get_value('writing_style', 'professional and technical')
-    tone = AISettings.get_value('writing_tone', 'formal but accessible')
+    style = AISettings.get_value('ai_writing_style', '') or 'professional and technical'
+    tone = AISettings.get_value('ai_writing_tone', '') or 'formal but accessible'
     banned_words = AISettings.get_value('ai_banned_words', '')
     acronyms = AISettings.get_value('ai_acronyms', '')
     industry_words = AISettings.get_value('ai_industry_words', '')
@@ -1046,8 +1046,8 @@ def generate_alternate_project_writeup(
     """Generate an alternate project writeup description using AI."""
     from models import AISettings
     
-    style = AISettings.get_value('writing_style', 'professional and technical')
-    tone = AISettings.get_value('writing_tone', 'formal but accessible')
+    style = AISettings.get_value('ai_writing_style', '') or 'professional and technical'
+    tone = AISettings.get_value('ai_writing_tone', '') or 'formal but accessible'
     banned_words = AISettings.get_value('ai_banned_words', '')
     acronyms = AISettings.get_value('ai_acronyms', '')
     industry_words = AISettings.get_value('ai_industry_words', '')
