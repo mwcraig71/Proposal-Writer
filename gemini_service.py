@@ -6,6 +6,19 @@ from google.genai import types
 from openai import OpenAI
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception
 
+
+def _build_writing_prefs_block(style, tone, banned_words='', acronyms='', industry_words='', writing_sample=''):
+    lines = [f"WRITING STYLE: {style}", f"WRITING TONE: {tone}"]
+    if writing_sample:
+        lines.append(f"WRITING SAMPLE (Analyze and mimic the style, sentence structure, vocabulary, and tone of this sample):\n\"\"\"\n{writing_sample}\n\"\"\"")
+    if banned_words:
+        lines.append(f"BANNED WORDS/PHRASES (Do NOT use any of these): {banned_words}")
+    if acronyms:
+        lines.append(f"ACRONYMS (Use these acronyms appropriately — spell out on first use, then abbreviate): {acronyms}")
+    if industry_words:
+        lines.append(f"INDUSTRY TERMS (Work these industry-specific words/phrases into the content where appropriate): {industry_words}")
+    return "\n".join(lines)
+
 AI_INTEGRATIONS_GEMINI_API_KEY = os.environ.get("AI_INTEGRATIONS_GEMINI_API_KEY")
 AI_INTEGRATIONS_GEMINI_BASE_URL = os.environ.get("AI_INTEGRATIONS_GEMINI_BASE_URL")
 
@@ -722,6 +735,8 @@ def merge_field_values(field_key: str, values: list) -> str:
     banned_words = AISettings.get_value('ai_banned_words', '')
     acronyms = AISettings.get_value('ai_acronyms', '')
     industry_words = AISettings.get_value('ai_industry_words', '')
+    writing_sample = AISettings.get_value('ai_writing_sample', '')
+    writing_prefs = _build_writing_prefs_block(style, tone, banned_words, acronyms, industry_words, writing_sample)
     
     field_labels = {
         'project_title': 'Project Title',
@@ -744,11 +759,7 @@ def merge_field_values(field_key: str, values: list) -> str:
 
 Merge these project descriptions into ONE comprehensive description:
 
-WRITING STYLE: {style}
-WRITING TONE: {tone}
-{f"BANNED WORDS/PHRASES (Do NOT use any of these): {banned_words}" if banned_words else ""}
-{f"ACRONYMS (Use these acronyms appropriately — spell out on first use, then abbreviate): {acronyms}" if acronyms else ""}
-{f"INDUSTRY TERMS (Work these industry-specific words/phrases into the content where appropriate): {industry_words}" if industry_words else ""}
+{writing_prefs}
 
 {values_text}
 
@@ -793,6 +804,8 @@ def merge_project_experiences(experiences: list, custom_instructions: str = '') 
     banned_words = AISettings.get_value('ai_banned_words', '')
     acronyms = AISettings.get_value('ai_acronyms', '')
     industry_words = AISettings.get_value('ai_industry_words', '')
+    writing_sample = AISettings.get_value('ai_writing_sample', '')
+    writing_prefs = _build_writing_prefs_block(style, tone, banned_words, acronyms, industry_words, writing_sample)
     
     projects_text = ""
     for i, exp in enumerate(experiences, 1):
@@ -812,11 +825,7 @@ PROJECT {i}:
 
 Merge the following {len(experiences)} project experiences into ONE combined project entry. These may be related phases, similar work, or projects that should be combined for a resume.
 
-WRITING STYLE: {style}
-WRITING TONE: {tone}
-{f"BANNED WORDS/PHRASES (Do NOT use any of these): {banned_words}" if banned_words else ""}
-{f"ACRONYMS (Use these acronyms appropriately — spell out on first use, then abbreviate): {acronyms}" if acronyms else ""}
-{f"INDUSTRY TERMS (Work these industry-specific words/phrases into the content where appropriate): {industry_words}" if industry_words else ""}
+{writing_prefs}
 
 {f'CUSTOM INSTRUCTIONS: {custom_instructions}' if custom_instructions else ''}
 
@@ -860,16 +869,14 @@ def rewrite_description(description: str, custom_instructions: str = '', word_co
     banned_words = AISettings.get_value('ai_banned_words', '')
     acronyms = AISettings.get_value('ai_acronyms', '')
     industry_words = AISettings.get_value('ai_industry_words', '')
+    writing_sample = AISettings.get_value('ai_writing_sample', '')
+    writing_prefs = _build_writing_prefs_block(style, tone, banned_words, acronyms, industry_words, writing_sample)
     
     prompt = f"""You are a professional technical writer specializing in structural engineering documentation for federal SF330 forms.
 
 Rewrite the following description according to these specifications:
 
-WRITING STYLE: {style}
-WRITING TONE: {tone}
-{f"BANNED WORDS/PHRASES (Do NOT use any of these): {banned_words}" if banned_words else ""}
-{f"ACRONYMS (Use these acronyms appropriately — spell out on first use, then abbreviate): {acronyms}" if acronyms else ""}
-{f"INDUSTRY TERMS (Work these industry-specific words/phrases into the content where appropriate): {industry_words}" if industry_words else ""}
+{writing_prefs}
 TARGET LENGTH: Approximately {word_count} words
 
 {f'CUSTOM INSTRUCTIONS: {custom_instructions}' if custom_instructions else ''}
@@ -906,6 +913,8 @@ def ai_create_project_experience(
     banned_words = AISettings.get_value('ai_banned_words', '')
     acronyms = AISettings.get_value('ai_acronyms', '')
     industry_words = AISettings.get_value('ai_industry_words', '')
+    writing_sample = AISettings.get_value('ai_writing_sample', '')
+    writing_prefs = _build_writing_prefs_block(style, tone, banned_words, acronyms, industry_words, writing_sample)
     
     emp_name = employee_info.get('name', 'This person')
     role_descriptions = {
@@ -940,11 +949,7 @@ def ai_create_project_experience(
 
 Generate a project experience description for an employee based on a firm's project information and the employee's role.
 
-WRITING STYLE: {style}
-WRITING TONE: {tone}
-{f"BANNED WORDS/PHRASES (Do NOT use any of these): {banned_words}" if banned_words else ""}
-{f"ACRONYMS (Use these acronyms appropriately — spell out on first use, then abbreviate): {acronyms}" if acronyms else ""}
-{f"INDUSTRY TERMS (Work these industry-specific words/phrases into the content where appropriate): {industry_words}" if industry_words else ""}
+{writing_prefs}
 
 EMPLOYEE INFORMATION:
 - Name: {employee_info.get('name', 'Unknown')}
@@ -1007,6 +1012,8 @@ def enhance_personnel_writeup(
     banned_words = AISettings.get_value('ai_banned_words', '')
     acronyms = AISettings.get_value('ai_acronyms', '')
     industry_words = AISettings.get_value('ai_industry_words', '')
+    writing_sample = AISettings.get_value('ai_writing_sample', '')
+    writing_prefs = _build_writing_prefs_block(style, tone, banned_words, acronyms, industry_words, writing_sample)
     
     prompt = f"""You are a professional technical writer specializing in A/E qualification documentation for federal SF330 forms.
 
@@ -1015,11 +1022,7 @@ Your task is to enhance a personnel's project writeup by incorporating relevant 
 EMPLOYEE NAME: {employee_name}
 ROLE ON PROJECT: {role or 'Not specified'}
 
-WRITING STYLE: {style}
-WRITING TONE: {tone}
-{f"BANNED WORDS/PHRASES (Do NOT use any of these): {banned_words}" if banned_words else ""}
-{f"ACRONYMS (Use these acronyms appropriately — spell out on first use, then abbreviate): {acronyms}" if acronyms else ""}
-{f"INDUSTRY TERMS (Work these industry-specific words/phrases into the content where appropriate): {industry_words}" if industry_words else ""}
+{writing_prefs}
 
 {f'ADDITIONAL INSTRUCTIONS: {instructions}' if instructions else ''}
 
@@ -1059,9 +1062,11 @@ def generate_alternate_project_writeup(
     
     style = AISettings.get_value('ai_writing_style', '') or 'professional and technical'
     tone = AISettings.get_value('ai_writing_tone', '') or 'formal but accessible'
+    writing_sample_val = AISettings.get_value('ai_writing_sample', '')
     banned_words = AISettings.get_value('ai_banned_words', '')
     acronyms = AISettings.get_value('ai_acronyms', '')
     industry_words = AISettings.get_value('ai_industry_words', '')
+    writing_prefs = _build_writing_prefs_block(style, tone, banned_words, acronyms, industry_words, writing_sample_val)
     
     context_parts = []
     context_parts.append(f"PROJECT TITLE: {project_title}")
@@ -1086,11 +1091,7 @@ Your task is to generate an alternate project description for an employee's resu
 
 {context}
 
-WRITING STYLE: {style}
-WRITING TONE: {tone}
-{f"BANNED WORDS/PHRASES (Do NOT use any of these): {banned_words}" if banned_words else ""}
-{f"ACRONYMS (Use these acronyms appropriately — spell out on first use, then abbreviate): {acronyms}" if acronyms else ""}
-{f"INDUSTRY TERMS (Work these industry-specific words/phrases into the content where appropriate): {industry_words}" if industry_words else ""}
+{writing_prefs}
 
 {f'ADDITIONAL DIRECTION: {direction}' if direction else ''}
 
@@ -1222,12 +1223,8 @@ The following outline was created to guide the proposal writing. Follow its them
 ''' if proposal_outline else ''}
 {importance_weights}
 WRITING SPECIFICATIONS:
-- Style: {style or 'Professional and technical'}
-- Tone: {tone or 'Formal but accessible'}
+{_build_writing_prefs_block(style or 'Professional and technical', tone or 'Formal but accessible', AISettings.get_value('ai_banned_words', ''), AISettings.get_value('ai_acronyms', ''), AISettings.get_value('ai_industry_words', ''), AISettings.get_value('ai_writing_sample', ''))}
 {f'- Custom Instructions: {custom_instructions}' if custom_instructions else ''}
-{f"BANNED WORDS/PHRASES (Do NOT use any of these): {AISettings.get_value('ai_banned_words', '')}" if AISettings.get_value('ai_banned_words', '') else ''}
-{f"ACRONYMS (Use these acronyms appropriately — spell out on first use, then abbreviate): {AISettings.get_value('ai_acronyms', '')}" if AISettings.get_value('ai_acronyms', '') else ''}
-{f"INDUSTRY TERMS (Work these industry-specific words/phrases into the content where appropriate): {AISettings.get_value('ai_industry_words', '')}" if AISettings.get_value('ai_industry_words', '') else ''}
 
 TARGET TOTAL LENGTH: Approximately {word_count} words across all sections combined.
 
@@ -1378,9 +1375,7 @@ RFP/RFQ REQUIREMENTS:
 {rfp_text[:20000] if rfp_text else 'RFP text not available - create a general outline for an engineering services proposal'}
 
 {importance_weights}
-{f"BANNED WORDS/PHRASES (Do NOT use any of these): {AISettings.get_value('ai_banned_words', '')}" if AISettings.get_value('ai_banned_words', '') else ''}
-{f"ACRONYMS (Use these acronyms appropriately — spell out on first use, then abbreviate): {AISettings.get_value('ai_acronyms', '')}" if AISettings.get_value('ai_acronyms', '') else ''}
-{f"INDUSTRY TERMS (Work these industry-specific words/phrases into the content where appropriate): {AISettings.get_value('ai_industry_words', '')}" if AISettings.get_value('ai_industry_words', '') else ''}
+{_build_writing_prefs_block(style or 'Professional and technical', tone or 'Formal but accessible', AISettings.get_value('ai_banned_words', ''), AISettings.get_value('ai_acronyms', ''), AISettings.get_value('ai_industry_words', ''), AISettings.get_value('ai_writing_sample', ''))}
 {f'CUSTOM INSTRUCTIONS FROM USER: {custom_instructions}' if custom_instructions else ''}
 
 Generate a comprehensive PROPOSAL OUTLINE that includes:
@@ -1465,6 +1460,8 @@ Project {i}: {p.get('project_title', 'Unknown')}
     banned_words = AISettings.get_value('ai_banned_words', '')
     acronyms = AISettings.get_value('ai_acronyms', '')
     industry_words = AISettings.get_value('ai_industry_words', '')
+    writing_sample = AISettings.get_value('ai_writing_sample', '')
+    writing_prefs = _build_writing_prefs_block(style, tone, banned_words, acronyms, industry_words, writing_sample)
 
     current_bio_section = ""
     if employee_info.get('current_bio'):
@@ -1472,11 +1469,7 @@ Project {i}: {p.get('project_title', 'Unknown')}
     
     prompt = f"""You are an expert professional biography writer specializing in engineering and construction industry professionals. Generate a compelling, polished professional bio for SF330 federal forms and proposal submissions.
 
-WRITING STYLE: {style}
-WRITING TONE: {tone}
-{f"BANNED WORDS/PHRASES (Do NOT use any of these): {banned_words}" if banned_words else ""}
-{f"ACRONYMS (Use these acronyms appropriately — spell out on first use, then abbreviate): {acronyms}" if acronyms else ""}
-{f"INDUSTRY TERMS (Work these industry-specific words/phrases into the content where appropriate): {industry_words}" if industry_words else ""}
+{writing_prefs}
 
 EMPLOYEE INFORMATION:
 - Name: {employee_info.get('name', 'Unknown')}

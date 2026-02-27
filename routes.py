@@ -6398,6 +6398,7 @@ def api_ai_combine():
 def settings():
     ai_style = AISettings.get_value('ai_writing_style', '')
     ai_tone = AISettings.get_value('ai_writing_tone', '')
+    ai_writing_sample = AISettings.get_value('ai_writing_sample', '')
     ai_provider = AISettings.get_value('ai_provider', 'gemini')
     ai_model = AISettings.get_value('ai_model', 'gemini-2.5-flash')
     from gemini_service import AVAILABLE_MODELS
@@ -6453,7 +6454,8 @@ def settings():
     orgchart_include_middle_name = AISettings.get_value('orgchart_include_middle_name', 'false')
     resume_include_middle_name = AISettings.get_value('resume_include_middle_name', 'false')
     
-    return render_template('settings.html', ai_style=ai_style, ai_tone=ai_tone, 
+    return render_template('settings.html', ai_style=ai_style, ai_tone=ai_tone,
+                           ai_writing_sample=ai_writing_sample,
                            ai_banned_words=ai_banned_words,
                            ai_acronyms=ai_acronyms,
                            ai_industry_words=ai_industry_words,
@@ -6473,6 +6475,7 @@ def settings():
 def save_settings():
     ai_style = request.form.get('ai_writing_style', '')
     ai_tone = request.form.get('ai_writing_tone', '')
+    ai_writing_sample = request.form.get('ai_writing_sample', '')
     ai_banned_words = request.form.get('ai_banned_words', '')
     ai_acronyms = request.form.get('ai_acronyms', '')
     ai_industry_words = request.form.get('ai_industry_words', '')
@@ -6481,6 +6484,7 @@ def save_settings():
     
     AISettings.set_value('ai_writing_style', ai_style)
     AISettings.set_value('ai_writing_tone', ai_tone)
+    AISettings.set_value('ai_writing_sample', ai_writing_sample)
     AISettings.set_value('ai_banned_words', ai_banned_words)
     AISettings.set_value('ai_acronyms', ai_acronyms)
     AISettings.set_value('ai_industry_words', ai_industry_words)
@@ -9699,6 +9703,7 @@ def api_employees_ai_response():
     ai_banned = AISettings.get_value('ai_banned_words', '')
     ai_acronyms = AISettings.get_value('ai_acronyms', '')
     ai_industry_words = AISettings.get_value('ai_industry_words', '')
+    ai_writing_sample = AISettings.get_value('ai_writing_sample', '')
     
     style_instructions = ""
     if ai_style or ai_tone:
@@ -9707,6 +9712,8 @@ def api_employees_ai_response():
             style_instructions += f"\n- Style: {ai_style}"
         if ai_tone:
             style_instructions += f"\n- Tone: {ai_tone}"
+    if ai_writing_sample:
+        style_instructions += f"\n\nWRITING SAMPLE (Analyze and mimic the style, sentence structure, vocabulary, and tone of this sample):\n\"\"\"\n{ai_writing_sample}\n\"\"\""
     if ai_banned:
         style_instructions += f"\n\nBANNED WORDS/PHRASES (Do NOT use any of these): {ai_banned}"
     if ai_acronyms:
@@ -9874,6 +9881,7 @@ def api_projects_ai_response():
     ai_banned = AISettings.get_value('ai_banned_words', '')
     ai_acronyms = AISettings.get_value('ai_acronyms', '')
     ai_industry_words = AISettings.get_value('ai_industry_words', '')
+    ai_writing_sample = AISettings.get_value('ai_writing_sample', '')
     
     style_instructions = ""
     if ai_style or ai_tone:
@@ -9882,6 +9890,8 @@ def api_projects_ai_response():
             style_instructions += f"\n- Style: {ai_style}"
         if ai_tone:
             style_instructions += f"\n- Tone: {ai_tone}"
+    if ai_writing_sample:
+        style_instructions += f"\n\nWRITING SAMPLE (Analyze and mimic the style, sentence structure, vocabulary, and tone of this sample):\n\"\"\"\n{ai_writing_sample}\n\"\"\""
     if ai_banned:
         style_instructions += f"\n\nBANNED WORDS/PHRASES (Do NOT use any of these): {ai_banned}"
     if ai_acronyms:
@@ -10096,6 +10106,7 @@ UEI: {firm.uei or 'N/A'}
     ai_banned = AISettings.get_value('ai_banned_words', '')
     ai_acronyms = AISettings.get_value('ai_acronyms', '')
     ai_industry_words = AISettings.get_value('ai_industry_words', '')
+    ai_writing_sample = AISettings.get_value('ai_writing_sample', '')
     
     style_instructions = ""
     if ai_style or ai_tone:
@@ -10104,6 +10115,8 @@ UEI: {firm.uei or 'N/A'}
             style_instructions += f"\n- Style: {ai_style}"
         if ai_tone:
             style_instructions += f"\n- Tone: {ai_tone}"
+    if ai_writing_sample:
+        style_instructions += f"\n\nWRITING SAMPLE (Analyze and mimic the style, sentence structure, vocabulary, and tone of this sample):\n\"\"\"\n{ai_writing_sample}\n\"\"\""
     if ai_banned:
         style_instructions += f"\n\nBANNED WORDS/PHRASES (Do NOT use any of these): {ai_banned}"
     if ai_acronyms:
@@ -10428,6 +10441,7 @@ UEI: {firm.uei or 'N/A'}
     ai_banned = AISettings.get_value('ai_banned_words', '')
     ai_acronyms = AISettings.get_value('ai_acronyms', '')
     ai_industry_words = AISettings.get_value('ai_industry_words', '')
+    ai_writing_sample = AISettings.get_value('ai_writing_sample', '')
     
     style_instructions = ""
     if ai_style or ai_tone:
@@ -10436,6 +10450,8 @@ UEI: {firm.uei or 'N/A'}
             style_instructions += f"\n- Style: {ai_style}"
         if ai_tone:
             style_instructions += f"\n- Tone: {ai_tone}"
+    if ai_writing_sample:
+        style_instructions += f"\n\nWRITING SAMPLE (Analyze and mimic the style, sentence structure, vocabulary, and tone of this sample):\n\"\"\"\n{ai_writing_sample}\n\"\"\""
     if ai_banned:
         style_instructions += f"\n\nBANNED WORDS/PHRASES (Do NOT use any of these): {ai_banned}"
     if ai_acronyms:
@@ -11024,12 +11040,15 @@ def rewrite_response_with_ai(id):
     ai_banned = AISettings.get_value('ai_banned_words', '')
     ai_acronyms = AISettings.get_value('ai_acronyms', '')
     ai_industry_words = AISettings.get_value('ai_industry_words', '')
+    ai_writing_sample = AISettings.get_value('ai_writing_sample', '')
     
     style_instructions = ""
     if ai_style:
         style_instructions += f"\nWriting Style: {ai_style}"
     if ai_tone:
         style_instructions += f"\nTone: {ai_tone}"
+    if ai_writing_sample:
+        style_instructions += f"\n\nWRITING SAMPLE (Analyze and mimic the style, sentence structure, vocabulary, and tone of this sample):\n\"\"\"\n{ai_writing_sample}\n\"\"\""
     if ai_banned:
         style_instructions += f"\nBANNED WORDS/PHRASES (Do NOT use any of these): {ai_banned}"
     if ai_acronyms:
