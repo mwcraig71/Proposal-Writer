@@ -1459,11 +1459,24 @@ Project {i}: {p.get('project_title', 'Unknown')}
 - Description: {p.get('brief_description', 'N/A')}
 """
     
+    from models import AISettings
+    style = AISettings.get_value('ai_writing_style', '') or 'professional and technical'
+    tone = AISettings.get_value('ai_writing_tone', '') or 'formal but accessible'
+    banned_words = AISettings.get_value('ai_banned_words', '')
+    acronyms = AISettings.get_value('ai_acronyms', '')
+    industry_words = AISettings.get_value('ai_industry_words', '')
+
     current_bio_section = ""
     if employee_info.get('current_bio'):
         current_bio_section = f"\nCURRENT BIO (use as reference for style/content):\n{employee_info['current_bio']}\n"
     
     prompt = f"""You are an expert professional biography writer specializing in engineering and construction industry professionals. Generate a compelling, polished professional bio for SF330 federal forms and proposal submissions.
+
+WRITING STYLE: {style}
+WRITING TONE: {tone}
+{f"BANNED WORDS/PHRASES (Do NOT use any of these): {banned_words}" if banned_words else ""}
+{f"ACRONYMS (Use these acronyms appropriately — spell out on first use, then abbreviate): {acronyms}" if acronyms else ""}
+{f"INDUSTRY TERMS (Work these industry-specific words/phrases into the content where appropriate): {industry_words}" if industry_words else ""}
 
 EMPLOYEE INFORMATION:
 - Name: {employee_info.get('name', 'Unknown')}
