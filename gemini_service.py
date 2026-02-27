@@ -907,12 +907,18 @@ def ai_create_project_experience(
     acronyms = AISettings.get_value('ai_acronyms', '')
     industry_words = AISettings.get_value('ai_industry_words', '')
     
+    emp_name = employee_info.get('name', 'This person')
     role_descriptions = {
-        'team_leader': f"{employee_info.get('name', 'This person')} served as the Team Leader for inspections on this project, directing field inspection teams, coordinating inspection schedules, and ensuring quality control compliance.",
-        'assistant_team_leader': f"{employee_info.get('name', 'This person')} served as the Assistant Team Leader, assisting with inspections, supporting the lead inspector, and contributing to quality assurance activities on this project.",
-        'pm': f"{employee_info.get('name', 'This person')} served as the Project Manager, overseeing all aspects of the project including scope, schedule, budget, quality control, and client coordination.",
-        'dpm': f"{employee_info.get('name', 'This person')} served as the Deputy Project Manager, supporting the PM in overseeing project operations and ensuring deliverables met client expectations.",
-        'principal': f"{employee_info.get('name', 'This person')} served as the Principal-in-Charge, providing executive oversight of the project and staff, ensuring all aspects of the client's needs were met and maintaining quality standards."
+        'team_leader': f"{emp_name} served as the Team Leader for inspections on this project, directing field inspection teams, coordinating inspection schedules, and ensuring quality control compliance.",
+        'assistant_team_leader': f"{emp_name} served as the Assistant Team Leader, assisting with inspections, supporting the lead inspector, and contributing to quality assurance activities on this project.",
+        'pm': f"{emp_name} served as the Project Manager, overseeing all aspects of the project including scope, schedule, budget, quality control, and client coordination.",
+        'dpm': f"{emp_name} served as the Deputy Project Manager, supporting the PM in overseeing project operations and ensuring deliverables met client expectations.",
+        'principal': f"{emp_name} served as the Principal-in-Charge, providing executive oversight of the project and staff, ensuring all aspects of the client's needs were met and maintaining quality standards.",
+        'load_rater': f"{emp_name} served as the Load Rater, performing load ratings utilizing BrR (Bridge Rating) software to evaluate structural capacity and determine safe load limits for the bridge structures on this project.",
+        'inspection_squad_leader': f"{emp_name} served as the Inspection Squad Leader, overseeing a group of Team Leaders for the inspection effort, coordinating multiple inspection teams, managing schedules, and ensuring consistent quality and safety standards across all inspection activities.",
+        'load_rating_squad_leader': f"{emp_name} served as the Load Rating Squad Leader, overseeing a group of load raters for this project, coordinating load rating analyses, reviewing results for accuracy, and ensuring all ratings met applicable standards and guidelines.",
+        'repair_engineer': f"{emp_name} served as the Repair Engineer, providing repair plans, specifications, and cost estimates for this project, developing engineering solutions to address identified deficiencies and ensure structural integrity.",
+        'cad_tech': f"{emp_name} served as the CAD Technician, performing CAD drawings for this project and assisting with specifications, cost estimates, and quantities to support the engineering and design deliverables."
     }
     
     role_context = role_descriptions.get(role_type, '')
@@ -921,7 +927,12 @@ def ai_create_project_experience(
         'assistant_team_leader': 'Assistant Team Leader',
         'pm': 'Project Manager',
         'dpm': 'Deputy Project Manager',
-        'principal': 'Principal-in-Charge'
+        'principal': 'Principal-in-Charge',
+        'load_rater': 'Load Rater',
+        'inspection_squad_leader': 'Inspection Squad Leader',
+        'load_rating_squad_leader': 'Load Rating Squad Leader',
+        'repair_engineer': 'Repair Engineer',
+        'cad_tech': 'CAD Technician'
     }
     role_label = role_labels.get(role_type, custom_text[:50] if custom_text else 'Staff')
     
