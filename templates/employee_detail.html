@@ -643,6 +643,51 @@
                     </div>
                     <textarea id="exp-brief-description" rows="3" class="w-full p-2 border rounded-lg" placeholder="Description of the project and their specific contribution"></textarea>
                 </div>
+                <div id="modal-desc-manager" class="hidden">
+                    <div class="border border-blue-200 rounded-lg bg-blue-50 p-3 mb-2">
+                        <label class="block text-xs font-medium text-blue-800 mb-1"><i class="fas fa-check-circle mr-1"></i>Active Description for Resume</label>
+                        <select id="modal-active-desc-select" onchange="modalSelectDescription()" class="w-full p-1.5 border rounded-lg bg-white text-sm"></select>
+                    </div>
+                    <div class="border border-purple-200 rounded-lg overflow-hidden">
+                        <button type="button" onclick="toggleModalAltDescs()" class="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-purple-800 hover:bg-purple-100 bg-purple-50 transition-colors">
+                            <span><i class="fas fa-list-alt mr-2"></i>Alternate Descriptions <span id="modal-alt-count" class="text-xs text-purple-500"></span></span>
+                            <i id="modal-alt-chevron" class="fas fa-chevron-down text-xs transition-transform"></i>
+                        </button>
+                        <div id="modal-alt-content" class="hidden border-t border-purple-200 bg-white">
+                            <div class="p-3">
+                                <div class="flex space-x-2 mb-3">
+                                    <button type="button" onclick="showModalAddAltForm()" class="flex-1 py-1.5 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 transition">
+                                        <i class="fas fa-plus mr-1"></i> Add Manually
+                                    </button>
+                                    <button type="button" onclick="showAIGenerateDescModal()" class="flex-1 py-1.5 bg-purple-600 text-white rounded text-xs hover:bg-purple-700 transition">
+                                        <i class="fas fa-magic mr-1"></i> Generate with AI
+                                    </button>
+                                </div>
+                                <div id="modal-add-alt-form" class="hidden border rounded p-3 mb-3 bg-gray-50">
+                                    <div class="mb-2">
+                                        <label class="block text-xs font-medium text-gray-700 mb-1">Label *</label>
+                                        <input type="text" id="modal-new-alt-label" class="w-full p-1.5 border rounded text-sm" placeholder="e.g., Bridge Focus, Technical Details">
+                                    </div>
+                                    <div id="modal-fill-from-project-btn" class="hidden mb-2">
+                                        <button type="button" onclick="fillFromLinkedProject()" class="w-full py-1.5 bg-indigo-50 border border-indigo-300 text-indigo-700 rounded hover:bg-indigo-100 transition text-xs">
+                                            <i class="fas fa-link mr-1"></i> Fill with Firm Project Description
+                                        </button>
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="block text-xs font-medium text-gray-700 mb-1">Description</label>
+                                        <textarea id="modal-new-alt-text" rows="3" class="w-full p-1.5 border rounded text-sm" placeholder="Enter the description..."></textarea>
+                                    </div>
+                                    <div class="flex space-x-2">
+                                        <button type="button" onclick="modalSaveNewAlt()" class="bg-green-600 text-white px-3 py-1.5 rounded text-xs hover:bg-green-700"><i class="fas fa-save mr-1"></i>Save</button>
+                                        <button type="button" onclick="hideModalAddAltForm()" class="px-3 py-1.5 border rounded text-xs hover:bg-gray-100">Cancel</button>
+                                    </div>
+                                </div>
+                                <div id="modal-alt-list" class="space-y-2"></div>
+                                <p id="modal-no-alt-msg" class="text-gray-400 text-center text-xs py-2 hidden">No alternate descriptions yet</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <div class="flex justify-end space-x-3 pt-4">
                     <button type="button" onclick="closeModal()" class="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-50">Cancel</button>
                     <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Save</button>
@@ -2097,6 +2142,7 @@ function showAddExperienceModal() {
     document.getElementById('exp-is-current-firm').checked = false;
     document.getElementById('exp-brief-description').value = '';
     document.getElementById('linked-project-descriptions').classList.add('hidden');
+    document.getElementById('modal-desc-manager').classList.add('hidden');
     document.getElementById('experience-modal').classList.remove('hidden');
 }
 
@@ -2114,7 +2160,174 @@ function editExperience(id, exp) {
     document.getElementById('exp-is-current-firm').checked = exp.isCurrentFirm || false;
     document.getElementById('exp-brief-description').value = exp.description || '';
     loadLinkedProjectDescriptions(exp.linkedProjectId);
+    loadModalAltDescriptions(id);
     document.getElementById('experience-modal').classList.remove('hidden');
+}
+
+let modalCurrentExpSelectedId = null;
+
+async function loadModalAltDescriptions(expId) {
+    const manager = document.getElementById('modal-desc-manager');
+    const list = document.getElementById('modal-alt-list');
+    const noMsg = document.getElementById('modal-no-alt-msg');
+    const select = document.getElementById('modal-active-desc-select');
+    const countSpan = document.getElementById('modal-alt-count');
+    if (!expId) { manager.classList.add('hidden'); return; }
+    manager.classList.remove('hidden');
+    list.innerHTML = '';
+    const exp = projectExperiences.find(e => e.id == expId);
+    modalCurrentExpSelectedId = exp ? exp.selected_alt_description_id : null;
+    try {
+        const response = await fetch(`/api/experience/${expId}/alternate-descriptions`);
+        const descriptions = await response.json();
+        select.innerHTML = '<option value="main"' + (modalCurrentExpSelectedId === null ? ' selected' : '') + '>Main Description</option>';
+        descriptions.forEach(d => {
+            const safeLabel = (d.label || 'Untitled').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            const selected = modalCurrentExpSelectedId == d.id ? ' selected' : '';
+            select.innerHTML += `<option value="${d.id}"${selected}>${safeLabel}</option>`;
+        });
+        countSpan.textContent = descriptions.length > 0 ? `(${descriptions.length})` : '';
+        if (descriptions.length === 0) {
+            list.innerHTML = '';
+            noMsg.classList.remove('hidden');
+        } else {
+            noMsg.classList.add('hidden');
+            list.innerHTML = descriptions.map(d => {
+                const safeLabel = (d.label || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                const safeDesc = (d.description || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                const isActive = modalCurrentExpSelectedId == d.id;
+                return `<div class="border rounded p-2 ${isActive ? 'border-green-400 bg-green-50' : 'bg-gray-50'}" id="modal-alt-${d.id}">
+                    <div class="flex items-center justify-between mb-1">
+                        <div class="flex items-center gap-2 flex-1 min-w-0">
+                            <input type="text" id="modal-alt-label-${d.id}" value="${safeLabel}" class="flex-1 min-w-0 text-xs font-semibold border rounded px-1.5 py-0.5 ${isActive ? 'bg-green-50 text-green-800' : 'bg-gray-50 text-gray-700'}" readonly>
+                            ${isActive ? '<span class="text-xs text-green-600 whitespace-nowrap"><i class="fas fa-check-circle"></i></span>' : ''}
+                        </div>
+                        <div class="flex items-center gap-0.5 ml-1">
+                            <button type="button" onclick="modalToggleEditAlt(${d.id})" class="text-blue-600 hover:text-blue-800 p-1" title="Edit" id="modal-edit-btn-${d.id}"><i class="fas fa-edit text-xs"></i></button>
+                            <button type="button" onclick="modalSaveAlt(${d.id})" class="text-green-600 hover:text-green-800 p-1 hidden" title="Save" id="modal-save-btn-${d.id}"><i class="fas fa-save text-xs"></i></button>
+                            <button type="button" onclick="modalUseAlt(${d.id})" class="text-teal-600 hover:text-teal-800 p-1" title="Use in Brief Description"><i class="fas fa-arrow-up text-xs"></i></button>
+                            <button type="button" onclick="modalDeleteAlt(${d.id})" class="text-red-500 hover:text-red-700 p-1" title="Delete"><i class="fas fa-trash text-xs"></i></button>
+                        </div>
+                    </div>
+                    <textarea id="modal-alt-text-${d.id}" class="w-full p-1.5 border rounded text-xs bg-gray-50" rows="2" readonly>${safeDesc}</textarea>
+                </div>`;
+            }).join('');
+        }
+    } catch (e) {
+        list.innerHTML = '<p class="text-red-500 text-center text-xs py-2">Error loading</p>';
+    }
+}
+
+async function modalSelectDescription() {
+    const expId = document.getElementById('exp-id').value;
+    const select = document.getElementById('modal-active-desc-select');
+    const value = select.value;
+    try {
+        const res = await fetch(`/api/experience/${expId}/select-description`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ alt_description_id: value === 'main' ? null : parseInt(value) })
+        });
+        const result = await res.json();
+        if (result.success) {
+            modalCurrentExpSelectedId = result.selected_id;
+            const exp = projectExperiences.find(e => e.id == expId);
+            if (exp) exp.selected_alt_description_id = result.selected_id;
+            loadModalAltDescriptions(expId);
+        }
+    } catch (e) { alert('Error selecting description'); }
+}
+
+function toggleModalAltDescs() {
+    const content = document.getElementById('modal-alt-content');
+    const chevron = document.getElementById('modal-alt-chevron');
+    content.classList.toggle('hidden');
+    chevron.style.transform = content.classList.contains('hidden') ? '' : 'rotate(180deg)';
+}
+
+function showModalAddAltForm() {
+    document.getElementById('modal-add-alt-form').classList.remove('hidden');
+    document.getElementById('modal-new-alt-label').value = '';
+    document.getElementById('modal-new-alt-text').value = '';
+    const expId = document.getElementById('exp-id').value;
+    const exp = projectExperiences.find(e => e.id == expId);
+    const fillBtn = document.getElementById('modal-fill-from-project-btn');
+    if (exp && exp.linked_project_description) fillBtn.classList.remove('hidden');
+    else fillBtn.classList.add('hidden');
+    document.getElementById('modal-new-alt-label').focus();
+}
+
+function hideModalAddAltForm() {
+    document.getElementById('modal-add-alt-form').classList.add('hidden');
+}
+
+async function modalSaveNewAlt() {
+    const expId = document.getElementById('exp-id').value;
+    const label = document.getElementById('modal-new-alt-label').value.trim();
+    const description = document.getElementById('modal-new-alt-text').value.trim();
+    if (!label) { alert('Please enter a label'); return; }
+    try {
+        const res = await fetch(`/api/experience/${expId}/alternate-descriptions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ label, description })
+        });
+        const result = await res.json();
+        if (result.success) {
+            hideModalAddAltForm();
+            loadModalAltDescriptions(expId);
+        }
+    } catch (e) { alert('Error adding description'); }
+}
+
+function modalToggleEditAlt(id) {
+    const label = document.getElementById(`modal-alt-label-${id}`);
+    const text = document.getElementById(`modal-alt-text-${id}`);
+    const editBtn = document.getElementById(`modal-edit-btn-${id}`);
+    const saveBtn = document.getElementById(`modal-save-btn-${id}`);
+    if (label.readOnly) {
+        label.readOnly = false; text.readOnly = false;
+        text.classList.remove('bg-gray-50'); text.classList.add('bg-white');
+        label.classList.remove('bg-gray-50', 'bg-green-50'); label.classList.add('bg-white');
+        editBtn.classList.add('hidden'); saveBtn.classList.remove('hidden');
+        label.focus();
+    } else {
+        label.readOnly = true; text.readOnly = true;
+        text.classList.add('bg-gray-50'); text.classList.remove('bg-white');
+        editBtn.classList.remove('hidden'); saveBtn.classList.add('hidden');
+    }
+}
+
+async function modalSaveAlt(id) {
+    const label = document.getElementById(`modal-alt-label-${id}`).value.trim();
+    const description = document.getElementById(`modal-alt-text-${id}`).value;
+    if (!label) { alert('Label cannot be empty'); return; }
+    try {
+        const res = await fetch(`/api/experience/alternate-descriptions/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ label, description })
+        });
+        const result = await res.json();
+        if (result.success) {
+            const expId = document.getElementById('exp-id').value;
+            loadModalAltDescriptions(expId);
+        }
+    } catch (e) { alert('Error saving'); }
+}
+
+function modalUseAlt(id) {
+    const text = document.getElementById(`modal-alt-text-${id}`).value;
+    if (text) document.getElementById('exp-brief-description').value = text;
+}
+
+async function modalDeleteAlt(id) {
+    if (!confirm('Delete this alternate description?')) return;
+    try {
+        await fetch(`/api/experience/alternate-descriptions/${id}`, { method: 'DELETE' });
+        const expId = document.getElementById('exp-id').value;
+        loadModalAltDescriptions(expId);
+    } catch (e) { alert('Error deleting'); }
 }
 
 async function loadLinkedProjectDescriptions(projectId) {
@@ -2910,12 +3123,21 @@ function showAddAltDescForm() {
 }
 
 function fillFromLinkedProject() {
-    const expId = document.getElementById('alt-exp-id').value;
+    const modalAddForm = document.getElementById('modal-add-alt-form');
+    const isInEditModal = modalAddForm && !modalAddForm.classList.contains('hidden');
+    const expId = isInEditModal ? document.getElementById('exp-id').value : document.getElementById('alt-exp-id').value;
     const exp = projectExperiences.find(e => e.id == expId);
     if (exp && exp.linked_project_description) {
-        document.getElementById('new-alt-desc-text').value = exp.linked_project_description;
-        if (!document.getElementById('new-alt-desc-label').value.trim()) {
-            document.getElementById('new-alt-desc-label').value = 'Firm Project Description';
+        if (isInEditModal) {
+            document.getElementById('modal-new-alt-text').value = exp.linked_project_description;
+            if (!document.getElementById('modal-new-alt-label').value.trim()) {
+                document.getElementById('modal-new-alt-label').value = 'Firm Project Description';
+            }
+        } else {
+            document.getElementById('new-alt-desc-text').value = exp.linked_project_description;
+            if (!document.getElementById('new-alt-desc-label').value.trim()) {
+                document.getElementById('new-alt-desc-label').value = 'Firm Project Description';
+            }
         }
     }
 }
