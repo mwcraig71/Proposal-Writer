@@ -3100,6 +3100,23 @@ def delete_alternate_description(project_id, alt_id):
     return jsonify({'success': True})
 
 
+@app.route('/api/projects/<int:project_id>/descriptions', methods=['GET'])
+def api_get_project_descriptions(project_id):
+    project = Project.query.get_or_404(project_id)
+    descriptions = [{
+        'label': 'Main Description',
+        'description': project.brief_description or '',
+        'is_main': True
+    }]
+    for alt in project.alternate_descriptions:
+        descriptions.append({
+            'label': alt.label,
+            'description': alt.description or '',
+            'is_main': False
+        })
+    return jsonify({'success': True, 'project_title': project.title, 'descriptions': descriptions})
+
+
 @app.route('/api/rewrite-description', methods=['POST'])
 def rewrite_project_description():
     data = request.json

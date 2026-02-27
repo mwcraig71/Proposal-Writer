@@ -288,6 +288,7 @@
                             </button>
                             <button class="edit-exp-btn text-blue-600 hover:text-blue-800" title="Edit"
                                 data-exp-id="{{ exp.id }}"
+                                data-linked-project-id="{{ exp.linked_project_id or '' }}"
                                 data-title="{{ exp.project_title or '' }}"
                                 data-location="{{ exp.location or '' }}"
                                 data-year="{{ exp.year_completed or '' }}"
@@ -620,6 +621,17 @@
                             <input type="checkbox" id="exp-is-current-firm" class="w-4 h-4 text-green-600 rounded">
                             <span class="text-sm text-gray-600">Project with Current Firm</span>
                         </label>
+                    </div>
+                </div>
+                <div id="linked-project-descriptions" class="hidden">
+                    <div class="border border-teal-200 rounded-lg bg-teal-50 overflow-hidden">
+                        <button type="button" onclick="toggleProjectDescriptions()" class="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-teal-800 hover:bg-teal-100 transition-colors">
+                            <span><i class="fas fa-project-diagram mr-2"></i>Linked Project Descriptions</span>
+                            <i id="proj-desc-chevron" class="fas fa-chevron-down text-xs transition-transform"></i>
+                        </button>
+                        <div id="proj-desc-content" class="hidden border-t border-teal-200">
+                            <div id="proj-desc-list" class="p-3 space-y-3 max-h-64 overflow-y-auto"></div>
+                        </div>
                     </div>
                 </div>
                 <div>
@@ -2084,13 +2096,14 @@ function showAddExperienceModal() {
     document.getElementById('exp-firm-name').value = '';
     document.getElementById('exp-is-current-firm').checked = false;
     document.getElementById('exp-brief-description').value = '';
+    document.getElementById('linked-project-descriptions').classList.add('hidden');
     document.getElementById('experience-modal').classList.remove('hidden');
 }
 
 function editExperience(id, exp) {
     document.getElementById('modal-title').textContent = 'Edit Project Experience';
     document.getElementById('exp-id').value = id;
-    document.getElementById('exp-linked-project-id').value = '';
+    document.getElementById('exp-linked-project-id').value = exp.linkedProjectId || '';
     document.getElementById('exp-project-title').value = exp.title || '';
     document.getElementById('exp-location').value = exp.location || '';
     document.getElementById('exp-year-completed').value = exp.year || '';
@@ -2100,7 +2113,55 @@ function editExperience(id, exp) {
     document.getElementById('exp-firm-name').value = exp.firm || '';
     document.getElementById('exp-is-current-firm').checked = exp.isCurrentFirm || false;
     document.getElementById('exp-brief-description').value = exp.description || '';
+    loadLinkedProjectDescriptions(exp.linkedProjectId);
     document.getElementById('experience-modal').classList.remove('hidden');
+}
+
+async function loadLinkedProjectDescriptions(projectId) {
+    const container = document.getElementById('linked-project-descriptions');
+    const list = document.getElementById('proj-desc-list');
+    const content = document.getElementById('proj-desc-content');
+    const chevron = document.getElementById('proj-desc-chevron');
+    container.classList.add('hidden');
+    list.innerHTML = '';
+    content.classList.add('hidden');
+    chevron.style.transform = '';
+    if (!projectId) return;
+    try {
+        const res = await fetch(`/api/projects/${projectId}/descriptions`);
+        const data = await res.json();
+        if (!data.success || !data.descriptions || data.descriptions.length === 0) return;
+        data.descriptions.forEach((desc, i) => {
+            const div = document.createElement('div');
+            div.className = 'bg-white rounded border border-gray-200 p-2';
+            const label = document.createElement('div');
+            label.className = 'flex items-center justify-between mb-1';
+            label.innerHTML = `<span class="text-xs font-semibold ${desc.is_main ? 'text-teal-700' : 'text-purple-700'}">${desc.is_main ? '<i class="fas fa-star text-xs mr-1"></i>' : '<i class="fas fa-copy text-xs mr-1"></i>'}${desc.label}</span><button type="button" onclick="useProjectDescription(this)" class="text-xs text-blue-600 hover:text-blue-800 font-medium px-2 py-0.5 border border-blue-300 rounded hover:bg-blue-50">Use This</button>`;
+            const text = document.createElement('div');
+            text.className = 'text-xs text-gray-600 whitespace-pre-wrap max-h-32 overflow-y-auto proj-desc-text';
+            text.textContent = desc.description || '(No description)';
+            div.appendChild(label);
+            div.appendChild(text);
+            list.appendChild(div);
+        });
+        container.classList.remove('hidden');
+    } catch (e) {
+        console.error('Error loading project descriptions:', e);
+    }
+}
+
+function toggleProjectDescriptions() {
+    const content = document.getElementById('proj-desc-content');
+    const chevron = document.getElementById('proj-desc-chevron');
+    content.classList.toggle('hidden');
+    chevron.style.transform = content.classList.contains('hidden') ? '' : 'rotate(180deg)';
+}
+
+function useProjectDescription(btn) {
+    const text = btn.closest('div').parentElement.querySelector('.proj-desc-text').textContent;
+    if (text && text !== '(No description)') {
+        document.getElementById('exp-brief-description').value = text;
+    }
 }
 
 document.querySelectorAll('.edit-exp-btn').forEach(btn => {
@@ -2114,7 +2175,8 @@ document.querySelectorAll('.edit-exp-btn').forEach(btn => {
             role: this.dataset.role,
             description: this.dataset.description,
             firm: this.dataset.firm,
-            isCurrentFirm: this.dataset.isCurrentFirm === 'true'
+            isCurrentFirm: this.dataset.isCurrentFirm === 'true',
+            linkedProjectId: this.dataset.linkedProjectId || ''
         };
         editExperience(this.dataset.expId, exp);
     });
@@ -2303,6 +2365,7 @@ function selectProject(project) {
     document.getElementById('exp-owner-name').value = project.owner_name || '';
     document.getElementById('exp-brief-description').value = project.brief_description || '';
     document.getElementById('project-autocomplete').classList.add('hidden');
+    loadLinkedProjectDescriptions(project.id);
 }
 
 let ownerSearchTimeout;
