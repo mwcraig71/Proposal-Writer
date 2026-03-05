@@ -18,8 +18,11 @@ import { toPng, toJpeg } from 'html-to-image'
 import { jsPDF } from 'jspdf'
 import CustomNode from './CustomNode'
 import JunctionNode from './JunctionNode'
+import DisciplineBlockNode from './DisciplineBlockNode'
+import SectionHeaderNode from './SectionHeaderNode'
+import PICNode from './PICNode'
 
-const nodeTypes = { custom: CustomNode, junction: JunctionNode }
+const nodeTypes = { custom: CustomNode, junction: JunctionNode, disciplineBlock: DisciplineBlockNode, sectionHeader: SectionHeaderNode, pic: PICNode }
 
 const nodeWidth = 192
 const nodeHeight = 100
@@ -182,6 +185,7 @@ function OrgChartFlow() {
   const [exportAspectRatio, setExportAspectRatio] = useState('0.773')
   const [showPostNominal, setShowPostNominal] = useState(false)
   const [showMiddleName, setShowMiddleName] = useState(false)
+  const [firmAbbrevMap, setFirmAbbrevMap] = useState({})
 
   const switchConnectionDirection = useCallback((direction) => {
     setConnectionDirection(direction)
@@ -301,6 +305,7 @@ function OrgChartFlow() {
       .react-flow__attribution { display: none !important; }
       .react-flow__node-junction { opacity: 0 !important; }
       .react-flow__edge-path { stroke: ${EDGE_COLOR} !important; stroke-width: ${strokeWidth}px !important; }
+      [data-resize] { display: none !important; }
     `
     document.head.appendChild(styleEl)
 
@@ -446,18 +451,35 @@ function OrgChartFlow() {
     nodes
       .filter(n => n.type !== 'junction')
       .forEach(node => {
+        if (node.type === 'sectionHeader') {
+          const label = (node.data.label || '').replace(/"/g, '""')
+          rows.push(`"${label}",-1,""`)
+          return
+        }
         const role = (node.data.role || '').replace(/"/g, '""')
         const supervisor = getParentRole(node.id)
         const supervisorStr = supervisor === -1 ? '-1' : `"${String(supervisor).replace(/"/g, '""')}"`
         const title = (node.data.assignedStaff || '').replace(/"/g, '""')
 
-        rows.push(`"${role}",${supervisorStr},"${title}"`)
-
-        if (node.data.staffList && node.data.staffList.length > 0) {
-          node.data.staffList.forEach(member => {
-            const memberName = (member.name || '').replace(/"/g, '""')
-            rows.push(`"Team Member","${role}","${memberName}"`)
-          })
+        if (node.type === 'disciplineBlock') {
+          rows.push(`"${role}",${supervisorStr},""`)
+          if (node.data.staffList && node.data.staffList.length > 0) {
+            const lead = node.data.staffList[0]
+            const leadName = (lead.name || '').replace(/"/g, '""')
+            rows.push(`"Lead","${role}","${leadName}"`)
+            node.data.staffList.slice(1).forEach(member => {
+              const memberName = (member.name || '').replace(/"/g, '""')
+              rows.push(`"Team Member","${role}","${memberName}"`)
+            })
+          }
+        } else {
+          rows.push(`"${role}",${supervisorStr},"${title}"`)
+          if (node.data.staffList && node.data.staffList.length > 0) {
+            node.data.staffList.forEach(member => {
+              const memberName = (member.name || '').replace(/"/g, '""')
+              rows.push(`"Team Member","${role}","${memberName}"`)
+            })
+          }
         }
       })
 
@@ -494,6 +516,7 @@ function OrgChartFlow() {
         setFirms(data)
         const colorMap = {}
         const logoMap = {}
+        const abbrevMap = {}
         let fallbackIndex = 0
         data.forEach(f => {
           if (f.brand_color) {
@@ -505,9 +528,13 @@ function OrgChartFlow() {
           if (f.logo_url) {
             logoMap[f.id] = f.logo_url
           }
+          if (f.abbreviation) {
+            abbrevMap[f.id] = f.abbreviation
+          }
         })
         setFirmColorMap(colorMap)
         setFirmLogoMap(logoMap)
+        setFirmAbbrevMap(abbrevMap)
         const strinteg = data.find(f => f.name.toLowerCase().includes('strinteg'))
         if (strinteg) {
           setSelectedFirmFilter(String(strinteg.id))
@@ -727,7 +754,7 @@ function OrgChartFlow() {
                 return { ...node, data: { ...node.data, assignedStaff: null, staffId: null, staffFirmId: null, staffFirmName: null } }
               }
               if (node.id === dropTargetNode.id) {
-                if (node.data.isTeamMember || node.data.useStaffList) {
+                if (node.data.isTeamMember || node.data.useStaffList || node.type === 'disciplineBlock') {
                   const currentList = node.data.staffList || []
                   return { ...node, data: { ...node.data, staffList: [...currentList, { name: staffInfo.name, id: staffInfo.staffId, firm_id: staffInfo.firmId, firm_name: staffInfo.firmName }] } }
                 }
@@ -765,7 +792,7 @@ function OrgChartFlow() {
         setNodes((nds) =>
           nds.map((node) => {
             if (node.id === dropTargetNode.id) {
-              if (node.data.isTeamMember || node.data.useStaffList) {
+              if (node.data.isTeamMember || node.data.useStaffList || node.type === 'disciplineBlock') {
                 const currentList = node.data.staffList || []
                 return {
                   ...node,
@@ -805,12 +832,24 @@ function OrgChartFlow() {
   )
 
   const onNodeDoubleClick = useCallback((event, node) => {
-    const newRole = prompt('Enter new role name:', node.data.role)
+    if (node.type === 'sectionHeader') {
+      const newLabel = prompt('Enter section header text:', node.data.label)
+      if (newLabel !== null && newLabel.trim() !== '') {
+        setNodes((nds) =>
+          nds.map((n) => n.id === node.id ? { ...n, data: { ...n.data, label: newLabel.trim().toUpperCase() } } : n)
+        )
+      }
+      return
+    }
+    const fieldName = node.type === 'disciplineBlock' ? 'discipline name' : 'role name'
+    const currentValue = node.data.role
+    const newRole = prompt(`Enter new ${fieldName}:`, currentValue)
     if (newRole !== null && newRole.trim() !== '') {
+      const value = node.type === 'disciplineBlock' ? newRole.trim().toUpperCase() : newRole.trim()
       setNodes((nds) =>
         nds.map((n) => {
           if (n.id === node.id) {
-            return { ...n, data: { ...n.data, role: newRole.trim() } }
+            return { ...n, data: { ...n.data, role: value } }
           }
           return n
         })
@@ -901,11 +940,6 @@ function OrgChartFlow() {
     
     setNodes((nds) => [...nds, newNode])
     setEdges((eds) => [...eds, newEdge])
-    
-    setTimeout(() => {
-      const { nodes: layouted } = getLayoutedElements([...nodes, newNode], [...edges, newEdge])
-      setNodes(layouted)
-    }, 50)
   }, [nodes, edges, setNodes, setEdges, lineWeight])
 
   const addNewServiceType = useCallback(() => {
@@ -937,11 +971,6 @@ function OrgChartFlow() {
     
     setNodes((nds) => [...nds, newNode])
     setEdges((eds) => [...eds, newEdge])
-    
-    setTimeout(() => {
-      const { nodes: layouted } = getLayoutedElements([...nodes, newNode], [...edges, newEdge])
-      setNodes(layouted)
-    }, 50)
   }, [nodes, edges, setNodes, setEdges, lineWeight])
 
   const addChildBranch = useCallback((parentNodeId) => {
@@ -975,11 +1004,6 @@ function OrgChartFlow() {
     
     setNodes((nds) => [...nds, newNode])
     setEdges((eds) => [...eds, newEdge])
-
-    setTimeout(() => {
-      const { nodes: layouted } = getLayoutedElements([...nodes, newNode], [...edges, newEdge])
-      setNodes(layouted)
-    }, 50)
   }, [nodes, edges, setNodes, setEdges, lineWeight])
 
   const removeStaffFromList = useCallback((nodeId, index) => {
@@ -999,6 +1023,101 @@ function OrgChartFlow() {
       })
     )
   }, [setNodes])
+
+  const toggleKeyIndividual = useCallback((nodeId, staffId) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id !== nodeId) return node
+        if (node.type === 'disciplineBlock') {
+          const keyIndividuals = { ...(node.data.keyIndividuals || {}) }
+          if (keyIndividuals[staffId]) delete keyIndividuals[staffId]
+          else keyIndividuals[staffId] = true
+          return { ...node, data: { ...node.data, keyIndividuals } }
+        }
+        return { ...node, data: { ...node.data, isKeyIndividual: !node.data.isKeyIndividual } }
+      })
+    )
+  }, [setNodes])
+
+  const resizeHeader = useCallback((nodeId, newWidth) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === nodeId) {
+          return { ...node, data: { ...node.data, width: newWidth } }
+        }
+        return node
+      })
+    )
+  }, [setNodes])
+
+  const addDisciplineBlock = useCallback(() => {
+    const name = prompt('Enter discipline name:', 'New Discipline')
+    if (!name || !name.trim()) return
+    const newNodeId = `disc-${Date.now()}`
+    const newNode = {
+      id: newNodeId,
+      type: 'disciplineBlock',
+      position: { x: 100 + Math.random() * 200, y: 400 + Math.random() * 100 },
+      data: {
+        role: name.trim().toUpperCase(),
+        staffList: [],
+        keyIndividuals: {},
+        canDelete: true,
+        headerColor: '#991b1b',
+      },
+    }
+    setNodes((nds) => [...nds, newNode])
+  }, [setNodes])
+
+  const addSectionHeader = useCallback(() => {
+    const name = prompt('Enter section header text:', 'SECTION HEADER')
+    if (!name || !name.trim()) return
+    const newNodeId = `header-${Date.now()}`
+    const newNode = {
+      id: newNodeId,
+      type: 'sectionHeader',
+      position: { x: 100, y: 350 + Math.random() * 50 },
+      data: {
+        label: name.trim().toUpperCase(),
+        bgColor: '#991b1b',
+        width: 600,
+        canDelete: true,
+      },
+    }
+    setNodes((nds) => [...nds, newNode])
+  }, [setNodes])
+
+  const addPICNode = useCallback(() => {
+    const hasPIC = nodes.some(n => n.type === 'pic')
+    if (hasPIC) {
+      alert('A Principal-in-Charge node already exists.')
+      return
+    }
+    const pmNode = nodes.find(n => n.id === 'pm')
+    const newNodeId = `pic-${Date.now()}`
+    const newNode = {
+      id: newNodeId,
+      type: 'pic',
+      position: { x: (pmNode?.position?.x || 400) - 250, y: (pmNode?.position?.y || 0) },
+      data: {
+        role: 'Principal-in-Charge',
+        assignedStaff: null,
+        isKeyIndividual: false,
+        canDelete: true,
+      },
+    }
+    const newEdge = {
+      id: `e-${newNodeId}-pm`,
+      source: newNodeId,
+      target: 'pm',
+      sourceHandle: 'right-source',
+      targetHandle: 'left',
+      type: 'smoothstep',
+      style: edgeStyle(lineWeight),
+    }
+    setNodes((nds) => [...nds, newNode])
+    setEdges((eds) => [...eds, newEdge])
+  }, [nodes, setNodes, setEdges, lineWeight])
 
   const staffDisplayMap = {}
   staff.forEach(s => {
@@ -1024,7 +1143,10 @@ function OrgChartFlow() {
       onAddDPM: addDPM,
       onRemoveStaffFromList: removeStaffFromList,
       onAddChildBranch: addChildBranch,
+      onToggleKeyIndividual: toggleKeyIndividual,
+      onResizeHeader: resizeHeader,
       firmColorMap: firmColorMap,
+      firmAbbrevMap: firmAbbrevMap,
       borderStyle: borderStyle,
       showPostNominal: showPostNominal,
       showMiddleName: showMiddleName,
@@ -1032,15 +1154,21 @@ function OrgChartFlow() {
     }
   }))
 
-  const legendFirms = [...new Set(
-    nodes
-      .filter(n => n.data?.staffFirmId)
-      .map(n => n.data.staffFirmId)
-  )].map(firmId => {
+  const hasKeyIndividuals = nodes.some(n => n.data?.isKeyIndividual || (n.data?.keyIndividuals && Object.keys(n.data.keyIndividuals).length > 0))
+
+  const allFirmIds = new Set()
+  nodes.forEach(n => {
+    if (n.data?.staffFirmId) allFirmIds.add(n.data.staffFirmId)
+    if (n.data?.staffList) {
+      n.data.staffList.forEach(s => { if (s.firm_id) allFirmIds.add(s.firm_id) })
+    }
+  })
+  const legendFirms = [...allFirmIds].map(firmId => {
     const staffMember = staff.find(s => s.firm_id === firmId)
     return {
       firmId,
       firmName: staffMember?.firm_name || 'Unknown',
+      abbreviation: firmAbbrevMap[firmId] || '',
       color: firmColorMap[firmId] || FIRM_COLORS[0],
       logoUrl: firmLogoMap[firmId] || null
     }
@@ -1208,7 +1336,25 @@ function OrgChartFlow() {
                 onClick={addNewServiceType}
                 className="px-3 py-2 bg-red-600 text-white rounded shadow hover:bg-red-700 transition-colors font-medium text-sm"
               >
-                + Add Service Type
+                + Service Type
+              </button>
+              <button
+                onClick={addDisciplineBlock}
+                className="px-3 py-2 bg-rose-800 text-white rounded shadow hover:bg-rose-900 transition-colors font-medium text-sm"
+              >
+                + Discipline Block
+              </button>
+              <button
+                onClick={addSectionHeader}
+                className="px-3 py-2 bg-slate-700 text-white rounded shadow hover:bg-slate-800 transition-colors font-medium text-sm"
+              >
+                + Section Header
+              </button>
+              <button
+                onClick={addPICNode}
+                className="px-3 py-2 bg-gray-700 text-white rounded shadow hover:bg-gray-800 transition-colors font-medium text-sm"
+              >
+                + PIC
               </button>
               <button
                 onClick={() => setShowPdfModal(true)}
@@ -1366,7 +1512,12 @@ function OrgChartFlow() {
                   style={firm.color.useInline ? firm.color.labelStyle : {}}
                 />
               )}
-              <span className="text-xs font-semibold text-gray-800 truncate leading-tight">{firm.firmName}</span>
+              <div className="flex-1 min-w-0">
+                <span className="text-xs font-semibold text-gray-800 truncate leading-tight block">{firm.firmName}</span>
+                {firm.abbreviation && (
+                  <span className="text-[10px] font-bold text-gray-500 uppercase">{firm.abbreviation}</span>
+                )}
+              </div>
               <div
                 data-resize="true"
                 className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize"
@@ -1396,6 +1547,20 @@ function OrgChartFlow() {
             </div>
           )
         })}
+        {hasKeyIndividuals && (
+          <div
+            className="absolute bg-white rounded shadow-md border-2 border-red-400 flex items-center gap-2 p-2 cursor-move select-none"
+            style={{
+              left: 20,
+              top: legendFirms.length > 0 ? 20 + legendFirms.length * 60 : 20,
+              zIndex: 50,
+              minWidth: 140,
+            }}
+          >
+            <span className="text-red-600 text-lg">★</span>
+            <span className="text-xs font-semibold text-gray-800">Key Individuals</span>
+          </div>
+        )}
       </div>
 
       <div className="w-72 bg-gray-50 border-l border-gray-300 flex flex-col">

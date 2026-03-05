@@ -139,6 +139,7 @@ function CustomNode({ data, selected, id }) {
             onDragStart={handleStaffDragStart}
             title="Drag to reassign to another role"
           >
+            {data.isKeyIndividual && <span className="text-red-600 mr-0.5">★</span>}
             {resolveStaffName(data.assignedStaff, data.staffId)}
             {data.staffFirmName && (
               <div className="text-[9px] opacity-70 font-normal">{data.staffFirmName}</div>
@@ -176,6 +177,15 @@ function CustomNode({ data, selected, id }) {
           </div>
         )}
         <div className="flex gap-1 justify-center mt-2 flex-wrap">
+          {data.assignedStaff && (
+            <button
+              onClick={(e) => { e.stopPropagation(); data.onToggleKeyIndividual?.(id) }}
+              className={`text-[9px] px-2 py-0.5 rounded transition-colors ${
+                data.isKeyIndividual ? 'bg-red-100 text-red-600 font-bold' : 'bg-gray-100 text-gray-400 hover:text-red-500'
+              }`}
+              title="Toggle Key Individual"
+            >★ Key</button>
+          )}
           {data.isPM && (
             <button
               onClick={handleAddDPM}

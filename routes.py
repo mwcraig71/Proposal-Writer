@@ -3257,7 +3257,8 @@ def add_firm():
             email=data.get('email'),
             point_of_contact_name=data.get('point_of_contact_name'),
             point_of_contact_title=data.get('point_of_contact_title'),
-            brand_color=data.get('brand_color') if data.get('brand_color') else None
+            brand_color=data.get('brand_color') if data.get('brand_color') else None,
+            abbreviation=data.get('abbreviation', '').strip()[:10] if data.get('abbreviation') else None
         )
         db.session.add(firm)
         db.session.commit()
@@ -3296,6 +3297,7 @@ def edit_firm(id):
         firm.bio = data.get('bio')
         firm.google_drive_folder_url = data.get('google_drive_folder_url')
         firm.brand_color = data.get('brand_color') if data.get('brand_color') else None
+        firm.abbreviation = data.get('abbreviation', '').strip()[:10] if data.get('abbreviation') else None
         
         from datetime import datetime
         stat_fields = [
@@ -9495,6 +9497,7 @@ def api_firms_list():
         'id': f.id, 
         'name': f.name, 
         'brand_color': f.brand_color,
+        'abbreviation': f.abbreviation or '',
         'logo_url': f'/firms/{f.id}/logo/serve' if f.logo_storage_path else None
     } for f in firms])
 
