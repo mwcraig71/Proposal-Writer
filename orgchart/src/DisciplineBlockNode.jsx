@@ -168,16 +168,13 @@ function DisciplineBlockNode({ data, selected, id }) {
 
       <div
         data-resize="true"
-        className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize"
-        style={{ background: 'linear-gradient(135deg, transparent 50%, #9ca3af 50%)' }}
+        className="nodrag nopan absolute bottom-0 right-0 w-5 h-5 cursor-se-resize"
+        style={{ background: 'linear-gradient(135deg, transparent 50%, #9ca3af 50%)', borderBottomRightRadius: '4px' }}
         onMouseDown={(e) => {
           e.preventDefault()
           e.stopPropagation()
           const startX = e.clientX
-          const startY = e.clientY
           const origW = nodeWidth
-          const el = e.target.closest('.bg-white')
-          const origH = el ? el.offsetHeight : 100
           const onMove = (ev) => {
             const newW = Math.max(180, origW + (ev.clientX - startX))
             data.onResizeNode?.(id, newW, null)

@@ -76,8 +76,8 @@ function SectionHeaderNode({ data, selected, id }) {
 
       <div
         data-resize="true"
-        className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize"
-        style={{ background: 'linear-gradient(135deg, transparent 50%, rgba(255,255,255,0.5) 50%)' }}
+        className="nodrag nopan absolute bottom-0 right-0 w-5 h-5 cursor-se-resize"
+        style={{ background: 'linear-gradient(135deg, transparent 50%, rgba(255,255,255,0.5) 50%)', borderBottomRightRadius: '4px' }}
         onMouseDown={(e) => {
           e.preventDefault()
           e.stopPropagation()
