@@ -1,7 +1,9 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Handle, Position } from '@xyflow/react'
 
 function DisciplineBlockNode({ data, selected, id }) {
+  const [showColorPicker, setShowColorPicker] = useState(false)
+
   const handleStaffDragStart = (event, index) => {
     event.stopPropagation()
     const staffEntry = data.staffList?.[index]
@@ -31,15 +33,18 @@ function DisciplineBlockNode({ data, selected, id }) {
   }
 
   const firmColor = data.headerColor || '#991b1b'
+  const nodeWidth = data.width || 240
   const staffList = data.staffList || []
   const lead = staffList.length > 0 ? staffList[0] : null
   const teamMembers = staffList.slice(1)
   const keyIndividuals = data.keyIndividuals || {}
 
+  const PRESET_COLORS = ['#991b1b', '#1e3a5f', '#065f46', '#92400e', '#5b21b6', '#9f1239', '#374151', '#0f766e', '#1d4ed8', '#6d28d9']
+
   return (
     <div
-      className={`min-w-[220px] max-w-[280px] bg-white rounded shadow-md relative ${selected ? 'ring-2 ring-red-400' : ''}`}
-      style={{ border: `2px solid ${firmColor}` }}
+      className={`bg-white rounded shadow-md relative ${selected ? 'ring-2 ring-red-400' : ''}`}
+      style={{ border: `2px solid ${firmColor}`, width: `${nodeWidth}px` }}
     >
       {data.canDelete && (
         <button
@@ -55,11 +60,42 @@ function DisciplineBlockNode({ data, selected, id }) {
       <Handle type="target" position={Position.Right} id="right" className="w-3 h-3 bg-red-600 border-2 border-white" />
 
       <div
-        className="px-3 py-1.5 text-white text-xs font-bold uppercase tracking-wide text-center"
+        className="px-3 py-1.5 text-white text-xs font-bold uppercase tracking-wide text-center flex items-center justify-center gap-1"
         style={{ backgroundColor: firmColor }}
       >
-        {data.role || 'DISCIPLINE'}
+        <span className="flex-1">{data.role || 'DISCIPLINE'}</span>
+        <button
+          onClick={(e) => { e.stopPropagation(); setShowColorPicker(!showColorPicker) }}
+          className="w-4 h-4 rounded-full border border-white/50 flex-shrink-0 hover:scale-110 transition-transform"
+          style={{ backgroundColor: 'rgba(255,255,255,0.3)' }}
+          title="Change color"
+        >
+          <span className="text-[8px]">🎨</span>
+        </button>
       </div>
+
+      {showColorPicker && (
+        <div className="absolute top-8 right-0 z-50 bg-white rounded shadow-lg border border-gray-200 p-2" style={{ width: '160px' }}>
+          <div className="flex flex-wrap gap-1 mb-2">
+            {PRESET_COLORS.map(color => (
+              <button
+                key={color}
+                onClick={(e) => { e.stopPropagation(); data.onChangeNodeColor?.(id, color); setShowColorPicker(false) }}
+                className="w-5 h-5 rounded-full border-2 hover:scale-110 transition-transform"
+                style={{ backgroundColor: color, borderColor: firmColor === color ? '#000' : '#d1d5db' }}
+              />
+            ))}
+          </div>
+          <input
+            type="color"
+            value={firmColor}
+            onChange={(e) => { e.stopPropagation(); data.onChangeNodeColor?.(id, e.target.value) }}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full h-6 cursor-pointer rounded border border-gray-300"
+            title="Custom color"
+          />
+        </div>
+      )}
 
       <div className="px-3 py-2 text-xs">
         {lead ? (
@@ -129,6 +165,31 @@ function DisciplineBlockNode({ data, selected, id }) {
           </div>
         )}
       </div>
+
+      <div
+        data-resize="true"
+        className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize"
+        style={{ background: 'linear-gradient(135deg, transparent 50%, #9ca3af 50%)' }}
+        onMouseDown={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          const startX = e.clientX
+          const startY = e.clientY
+          const origW = nodeWidth
+          const el = e.target.closest('.bg-white')
+          const origH = el ? el.offsetHeight : 100
+          const onMove = (ev) => {
+            const newW = Math.max(180, origW + (ev.clientX - startX))
+            data.onResizeNode?.(id, newW, null)
+          }
+          const onUp = () => {
+            document.removeEventListener('mousemove', onMove)
+            document.removeEventListener('mouseup', onUp)
+          }
+          document.addEventListener('mousemove', onMove)
+          document.addEventListener('mouseup', onUp)
+        }}
+      />
 
       <Handle type="source" position={Position.Bottom} id="bottom" className="w-3 h-3 bg-red-600 border-2 border-white" />
       <Handle type="source" position={Position.Left} id="left-source" className="w-3 h-3 bg-red-600 border-2 border-white" />

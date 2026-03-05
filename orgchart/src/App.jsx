@@ -1050,6 +1050,36 @@ function OrgChartFlow() {
     )
   }, [setNodes])
 
+  const resizeNode = useCallback((nodeId, newWidth, newHeight) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === nodeId) {
+          const updates = {}
+          if (newWidth !== null && newWidth !== undefined) updates.width = newWidth
+          if (newHeight !== null && newHeight !== undefined) updates.height = newHeight
+          return { ...node, data: { ...node.data, ...updates } }
+        }
+        return node
+      })
+    )
+  }, [setNodes])
+
+  const changeNodeColor = useCallback((nodeId, color) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === nodeId) {
+          if (node.type === 'sectionHeader') {
+            return { ...node, data: { ...node.data, bgColor: color } }
+          }
+          if (node.type === 'disciplineBlock') {
+            return { ...node, data: { ...node.data, headerColor: color } }
+          }
+        }
+        return node
+      })
+    )
+  }, [setNodes])
+
   const addDisciplineBlock = useCallback(() => {
     const name = prompt('Enter discipline name:', 'New Discipline')
     if (!name || !name.trim()) return
@@ -1145,6 +1175,8 @@ function OrgChartFlow() {
       onAddChildBranch: addChildBranch,
       onToggleKeyIndividual: toggleKeyIndividual,
       onResizeHeader: resizeHeader,
+      onResizeNode: resizeNode,
+      onChangeNodeColor: changeNodeColor,
       firmColorMap: firmColorMap,
       firmAbbrevMap: firmAbbrevMap,
       borderStyle: borderStyle,
