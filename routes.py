@@ -9718,28 +9718,19 @@ def api_employees_ai_response():
             except:
                 pass
     
-    ai_style = AISettings.get_value('ai_writing_style', '')
-    ai_tone = AISettings.get_value('ai_writing_tone', '')
+    from gemini_service import _build_writing_prefs_block
+    ai_style = AISettings.get_value('ai_writing_style', 'Professional and technical')
+    ai_tone = AISettings.get_value('ai_writing_tone', 'Formal but accessible')
     ai_banned = AISettings.get_value('ai_banned_words', '')
     ai_acronyms = AISettings.get_value('ai_acronyms', '')
     ai_industry_words = AISettings.get_value('ai_industry_words', '')
     ai_writing_sample = AISettings.get_value('ai_writing_sample', '')
     
-    style_instructions = ""
-    if ai_style or ai_tone:
-        style_instructions = "\n\nWriting Style Guidelines:"
-        if ai_style:
-            style_instructions += f"\n- Style: {ai_style}"
-        if ai_tone:
-            style_instructions += f"\n- Tone: {ai_tone}"
-    if ai_writing_sample:
-        style_instructions += f"\n\nWRITING SAMPLE (Analyze and mimic the style, sentence structure, vocabulary, and tone of this sample):\n\"\"\"\n{ai_writing_sample}\n\"\"\""
+    writing_prefs = _build_writing_prefs_block(ai_style, ai_tone, ai_banned, ai_acronyms, ai_industry_words, ai_writing_sample)
+    style_instructions = f"\n\nWRITING SPECIFICATIONS:\n{writing_prefs}"
+    banned_reminder = ""
     if ai_banned:
-        style_instructions += f"\n\nBANNED WORDS/PHRASES (Do NOT use any of these): {ai_banned}"
-    if ai_acronyms:
-        style_instructions += f"\n\nACRONYMS (Use these acronyms appropriately — spell out on first use, then abbreviate): {ai_acronyms}"
-    if ai_industry_words:
-        style_instructions += f"\n\nINDUSTRY TERMS (Work these industry-specific words/phrases into the content where appropriate): {ai_industry_words}"
+        banned_reminder = f"\n\nCRITICAL REMINDER: You MUST NOT use any of these banned words/phrases in your response. Find alternative words instead: {ai_banned}"
     
     full_prompt = f"""You are a professional proposal writer. Based on the following staff information, {prompt}
 
@@ -9748,7 +9739,7 @@ Staff Information:
 {org_chart_context}
 {style_instructions}
 
-Please write a response of approximately {word_limit} words. Be professional, highlight the team's combined qualifications, and write in a way suitable for government proposals or professional documents."""
+Please write a response of approximately {word_limit} words. Be professional, highlight the team's combined qualifications, and write in a way suitable for government proposals or professional documents.{banned_reminder}"""
 
     try:
         result_text = ai_generate(full_prompt)
@@ -9896,28 +9887,19 @@ def api_projects_ai_response():
             info += f"Relevance: {p.relevance_writeup[:300]}...\n" if len(p.relevance_writeup or '') > 300 else f"Relevance: {p.relevance_writeup}\n"
         project_info.append(info)
     
-    ai_style = AISettings.get_value('ai_writing_style', '')
-    ai_tone = AISettings.get_value('ai_writing_tone', '')
+    from gemini_service import _build_writing_prefs_block
+    ai_style = AISettings.get_value('ai_writing_style', 'Professional and technical')
+    ai_tone = AISettings.get_value('ai_writing_tone', 'Formal but accessible')
     ai_banned = AISettings.get_value('ai_banned_words', '')
     ai_acronyms = AISettings.get_value('ai_acronyms', '')
     ai_industry_words = AISettings.get_value('ai_industry_words', '')
     ai_writing_sample = AISettings.get_value('ai_writing_sample', '')
     
-    style_instructions = ""
-    if ai_style or ai_tone:
-        style_instructions = "\n\nWriting Style Guidelines:"
-        if ai_style:
-            style_instructions += f"\n- Style: {ai_style}"
-        if ai_tone:
-            style_instructions += f"\n- Tone: {ai_tone}"
-    if ai_writing_sample:
-        style_instructions += f"\n\nWRITING SAMPLE (Analyze and mimic the style, sentence structure, vocabulary, and tone of this sample):\n\"\"\"\n{ai_writing_sample}\n\"\"\""
+    writing_prefs = _build_writing_prefs_block(ai_style, ai_tone, ai_banned, ai_acronyms, ai_industry_words, ai_writing_sample)
+    style_instructions = f"\n\nWRITING SPECIFICATIONS:\n{writing_prefs}"
+    banned_reminder = ""
     if ai_banned:
-        style_instructions += f"\n\nBANNED WORDS/PHRASES (Do NOT use any of these): {ai_banned}"
-    if ai_acronyms:
-        style_instructions += f"\n\nACRONYMS (Use these acronyms appropriately — spell out on first use, then abbreviate): {ai_acronyms}"
-    if ai_industry_words:
-        style_instructions += f"\n\nINDUSTRY TERMS (Work these industry-specific words/phrases into the content where appropriate): {ai_industry_words}"
+        banned_reminder = f"\n\nCRITICAL REMINDER: You MUST NOT use any of these banned words/phrases in your response. Find alternative words instead: {ai_banned}"
     
     system_prompt = f"""You are a professional proposal writer specializing in SF330 government proposals for architecture and engineering firms.
 You are helping to write content about the following projects:
@@ -9927,7 +9909,7 @@ You are helping to write content about the following projects:
 
 Write a response of approximately {word_limit} words based on the user's request.
 Focus on presenting the projects professionally and highlighting their relevance to government/infrastructure work.
-Be specific and use actual data from the project information provided."""
+Be specific and use actual data from the project information provided.{banned_reminder}"""
 
     try:
         full_prompt = f"{system_prompt}\n\n{prompt}"
@@ -10121,28 +10103,19 @@ UEI: {firm.uei or 'N/A'}
     
     total_chars = sum(len(s) for s in sections.values())
     
-    ai_style = AISettings.get_value('ai_writing_style', '')
-    ai_tone = AISettings.get_value('ai_writing_tone', '')
+    from gemini_service import _build_writing_prefs_block
+    ai_style = AISettings.get_value('ai_writing_style', 'Professional and technical')
+    ai_tone = AISettings.get_value('ai_writing_tone', 'Formal but accessible')
     ai_banned = AISettings.get_value('ai_banned_words', '')
     ai_acronyms = AISettings.get_value('ai_acronyms', '')
     ai_industry_words = AISettings.get_value('ai_industry_words', '')
     ai_writing_sample = AISettings.get_value('ai_writing_sample', '')
     
-    style_instructions = ""
-    if ai_style or ai_tone:
-        style_instructions = "\n\nWriting Style Guidelines:"
-        if ai_style:
-            style_instructions += f"\n- Style: {ai_style}"
-        if ai_tone:
-            style_instructions += f"\n- Tone: {ai_tone}"
-    if ai_writing_sample:
-        style_instructions += f"\n\nWRITING SAMPLE (Analyze and mimic the style, sentence structure, vocabulary, and tone of this sample):\n\"\"\"\n{ai_writing_sample}\n\"\"\""
+    writing_prefs = _build_writing_prefs_block(ai_style, ai_tone, ai_banned, ai_acronyms, ai_industry_words, ai_writing_sample)
+    style_instructions = f"\n\nWRITING SPECIFICATIONS:\n{writing_prefs}"
+    banned_reminder = ""
     if ai_banned:
-        style_instructions += f"\n\nBANNED WORDS/PHRASES (Do NOT use any of these): {ai_banned}"
-    if ai_acronyms:
-        style_instructions += f"\n\nACRONYMS (Use these acronyms appropriately — spell out on first use, then abbreviate): {ai_acronyms}"
-    if ai_industry_words:
-        style_instructions += f"\n\nINDUSTRY TERMS (Work these industry-specific words/phrases into the content where appropriate): {ai_industry_words}"
+        banned_reminder = f"\n\nCRITICAL REMINDER: You MUST NOT use any of these banned words/phrases in your response. Find alternative words instead: {ai_banned}"
     
     source_weights = data.get('source_weights', None)
     weights_instruction = ''
@@ -10165,7 +10138,7 @@ Here is all the proposal data:
 {style_instructions}{weights_instruction}
 
 Based on this proposal data, respond to the user's request. Write approximately {word_limit} words.
-Be specific, professional, and use actual data from the proposal."""
+Be specific, professional, and use actual data from the proposal.{banned_reminder}"""
 
         try:
             full_prompt = f"{system_prompt}\n\n{prompt}"
@@ -10210,7 +10183,7 @@ Provide a focused summary in 150-200 words."""
 
 User request: {prompt}
 
-Write a response of approximately {word_limit} words. Be specific, professional, and reference actual data from the summaries."""
+Write a response of approximately {word_limit} words. Be specific, professional, and reference actual data from the summaries.{banned_reminder}"""
 
         result_text = ai_generate(final_prompt)
         
@@ -10456,28 +10429,19 @@ UEI: {firm.uei or 'N/A'}
     included_sections = data.get('included_sections', None)
     sections = collect_proposal_data(included_sections)
     
-    ai_style = AISettings.get_value('ai_writing_style', '')
-    ai_tone = AISettings.get_value('ai_writing_tone', '')
+    from gemini_service import _build_writing_prefs_block
+    ai_style = AISettings.get_value('ai_writing_style', 'Professional and technical')
+    ai_tone = AISettings.get_value('ai_writing_tone', 'Formal but accessible')
     ai_banned = AISettings.get_value('ai_banned_words', '')
     ai_acronyms = AISettings.get_value('ai_acronyms', '')
     ai_industry_words = AISettings.get_value('ai_industry_words', '')
     ai_writing_sample = AISettings.get_value('ai_writing_sample', '')
     
-    style_instructions = ""
-    if ai_style or ai_tone:
-        style_instructions = "\n\nWriting Style Guidelines:"
-        if ai_style:
-            style_instructions += f"\n- Style: {ai_style}"
-        if ai_tone:
-            style_instructions += f"\n- Tone: {ai_tone}"
-    if ai_writing_sample:
-        style_instructions += f"\n\nWRITING SAMPLE (Analyze and mimic the style, sentence structure, vocabulary, and tone of this sample):\n\"\"\"\n{ai_writing_sample}\n\"\"\""
+    writing_prefs = _build_writing_prefs_block(ai_style, ai_tone, ai_banned, ai_acronyms, ai_industry_words, ai_writing_sample)
+    style_instructions = f"\n\nWRITING SPECIFICATIONS:\n{writing_prefs}"
+    banned_reminder = ""
     if ai_banned:
-        style_instructions += f"\n\nBANNED WORDS/PHRASES (Do NOT use any of these): {ai_banned}"
-    if ai_acronyms:
-        style_instructions += f"\n\nACRONYMS (Use these acronyms appropriately — spell out on first use, then abbreviate): {ai_acronyms}"
-    if ai_industry_words:
-        style_instructions += f"\n\nINDUSTRY TERMS (Work these industry-specific words/phrases into the content where appropriate): {ai_industry_words}"
+        banned_reminder = f"\n\nCRITICAL REMINDER: You MUST NOT use any of these banned words/phrases in your response. Find alternative words instead: {ai_banned}"
     
     source_weights = data.get('source_weights', None)
     weights_instruction = ''
@@ -10506,14 +10470,15 @@ UEI: {firm.uei or 'N/A'}
         proposal_context = "\n\n".join(sections.values())
     
     system_prompt = f"""You are a professional SF330 proposal writer helping with a government architecture/engineering proposal. You have access to all the proposal data and can help write content, answer questions, and provide strategic advice.
+{style_instructions}
 
 PROPOSAL DATA:
 {proposal_context}
-{style_instructions}{weights_instruction}
+{weights_instruction}
 
 TARGET RESPONSE LENGTH: Approximately {word_count} words.
 
-Be helpful, specific, and professional. Use actual data from the proposal. Provide thorough, detailed responses."""
+Be helpful, specific, and professional. Use actual data from the proposal. Provide thorough, detailed responses.{banned_reminder}"""
 
     # Build messages including history
     conversation_context = ""
@@ -11055,26 +11020,19 @@ def rewrite_response_with_ai(id):
     data = request.get_json() or {}
     instructions = data.get('instructions', '').strip()
     
-    ai_style = AISettings.get_value('ai_writing_style', '')
-    ai_tone = AISettings.get_value('ai_writing_tone', '')
+    from gemini_service import _build_writing_prefs_block
+    ai_style = AISettings.get_value('ai_writing_style', 'Professional and technical')
+    ai_tone = AISettings.get_value('ai_writing_tone', 'Formal but accessible')
     ai_banned = AISettings.get_value('ai_banned_words', '')
     ai_acronyms = AISettings.get_value('ai_acronyms', '')
     ai_industry_words = AISettings.get_value('ai_industry_words', '')
     ai_writing_sample = AISettings.get_value('ai_writing_sample', '')
     
-    style_instructions = ""
-    if ai_style:
-        style_instructions += f"\nWriting Style: {ai_style}"
-    if ai_tone:
-        style_instructions += f"\nTone: {ai_tone}"
-    if ai_writing_sample:
-        style_instructions += f"\n\nWRITING SAMPLE (Analyze and mimic the style, sentence structure, vocabulary, and tone of this sample):\n\"\"\"\n{ai_writing_sample}\n\"\"\""
+    writing_prefs = _build_writing_prefs_block(ai_style, ai_tone, ai_banned, ai_acronyms, ai_industry_words, ai_writing_sample)
+    style_instructions = f"\n\nWRITING SPECIFICATIONS:\n{writing_prefs}"
+    banned_reminder = ""
     if ai_banned:
-        style_instructions += f"\nBANNED WORDS/PHRASES (Do NOT use any of these): {ai_banned}"
-    if ai_acronyms:
-        style_instructions += f"\nACRONYMS (Use these acronyms appropriately — spell out on first use, then abbreviate): {ai_acronyms}"
-    if ai_industry_words:
-        style_instructions += f"\nINDUSTRY TERMS (Work these industry-specific words/phrases into the content where appropriate): {ai_industry_words}"
+        banned_reminder = f"\n\nCRITICAL REMINDER: You MUST NOT use any of these banned words/phrases in your response. Find alternative words instead: {ai_banned}"
     
     prompt = f"""Rewrite the following proposal response. Keep the key information but improve clarity, professionalism, and impact.
 {style_instructions}
@@ -11083,7 +11041,7 @@ def rewrite_response_with_ai(id):
 
 Original Response:
 {response.response}
-
+{banned_reminder}
 Rewritten Response:"""
     
     try:

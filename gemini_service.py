@@ -12,7 +12,7 @@ def _build_writing_prefs_block(style, tone, banned_words='', acronyms='', indust
     if writing_sample:
         lines.append(f"WRITING SAMPLE (Analyze and mimic the style, sentence structure, vocabulary, and tone of this sample):\n\"\"\"\n{writing_sample}\n\"\"\"")
     if banned_words:
-        lines.append(f"BANNED WORDS/PHRASES (Do NOT use any of these): {banned_words}")
+        lines.append(f"STRICTLY FORBIDDEN WORDS/PHRASES — You MUST NOT use any of these words or phrases under any circumstances. Find alternative words instead: {banned_words}")
     if acronyms:
         lines.append(f"ACRONYMS (Use these acronyms appropriately — spell out on first use, then abbreviate): {acronyms}")
     if industry_words:
