@@ -124,6 +124,28 @@
                 <textarea name="relevance_writeup" rows="4" class="w-full p-2 border rounded-lg">{{ project.relevance_writeup or '' }}</textarea>
             </div>
             
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Tags</label>
+                <input type="text" name="tags" id="project-tags" value="{{ project.tags or '' }}" class="w-full p-2 border rounded-lg" placeholder="e.g., Bridge Inspection, Load Rating, NDT">
+                <div class="flex flex-wrap gap-1 mt-2">
+                    <span class="text-xs text-gray-500 mr-1 leading-5">Presets:</span>
+                    <button type="button" onclick="addPresetTag('project-tags', 'Bridge Inspection')" class="tag-preset-btn bg-gray-100 hover:bg-blue-100 text-gray-600 hover:text-blue-700 text-xs px-2 py-0.5 rounded-full transition-colors">Bridge Inspection</button>
+                    <button type="button" onclick="addPresetTag('project-tags', 'Load Testing')" class="tag-preset-btn bg-gray-100 hover:bg-blue-100 text-gray-600 hover:text-blue-700 text-xs px-2 py-0.5 rounded-full transition-colors">Load Testing</button>
+                    <button type="button" onclick="addPresetTag('project-tags', 'Load Rating')" class="tag-preset-btn bg-gray-100 hover:bg-blue-100 text-gray-600 hover:text-blue-700 text-xs px-2 py-0.5 rounded-full transition-colors">Load Rating</button>
+                    <button type="button" onclick="addPresetTag('project-tags', 'NSTM')" class="tag-preset-btn bg-gray-100 hover:bg-blue-100 text-gray-600 hover:text-blue-700 text-xs px-2 py-0.5 rounded-full transition-colors">NSTM</button>
+                    <button type="button" onclick="addPresetTag('project-tags', 'SPRAT')" class="tag-preset-btn bg-gray-100 hover:bg-blue-100 text-gray-600 hover:text-blue-700 text-xs px-2 py-0.5 rounded-full transition-colors">SPRAT</button>
+                    <button type="button" onclick="addPresetTag('project-tags', 'UAS')" class="tag-preset-btn bg-gray-100 hover:bg-blue-100 text-gray-600 hover:text-blue-700 text-xs px-2 py-0.5 rounded-full transition-colors">UAS</button>
+                    <button type="button" onclick="addPresetTag('project-tags', 'NDT')" class="tag-preset-btn bg-gray-100 hover:bg-blue-100 text-gray-600 hover:text-blue-700 text-xs px-2 py-0.5 rounded-full transition-colors">NDT</button>
+                </div>
+                {% if project.tags %}
+                <div class="flex flex-wrap gap-1 mt-2" id="project-tags-display">
+                    {% for tag in project.tags.split(',') %}
+                    {% if tag.strip() %}<span class="inline-block bg-blue-100 text-blue-700 text-xs font-medium px-2 py-0.5 rounded-full">{{ tag.strip() }}</span>{% endif %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            
             <div class="flex items-center gap-3">
                 <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">
                     <i class="fas fa-save mr-2"></i> Save Changes
@@ -608,6 +630,15 @@
 
 {% block scripts %}
 <script>
+function addPresetTag(inputId, tag) {
+    const input = document.getElementById(inputId);
+    const current = input.value.split(',').map(t => t.trim()).filter(t => t);
+    if (!current.some(t => t.toLowerCase() === tag.toLowerCase())) {
+        current.push(tag);
+        input.value = current.join(', ');
+    }
+}
+
 const projectId = {{ project.id }};
 const personnelWriteups = {{ personnel_writeups_json|tojson|safe if personnel_writeups_json else '[]' }};
 const projectDescription = {{ (project.brief_description or '')|tojson|safe }};

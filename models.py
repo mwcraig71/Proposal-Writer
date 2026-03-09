@@ -179,6 +179,7 @@ class EmployeeProjectExperience(db.Model):
     is_current_firm = db.Column(db.Boolean, default=False)
     sf330_include = db.Column(db.Boolean, default=False)
     resume_order = db.Column(db.Integer, nullable=True)
+    tags = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -238,6 +239,7 @@ class Project(db.Model):
     project_type = db.Column(db.String(50), default='contract')
     parent_contract_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=True)
     archived = db.Column(db.Boolean, default=False, nullable=False, server_default='false')
+    tags = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     

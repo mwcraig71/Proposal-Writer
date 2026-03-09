@@ -262,6 +262,13 @@
                             <p class="text-sm text-indigo-600 mt-1"><i class="fas fa-link mr-1"></i>Linked to: <a href="/projects/{{ exp.linked_project_id }}" class="underline hover:text-indigo-800">{{ exp.linked_project.title }}</a></p>
                             {% endif %}
                             {% if exp.active_description %}<p class="text-sm text-gray-600 mt-2">{{ exp.active_description[:200] }}{% if exp.active_description|length > 200 %}...{% endif %}</p>{% endif %}
+                            {% if exp.tags %}
+                            <div class="flex flex-wrap gap-1 mt-2" id="exp-tags-{{ exp.id }}">
+                                {% for tag in exp.tags.split(',') %}
+                                {% if tag.strip() %}<span class="inline-block bg-blue-100 text-blue-700 text-xs font-medium px-2 py-0.5 rounded-full">{{ tag.strip() }}</span>{% endif %}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
                             <div class="flex items-center mt-1 gap-2">
                                 <select class="inline-desc-select text-xs border rounded px-2 py-1 {% if exp.selected_alt_description_id %}bg-purple-50 border-purple-300 text-purple-700{% else %}bg-gray-50 border-gray-300 text-gray-600{% endif %}" data-exp-id="{{ exp.id }}" onchange="inlineSelectDescription(this)">
                                     <option value="main" {% if not exp.selected_alt_description_id %}selected{% endif %}>Main Description</option>
@@ -297,7 +304,8 @@
                                 data-role="{{ exp.role_performed or '' }}"
                                 data-description="{{ exp.brief_description or '' }}"
                                 data-firm="{{ exp.firm_name or '' }}"
-                                data-is-current-firm="{{ exp.is_current_firm|lower }}">
+                                data-is-current-firm="{{ exp.is_current_firm|lower }}"
+                                data-tags="{{ exp.tags or '' }}">
                                 <i class="fas fa-edit"></i>
                             </button>
                             <button onclick="deleteExperience({{ exp.id }})" class="text-red-600 hover:text-red-800" title="Delete">
@@ -686,6 +694,20 @@
                                 <p id="modal-no-alt-msg" class="text-gray-400 text-center text-xs py-2 hidden">No alternate descriptions yet</p>
                             </div>
                         </div>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Tags</label>
+                    <input type="text" id="exp-tags" class="w-full p-2 border rounded-lg" placeholder="e.g., Bridge Inspection, Load Rating, NDT">
+                    <div class="flex flex-wrap gap-1 mt-2">
+                        <span class="text-xs text-gray-500 mr-1 leading-5">Presets:</span>
+                        <button type="button" onclick="addPresetTag('exp-tags', 'Bridge Inspection')" class="tag-preset-btn bg-gray-100 hover:bg-blue-100 text-gray-600 hover:text-blue-700 text-xs px-2 py-0.5 rounded-full transition-colors">Bridge Inspection</button>
+                        <button type="button" onclick="addPresetTag('exp-tags', 'Load Testing')" class="tag-preset-btn bg-gray-100 hover:bg-blue-100 text-gray-600 hover:text-blue-700 text-xs px-2 py-0.5 rounded-full transition-colors">Load Testing</button>
+                        <button type="button" onclick="addPresetTag('exp-tags', 'Load Rating')" class="tag-preset-btn bg-gray-100 hover:bg-blue-100 text-gray-600 hover:text-blue-700 text-xs px-2 py-0.5 rounded-full transition-colors">Load Rating</button>
+                        <button type="button" onclick="addPresetTag('exp-tags', 'NSTM')" class="tag-preset-btn bg-gray-100 hover:bg-blue-100 text-gray-600 hover:text-blue-700 text-xs px-2 py-0.5 rounded-full transition-colors">NSTM</button>
+                        <button type="button" onclick="addPresetTag('exp-tags', 'SPRAT')" class="tag-preset-btn bg-gray-100 hover:bg-blue-100 text-gray-600 hover:text-blue-700 text-xs px-2 py-0.5 rounded-full transition-colors">SPRAT</button>
+                        <button type="button" onclick="addPresetTag('exp-tags', 'UAS')" class="tag-preset-btn bg-gray-100 hover:bg-blue-100 text-gray-600 hover:text-blue-700 text-xs px-2 py-0.5 rounded-full transition-colors">UAS</button>
+                        <button type="button" onclick="addPresetTag('exp-tags', 'NDT')" class="tag-preset-btn bg-gray-100 hover:bg-blue-100 text-gray-600 hover:text-blue-700 text-xs px-2 py-0.5 rounded-full transition-colors">NDT</button>
                     </div>
                 </div>
                 <div class="flex justify-end space-x-3 pt-4">
@@ -2141,6 +2163,7 @@ function showAddExperienceModal() {
     document.getElementById('exp-firm-name').value = '';
     document.getElementById('exp-is-current-firm').checked = false;
     document.getElementById('exp-brief-description').value = '';
+    document.getElementById('exp-tags').value = '';
     document.getElementById('linked-project-descriptions').classList.add('hidden');
     document.getElementById('modal-desc-manager').classList.add('hidden');
     document.getElementById('experience-modal').classList.remove('hidden');
@@ -2159,6 +2182,7 @@ function editExperience(id, exp) {
     document.getElementById('exp-firm-name').value = exp.firm || '';
     document.getElementById('exp-is-current-firm').checked = exp.isCurrentFirm || false;
     document.getElementById('exp-brief-description').value = exp.description || '';
+    document.getElementById('exp-tags').value = exp.tags || '';
     loadLinkedProjectDescriptions(exp.linkedProjectId);
     loadModalAltDescriptions(id);
     document.getElementById('experience-modal').classList.remove('hidden');
@@ -2389,7 +2413,8 @@ document.querySelectorAll('.edit-exp-btn').forEach(btn => {
             description: this.dataset.description,
             firm: this.dataset.firm,
             isCurrentFirm: this.dataset.isCurrentFirm === 'true',
-            linkedProjectId: this.dataset.linkedProjectId || ''
+            linkedProjectId: this.dataset.linkedProjectId || '',
+            tags: this.dataset.tags || ''
         };
         editExperience(this.dataset.expId, exp);
     });
@@ -2535,6 +2560,15 @@ function sortExperiences(save = true) {
         }
     }
 })();
+
+function addPresetTag(inputId, tag) {
+    const input = document.getElementById(inputId);
+    const current = input.value.split(',').map(t => t.trim()).filter(t => t);
+    if (!current.some(t => t.toLowerCase() === tag.toLowerCase())) {
+        current.push(tag);
+        input.value = current.join(', ');
+    }
+}
 
 function closeModal() {
     document.getElementById('experience-modal').classList.add('hidden');
@@ -3484,7 +3518,8 @@ document.getElementById('experience-form').addEventListener('submit', async (e) 
         role_performed: document.getElementById('exp-role-performed').value,
         firm_name: document.getElementById('exp-firm-name').value,
         is_current_firm: document.getElementById('exp-is-current-firm').checked,
-        brief_description: document.getElementById('exp-brief-description').value
+        brief_description: document.getElementById('exp-brief-description').value,
+        tags: document.getElementById('exp-tags').value
     };
     
     try {

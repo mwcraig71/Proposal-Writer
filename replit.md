@@ -22,6 +22,7 @@ The core application is built with Python Flask, employing SQLAlchemy ORM for da
 - **Document Generation:** Generates SF330 forms in PDF and Word formats. Supports customizable templates for SF330 Section F, Company Project, Resume, SF330 Section E Resume (with dynamic project block expansion), and SF330 Section G Matrix.
 - **Import/Export Functionality:** Supports data import from company websites and JSON export/import for database records.
 - **Intelligent Features:** Includes duplicate detection, project merging, proposal tracking numbers, and management of win themes and intelligence documents.
+- **Project & Experience Tagging:** Comma-separated tags on both `Project` and `EmployeeProjectExperience` models, with preset tag suggestions (Bridge Inspection, Load Testing, Load Rating, NSTM, SPRAT, UAS, NDT) and blue pill badge display.
 - **AI Project Experience Creation:** AI generates tailored project experience descriptions for employees based on firm projects, employee info, and selected roles.
 - **Certification Management:** Tracks employee certifications with expiration dates and PDF storage.
 - **Proposal Intelligence:** Stores and utilizes RFP/RFQ documents, previous proposals, win themes, and competitor information for AI-assisted writing.

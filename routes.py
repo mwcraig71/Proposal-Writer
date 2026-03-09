@@ -1327,7 +1327,8 @@ def add_project_experience(id):
         role_performed=data.get('role_performed'),
         brief_description=data.get('brief_description'),
         firm_name=data.get('firm_name'),
-        is_current_firm=data.get('is_current_firm', False)
+        is_current_firm=data.get('is_current_firm', False),
+        tags=data.get('tags', '')
     )
     db.session.add(exp)
     db.session.commit()
@@ -1424,6 +1425,8 @@ def update_project_experience(id, exp_id):
     exp.brief_description = data.get('brief_description', exp.brief_description)
     exp.firm_name = data.get('firm_name', exp.firm_name)
     exp.is_current_firm = data.get('is_current_firm', exp.is_current_firm)
+    if 'tags' in data:
+        exp.tags = data.get('tags', '')
     
     db.session.commit()
     return jsonify({'success': True})
@@ -2447,6 +2450,9 @@ def update_project(id):
     if 'parent_contract_id' in data:
         parent_id = data.get('parent_contract_id')
         project.parent_contract_id = int(parent_id) if parent_id else None
+    
+    if 'tags' in data:
+        project.tags = data.get('tags', '')
     
     # Handle firm_id assignment
     if 'firm_id' in data:
