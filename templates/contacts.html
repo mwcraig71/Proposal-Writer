@@ -74,7 +74,9 @@
 <div class="bg-white rounded-lg shadow p-8 text-center">
     <i class="fas fa-address-book text-4xl text-gray-400 mb-4"></i>
     <p class="text-gray-600 mb-4">No client contacts yet</p>
+    {% if not is_viewer %}
     <a href="/contacts/add" class="text-blue-600 hover:underline">Add your first contact</a>
+    {% endif %}
 </div>
 {% endif %}
 {% endblock %}
