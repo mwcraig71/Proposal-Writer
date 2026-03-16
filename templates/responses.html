@@ -9,13 +9,13 @@
         <p class="text-gray-600">Question and response library for proposals</p>
     </div>
     <div class="flex gap-3">
-        <button onclick="showImportModal()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">
+        <button onclick="showImportModal()" class="editor-only bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">
             <i class="fas fa-file-import mr-2"></i> Import CSV
         </button>
         <a href="/responses/export" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition">
             <i class="fas fa-file-export mr-2"></i> Export CSV
         </a>
-        <button onclick="showAddModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+        <button onclick="showAddModal()" class="editor-only bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
             <i class="fas fa-plus mr-2"></i> Add Response
         </button>
     </div>
@@ -120,6 +120,7 @@
                 </td>
                 <td class="px-4 py-3 text-sm text-gray-900 max-w-md truncate">{{ response.question or '-' }}</td>
                 <td class="px-4 py-3 whitespace-nowrap text-sm" onclick="event.stopPropagation()">
+                    {% if not is_viewer %}
                     <button onclick="showAddToProposalModal({{ response.id }})" class="text-blue-600 hover:text-blue-800 mr-2" title="Add to Proposal">
                         <i class="fas fa-plus-circle"></i>
                     </button>
@@ -132,6 +133,7 @@
                     <button onclick="deleteResponse({{ response.id }})" class="text-red-600 hover:text-red-800" title="Delete">
                         <i class="fas fa-trash"></i>
                     </button>
+                    {% endif %}
                 </td>
             </tr>
             {% else %}

@@ -9,9 +9,11 @@
     </a>
     <div class="flex justify-between items-center">
         <h1 class="text-3xl font-bold text-gray-800">{{ firm.name }}</h1>
+        {% if not is_viewer %}
         <a href="/firms/{{ firm.id }}/edit" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
             <i class="fas fa-edit mr-2"></i> Edit Firm
         </a>
+        {% endif %}
     </div>
 </div>
 

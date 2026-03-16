@@ -12,7 +12,7 @@
         <a href="/employees{% if not show_archived %}?show_archived=1{% endif %}" class="px-4 py-2 rounded-lg border transition {% if show_archived %}bg-amber-100 border-amber-300 text-amber-800{% else %}bg-white border-gray-300 text-gray-600 hover:bg-gray-50{% endif %}">
             <i class="fas fa-archive mr-2"></i> {% if show_archived %}Showing Archived{% else %}Show Archived{% endif %}
         </a>
-        <button id="mergeSelectedBtn" onclick="mergeSelected()" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition hidden">
+        <button id="mergeSelectedBtn" onclick="mergeSelected()" class="editor-only bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition hidden">
             <i class="fas fa-code-merge mr-2"></i> Merge Selected
         </button>
         <button onclick="document.getElementById('import-modal').classList.remove('hidden')" class="editor-only bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">
@@ -120,9 +120,10 @@
                     </td>
                     <td class="px-4 py-4 whitespace-nowrap">
                         <div class="flex gap-3">
-                            <a href="/employees/{{ employee.id }}" class="text-blue-600 hover:text-blue-800" title="Edit">
-                                <i class="fas fa-edit"></i>
+                            <a href="/employees/{{ employee.id }}" class="text-blue-600 hover:text-blue-800" title="{% if is_viewer %}View{% else %}Edit{% endif %}">
+                                <i class="fas fa-{% if is_viewer %}eye{% else %}edit{% endif %}"></i>
                             </a>
+                            {% if not is_viewer %}
                             {% if employee.archived %}
                             <button onclick="restoreEmployee({{ employee.id }}, '{{ employee.display_name | e }}')" class="text-green-600 hover:text-green-800" title="Restore">
                                 <i class="fas fa-undo"></i>
@@ -131,6 +132,7 @@
                             <button onclick="archiveEmployee({{ employee.id }}, '{{ employee.display_name | e }}')" class="text-amber-600 hover:text-amber-800" title="Archive">
                                 <i class="fas fa-archive"></i>
                             </button>
+                            {% endif %}
                             {% endif %}
                         </div>
                     </td>
@@ -179,9 +181,10 @@
                     </td>
                     <td class="px-4 py-4 whitespace-nowrap">
                         <div class="flex gap-3">
-                            <a href="/employees/{{ employee.id }}" class="text-blue-600 hover:text-blue-800" title="Edit">
-                                <i class="fas fa-edit"></i>
+                            <a href="/employees/{{ employee.id }}" class="text-blue-600 hover:text-blue-800" title="{% if is_viewer %}View{% else %}Edit{% endif %}">
+                                <i class="fas fa-{% if is_viewer %}eye{% else %}edit{% endif %}"></i>
                             </a>
+                            {% if not is_viewer %}
                             {% if employee.archived %}
                             <button onclick="restoreEmployee({{ employee.id }}, '{{ employee.display_name | e }}')" class="text-green-600 hover:text-green-800" title="Restore">
                                 <i class="fas fa-undo"></i>
@@ -190,6 +193,7 @@
                             <button onclick="archiveEmployee({{ employee.id }}, '{{ employee.display_name | e }}')" class="text-amber-600 hover:text-amber-800" title="Archive">
                                 <i class="fas fa-archive"></i>
                             </button>
+                            {% endif %}
                             {% endif %}
                         </div>
                     </td>
@@ -244,9 +248,10 @@
                     </td>
                     <td class="px-4 py-4 whitespace-nowrap">
                         <div class="flex gap-3">
-                            <a href="/employees/{{ employee.id }}" class="text-blue-600 hover:text-blue-800" title="Edit">
-                                <i class="fas fa-edit"></i>
+                            <a href="/employees/{{ employee.id }}" class="text-blue-600 hover:text-blue-800" title="{% if is_viewer %}View{% else %}Edit{% endif %}">
+                                <i class="fas fa-{% if is_viewer %}eye{% else %}edit{% endif %}"></i>
                             </a>
+                            {% if not is_viewer %}
                             {% if employee.archived %}
                             <button onclick="restoreEmployee({{ employee.id }}, '{{ employee.display_name | e }}')" class="text-green-600 hover:text-green-800" title="Restore">
                                 <i class="fas fa-undo"></i>
@@ -255,6 +260,7 @@
                             <button onclick="archiveEmployee({{ employee.id }}, '{{ employee.display_name | e }}')" class="text-amber-600 hover:text-amber-800" title="Archive">
                                 <i class="fas fa-archive"></i>
                             </button>
+                            {% endif %}
                             {% endif %}
                         </div>
                     </td>

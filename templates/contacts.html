@@ -9,7 +9,7 @@
         <p class="text-gray-600">Manage client/owner contact information</p>
     </div>
     <div class="flex gap-3">
-        <button id="mergeSelectedBtn" onclick="mergeSelected()" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition hidden">
+        <button id="mergeSelectedBtn" onclick="mergeSelected()" class="editor-only bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition hidden">
             <i class="fas fa-code-merge mr-2"></i> Merge Selected
         </button>
         <a href="/contacts/add" class="editor-only bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
@@ -55,12 +55,14 @@
                 </td>
                 <td class="px-4 py-4">
                     <div class="flex gap-3">
-                        <a href="/contacts/{{ contact.id }}" class="text-blue-600 hover:text-blue-800" title="Edit">
-                            <i class="fas fa-edit"></i>
+                        <a href="/contacts/{{ contact.id }}" class="text-blue-600 hover:text-blue-800" title="{% if is_viewer %}View{% else %}Edit{% endif %}">
+                            <i class="fas fa-{% if is_viewer %}eye{% else %}edit{% endif %}"></i>
                         </a>
+                        {% if not is_viewer %}
                         <button onclick="deleteContact({{ contact.id }})" class="text-red-600 hover:text-red-800" title="Delete">
                             <i class="fas fa-trash"></i>
                         </button>
+                        {% endif %}
                     </div>
                 </td>
             </tr>

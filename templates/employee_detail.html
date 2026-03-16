@@ -114,9 +114,11 @@
                         <label class="block text-sm font-medium text-gray-700">Education</label>
                         <p class="text-xs text-gray-500">Format: Degree, Major, Institution (Year) - one per line</p>
                     </div>
+                    {% if not is_viewer %}
                     <button type="button" onclick="formatEducationAI()" class="inline-flex items-center px-3 py-1.5 bg-purple-600 text-white text-xs font-medium rounded-lg hover:bg-purple-700 transition">
                         <i class="fas fa-magic mr-1"></i> Format for SF330
                     </button>
+                    {% endif %}
                 </div>
                 <textarea name="education" id="education-field" rows="3" class="w-full p-2 border rounded-lg">{{ employee.education or '' }}</textarea>
                 <div id="format-edu-status" class="text-xs text-gray-500 mt-1 hidden"></div>
@@ -128,9 +130,11 @@
                         <label class="block text-sm font-medium text-gray-700">Professional Registrations</label>
                         <p class="text-xs text-gray-500">Format: License Type #Number, State (one per line)</p>
                     </div>
+                    {% if not is_viewer %}
                     <button type="button" onclick="formatRegistrationsAI()" class="inline-flex items-center px-3 py-1.5 bg-purple-600 text-white text-xs font-medium rounded-lg hover:bg-purple-700 transition">
                         <i class="fas fa-magic mr-1"></i> Format for SF330
                     </button>
+                    {% endif %}
                 </div>
                 <textarea name="registrations" id="registrations-field" rows="3" class="w-full p-2 border rounded-lg">{{ employee.registrations or '' }}</textarea>
                 <div id="format-reg-status" class="text-xs text-gray-500 mt-1 hidden"></div>
@@ -142,9 +146,11 @@
                         <label class="block text-sm font-medium text-gray-700">Training & Certifications</label>
                         <p class="text-xs text-gray-500">Format: Course Name (Year, Course Code) - e.g., NHI courses</p>
                     </div>
+                    {% if not is_viewer %}
                     <button type="button" onclick="formatTrainingAI()" class="inline-flex items-center px-3 py-1.5 bg-purple-600 text-white text-xs font-medium rounded-lg hover:bg-purple-700 transition">
                         <i class="fas fa-magic mr-1"></i> Format for SF330
                     </button>
+                    {% endif %}
                 </div>
                 <textarea name="training" id="training-field" rows="3" class="w-full p-2 border rounded-lg">{{ employee.training or '' }}</textarea>
                 <div id="format-training-status" class="text-xs text-gray-500 mt-1 hidden"></div>
@@ -161,9 +167,11 @@
                 <textarea name="bio" rows="4" class="w-full p-2 border rounded-lg">{{ employee.bio or '' }}</textarea>
             </div>
             
+            {% if not is_viewer %}
             <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">
                 <i class="fas fa-save mr-2"></i> Save Changes
             </button>
+            {% endif %}
         </form>
         </div>
         

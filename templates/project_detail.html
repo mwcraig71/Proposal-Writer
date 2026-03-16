@@ -147,9 +147,11 @@
             </div>
             
             <div class="flex items-center gap-3">
+                {% if not is_viewer %}
                 <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">
                     <i class="fas fa-save mr-2"></i> Save Changes
                 </button>
+                {% endif %}
                 <span id="autosave-status" class="text-sm text-gray-400 hidden"><i class="fas fa-check-circle text-green-500 mr-1"></i> Auto-saved</span>
             </div>
         </form>
@@ -157,9 +159,11 @@
         <div class="mt-8 border-t pt-6">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-xl font-semibold text-gray-800">Alternate Brief Descriptions</h2>
+                {% if not is_viewer %}
                 <button id="add-alt-btn" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition text-sm">
                     <i class="fas fa-plus mr-2"></i> Add Alternate
                 </button>
+                {% endif %}
             </div>
             <p class="text-sm text-gray-500 mb-4">Create different versions of the brief description for use in different proposals.</p>
             

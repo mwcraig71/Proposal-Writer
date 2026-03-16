@@ -9,10 +9,10 @@
         <p class="text-gray-600">Performance evaluations, client testimonials, and project references</p>
     </div>
     <div class="flex gap-3">
-        <button onclick="showUploadModal()" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
+        <button onclick="showUploadModal()" class="editor-only px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
             <i class="fas fa-magic mr-2"></i> Upload & Parse PDF
         </button>
-        <button onclick="showAddModal()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+        <button onclick="showAddModal()" class="editor-only px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
             <i class="fas fa-plus mr-2"></i> Add Manual
         </button>
     </div>
@@ -124,12 +124,14 @@
                             <button onclick="showAddToPersonnelModal({{ ref.id }}); closeLinkMenus();" class="w-full text-left px-3 py-2 text-sm hover:bg-purple-50 text-gray-700 rounded-b-lg"><i class="fas fa-user mr-2 text-purple-500"></i>Personnel</button>
                         </div>
                     </div>
+                    {% if not is_viewer %}
                     <button onclick="showEditModal({{ ref.id }})" class="text-yellow-600 hover:text-yellow-800 mr-2" title="Edit">
                         <i class="fas fa-edit"></i>
                     </button>
                     <button onclick="deleteReference({{ ref.id }})" class="text-red-600 hover:text-red-800" title="Delete">
                         <i class="fas fa-trash"></i>
                     </button>
+                    {% endif %}
                 </td>
             </tr>
             {% else %}
