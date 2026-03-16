@@ -101,8 +101,16 @@ def enforce_auth():
         return redirect(url_for('login'))
     session['user_role'] = user.role
     session['user_display_name'] = user.display_name
+    viewer_safe_endpoints = {
+        'change_own_password',
+        'download_cover_tabs',
+        'download_text_as_word',
+        'generate_proposal_pdf',
+        'generate_proposal_word',
+        'generate_proposal_word_simple',
+    }
     if request.method in ('POST', 'PUT', 'DELETE', 'PATCH') and user.role == 'viewer':
-        if request.endpoint in ('change_own_password',):
+        if request.endpoint in viewer_safe_endpoints:
             return None
         if _is_api_request():
             return jsonify({'success': False, 'error': 'You have read-only access. Contact an administrator for edit permissions.'}), 403
