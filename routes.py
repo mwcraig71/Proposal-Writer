@@ -1,11 +1,12 @@
 import os
 import json
 from functools import wraps
-from flask import render_template, request, jsonify, redirect, url_for, flash, send_file, send_from_directory, session
+from flask import render_template, request, jsonify, redirect, url_for, flash, send_file, send_from_directory, session, g
 from werkzeug.utils import secure_filename
 from main import app
 from database import db
 from models import (
+    User,
     Firm, Employee, Project, EmployeeProjectLink, Proposal,
     ProposalSelectedEmployee, ProposalSelectedProject, ProposalEmployeeRelevantProject,
     ProjectFirmInvolvement, EmployeeProjectExperience, ProjectAlternateDescription, AISettings,
@@ -27,44 +28,167 @@ import io
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'pdf', 'docx', 'doc', 'xlsx', 'xls', 'txt'}
 
-# Simple password protection
+
+def _is_api_request():
+    return (request.path.startswith('/api/') or
+            request.headers.get('X-Requested-With') == 'XMLHttpRequest' or
+            request.is_json or
+            (request.content_type and 'multipart/form-data' in request.content_type) or
+            request.method in ('DELETE', 'PUT', 'PATCH'))
+
+
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        app_password = os.environ.get('APP_PASSWORD')
-        if app_password and not session.get('authenticated'):
-            # Check if this is an API/AJAX request
-            if request.path.startswith('/api/') or request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json or request.content_type and 'multipart/form-data' in request.content_type or request.method in ('DELETE', 'PUT', 'PATCH'):
+        if not session.get('user_id'):
+            if _is_api_request():
                 return jsonify({'success': False, 'error': 'Authentication required. Please refresh the page and log in.'}), 401
             return redirect(url_for('login', next=request.url))
         return f(*args, **kwargs)
     return decorated_function
 
 
+def editor_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('user_id'):
+            if _is_api_request():
+                return jsonify({'success': False, 'error': 'Authentication required. Please refresh the page and log in.'}), 401
+            return redirect(url_for('login', next=request.url))
+        if session.get('user_role') == 'viewer':
+            if _is_api_request():
+                return jsonify({'success': False, 'error': 'You have read-only access. Contact an administrator for edit permissions.'}), 403
+            flash('You have read-only access. Contact an administrator for edit permissions.', 'error')
+            return redirect(request.referrer or url_for('index'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('user_id'):
+            if _is_api_request():
+                return jsonify({'success': False, 'error': 'Authentication required. Please refresh the page and log in.'}), 401
+            return redirect(url_for('login', next=request.url))
+        if session.get('user_role') != 'admin':
+            if _is_api_request():
+                return jsonify({'success': False, 'error': 'Administrator access required.'}), 403
+            flash('Administrator access required.', 'error')
+            return redirect(url_for('index'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+@app.before_request
+def enforce_auth():
+    open_endpoints = {'login', 'logout', 'static'}
+    if request.endpoint in open_endpoints:
+        return None
+    if request.path.startswith('/static/') or request.path == '/favicon.ico':
+        return None
+    user_id = session.get('user_id')
+    if not user_id:
+        if _is_api_request():
+            return jsonify({'success': False, 'error': 'Authentication required. Please refresh the page and log in.'}), 401
+        return redirect(url_for('login', next=request.url))
+    user = User.query.get(user_id)
+    if not user or not user.is_active:
+        session.clear()
+        if _is_api_request():
+            return jsonify({'success': False, 'error': 'Your account has been deactivated. Please contact an administrator.'}), 401
+        flash('Your account has been deactivated. Please contact an administrator.', 'error')
+        return redirect(url_for('login'))
+    session['user_role'] = user.role
+    session['user_display_name'] = user.display_name
+    if request.method in ('POST', 'PUT', 'DELETE', 'PATCH') and user.role == 'viewer':
+        if request.endpoint in ('change_own_password',):
+            return None
+        if _is_api_request():
+            return jsonify({'success': False, 'error': 'You have read-only access. Contact an administrator for edit permissions.'}), 403
+        flash('You have read-only access. Contact an administrator for edit permissions.', 'error')
+        return redirect(request.referrer or url_for('index'))
+    return None
+
+
+@app.context_processor
+def inject_user():
+    user_id = session.get('user_id')
+    if user_id:
+        return {
+            'current_user': {
+                'id': user_id,
+                'username': session.get('user_username', ''),
+                'display_name': session.get('user_display_name', ''),
+                'role': session.get('user_role', 'viewer'),
+            },
+            'is_viewer': session.get('user_role') == 'viewer',
+            'is_admin': session.get('user_role') == 'admin',
+        }
+    return {'current_user': None, 'is_viewer': False, 'is_admin': False}
+
+
+def _is_safe_redirect(target):
+    from urllib.parse import urlparse
+    if not target:
+        return False
+    parsed = urlparse(target)
+    return parsed.netloc == '' or parsed.netloc == request.host
+
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    app_password = os.environ.get('APP_PASSWORD')
-    if not app_password:
-        session['authenticated'] = True
+    if session.get('user_id'):
         return redirect(url_for('index'))
-    
+
     if request.method == 'POST':
+        username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
-        if password == app_password:
-            session['authenticated'] = True
-            next_url = request.args.get('next', url_for('index'))
+        user = User.query.filter_by(username=username).first()
+        if user and user.is_active and user.check_password(password):
+            session['user_id'] = user.id
+            session['user_username'] = user.username
+            session['user_display_name'] = user.display_name
+            session['user_role'] = user.role
+            next_url = request.args.get('next', '')
+            if not _is_safe_redirect(next_url):
+                next_url = url_for('index')
             return redirect(next_url)
+        elif user and not user.is_active:
+            flash('Your account has been deactivated. Contact an administrator.', 'error')
         else:
-            flash('Incorrect password', 'error')
-    
+            flash('Invalid username or password.', 'error')
+
     return render_template('login.html')
 
 
 @app.route('/logout')
 def logout():
-    session.pop('authenticated', None)
-    flash('You have been logged out', 'success')
+    session.clear()
+    flash('You have been logged out.', 'success')
     return redirect(url_for('login'))
+
+
+@app.route('/change-password', methods=['POST'])
+@login_required
+def change_own_password():
+    current_password = request.form.get('current_password', '')
+    new_password = request.form.get('new_password', '')
+    confirm_password = request.form.get('confirm_password', '')
+    user = User.query.get(session['user_id'])
+    if not user or not user.check_password(current_password):
+        flash('Current password is incorrect.', 'error')
+        return redirect(request.referrer or url_for('index'))
+    if not new_password or len(new_password) < 4:
+        flash('New password must be at least 4 characters.', 'error')
+        return redirect(request.referrer or url_for('index'))
+    if new_password != confirm_password:
+        flash('New passwords do not match.', 'error')
+        return redirect(request.referrer or url_for('index'))
+    user.set_password(new_password)
+    db.session.commit()
+    flash('Password changed successfully.', 'success')
+    return redirect(request.referrer or url_for('index'))
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
@@ -12280,3 +12404,88 @@ def api_graphic_firms():
             'name': f.name,
         })
     return jsonify(result)
+
+
+@app.route('/admin/users')
+@admin_required
+def admin_users():
+    users = User.query.order_by(User.created_at.desc()).all()
+    return render_template('admin_users.html', users=users)
+
+
+@app.route('/admin/users/add', methods=['POST'])
+@admin_required
+def admin_add_user():
+    username = request.form.get('username', '').strip().lower()
+    display_name = request.form.get('display_name', '').strip()
+    password = request.form.get('password', '')
+    role = request.form.get('role', 'editor')
+
+    if not username or not display_name or not password:
+        flash('All fields are required.', 'error')
+        return redirect(url_for('admin_users'))
+
+    if role not in ('admin', 'editor', 'viewer'):
+        role = 'editor'
+
+    if User.query.filter_by(username=username).first():
+        flash(f'Username "{username}" is already taken.', 'error')
+        return redirect(url_for('admin_users'))
+
+    user = User(username=username, display_name=display_name, role=role)
+    user.set_password(password)
+    db.session.add(user)
+    db.session.commit()
+    flash(f'User "{display_name}" created successfully.', 'success')
+    return redirect(url_for('admin_users'))
+
+
+@app.route('/admin/users/<int:user_id>/update', methods=['POST'])
+@admin_required
+def admin_update_user(user_id):
+    user = User.query.get_or_404(user_id)
+    display_name = request.form.get('display_name', '').strip()
+    role = request.form.get('role', '').strip()
+
+    if display_name:
+        user.display_name = display_name
+    if role in ('admin', 'editor', 'viewer'):
+        if user.id == session.get('user_id') and role != 'admin':
+            flash('You cannot remove your own admin role.', 'error')
+            return redirect(url_for('admin_users'))
+        user.role = role
+
+    db.session.commit()
+    if user.id == session.get('user_id'):
+        session['user_display_name'] = user.display_name
+        session['user_role'] = user.role
+    flash(f'User "{user.display_name}" updated.', 'success')
+    return redirect(url_for('admin_users'))
+
+
+@app.route('/admin/users/<int:user_id>/reset-password', methods=['POST'])
+@admin_required
+def admin_reset_password(user_id):
+    user = User.query.get_or_404(user_id)
+    new_password = request.form.get('new_password', '')
+    if not new_password or len(new_password) < 4:
+        flash('Password must be at least 4 characters.', 'error')
+        return redirect(url_for('admin_users'))
+    user.set_password(new_password)
+    db.session.commit()
+    flash(f'Password reset for "{user.display_name}".', 'success')
+    return redirect(url_for('admin_users'))
+
+
+@app.route('/admin/users/<int:user_id>/toggle-active', methods=['POST'])
+@admin_required
+def admin_toggle_active(user_id):
+    user = User.query.get_or_404(user_id)
+    if user.id == session.get('user_id'):
+        flash('You cannot deactivate your own account.', 'error')
+        return redirect(url_for('admin_users'))
+    user.is_active = not user.is_active
+    db.session.commit()
+    status = 'activated' if user.is_active else 'deactivated'
+    flash(f'User "{user.display_name}" {status}.', 'success')
+    return redirect(url_for('admin_users'))

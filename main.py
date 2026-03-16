@@ -33,6 +33,19 @@ with app.app_context():
     import models
     db.create_all()
 
+    from models import User
+    if User.query.count() == 0:
+        admin_password = os.environ.get('APP_PASSWORD', 'admin')
+        admin_user = User(
+            username='admin',
+            display_name='Administrator',
+            role='admin'
+        )
+        admin_user.set_password(admin_password)
+        db.session.add(admin_user)
+        db.session.commit()
+        print(f"Created default admin user (username: admin)")
+
 # Global error handler for production debugging
 @app.errorhandler(500)
 def handle_500_error(e):

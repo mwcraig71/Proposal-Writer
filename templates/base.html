@@ -8,9 +8,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         .drag-over { border-color: #3b82f6 !important; background-color: #eff6ff !important; }
+        body.viewer-mode .editor-only { display: none !important; }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="bg-gray-50 min-h-screen {% if is_viewer %}viewer-mode{% endif %}">
     <nav class="bg-blue-900 text-white shadow-lg">
         <div class="max-w-7xl mx-auto px-4">
             <div class="flex justify-between items-center h-16">
@@ -18,7 +19,7 @@
                     <i class="fas fa-file-alt text-2xl"></i>
                     <span class="font-bold text-xl">SF330 AI</span>
                 </a>
-                <div class="hidden md:flex space-x-6">
+                <div class="hidden md:flex items-center space-x-6">
                     <a href="/" class="hover:text-blue-200 transition">Dashboard</a>
                     <a href="/firms" class="hover:text-blue-200 transition">Firms</a>
                     <a href="/employees" class="hover:text-blue-200 transition">Personnel</a>
@@ -32,6 +33,23 @@
                     <a href="/orgchart" class="hover:text-blue-200 transition">Org Chart</a>
                     <a href="/resume-graphics-app/" class="hover:text-blue-200 transition">Graphics</a>
                     <a href="/settings" class="hover:text-blue-200 transition"><i class="fas fa-cog"></i></a>
+                    {% if is_admin %}
+                    <a href="/admin/users" class="hover:text-blue-200 transition" title="Manage Users"><i class="fas fa-users-cog"></i></a>
+                    {% endif %}
+                    <div class="relative group ml-2">
+                        <button class="flex items-center space-x-1 hover:text-blue-200 transition text-sm">
+                            <i class="fas fa-user-circle text-lg"></i>
+                            <span>{{ current_user.display_name if current_user else '' }}</span>
+                            {% if is_viewer %}<span class="bg-yellow-500 text-xs px-1.5 py-0.5 rounded text-black font-medium ml-1">View Only</span>{% endif %}
+                        </button>
+                        <div class="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-xl py-2 hidden group-hover:block z-50">
+                            <div class="px-4 py-2 text-sm text-gray-500 border-b">
+                                {{ current_user.username if current_user else '' }}
+                                <span class="block text-xs capitalize">{{ current_user.role if current_user else '' }}</span>
+                            </div>
+                            <a href="/logout" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"><i class="fas fa-sign-out-alt mr-2"></i>Logout</a>
+                        </div>
+                    </div>
                 </div>
                 <div class="md:hidden">
                     <button id="mobile-menu-btn" class="text-white">
@@ -54,8 +72,21 @@
             <a href="/orgchart" class="block px-4 py-2 hover:bg-blue-700">Org Chart</a>
             <a href="/resume-graphics-app/" class="block px-4 py-2 hover:bg-blue-700">Graphics</a>
             <a href="/settings" class="block px-4 py-2 hover:bg-blue-700">Settings</a>
+            {% if is_admin %}
+            <a href="/admin/users" class="block px-4 py-2 hover:bg-blue-700">Manage Users</a>
+            {% endif %}
+            <div class="border-t border-blue-700 mt-2 pt-2">
+                <span class="block px-4 py-1 text-blue-300 text-sm"><i class="fas fa-user-circle mr-1"></i>{{ current_user.display_name if current_user else '' }} ({{ current_user.role if current_user else '' }})</span>
+                <a href="/logout" class="block px-4 py-2 hover:bg-blue-700"><i class="fas fa-sign-out-alt mr-1"></i>Logout</a>
+            </div>
         </div>
     </nav>
+
+    {% if is_viewer %}
+    <div class="bg-yellow-100 border-b border-yellow-300 text-yellow-800 px-4 py-2 text-center text-sm">
+        <i class="fas fa-eye mr-1"></i> <strong>Read-Only Mode</strong> — You can view and download but not edit. Contact an administrator for edit access.
+    </div>
+    {% endif %}
 
     <main class="max-w-7xl mx-auto px-4 py-8">
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -81,6 +112,50 @@
         document.getElementById('mobile-menu-btn')?.addEventListener('click', function() {
             document.getElementById('mobile-menu').classList.toggle('hidden');
         });
+        const IS_VIEWER = {{ is_viewer|tojson }};
+        if (IS_VIEWER) {
+            document.addEventListener('DOMContentLoaded', function() {
+                document.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(function(btn) {
+                    if (!btn.closest('#mobile-menu') && !btn.closest('nav')) {
+                        btn.style.display = 'none';
+                    }
+                });
+                document.querySelectorAll('a').forEach(function(link) {
+                    var text = (link.textContent || '').trim().toLowerCase();
+                    var href = (link.getAttribute('href') || '').toLowerCase();
+                    if (href.includes('/add') || href.includes('/upload') || href.includes('/scrape') ||
+                        text.match(/^add\b|^upload\b|^import\b|^create\b|^new\b/)) {
+                        link.style.display = 'none';
+                    }
+                });
+                document.querySelectorAll('button').forEach(function(btn) {
+                    var text = (btn.textContent || '').trim().toLowerCase();
+                    if (btn.type !== 'button' && !btn.closest('nav') && !btn.closest('#mobile-menu')) return;
+                    var icon = btn.querySelector('i');
+                    var iconClass = icon ? icon.className : '';
+                    if (iconClass.includes('fa-trash') || iconClass.includes('fa-edit') ||
+                        text.match(/^delete\b|^remove\b|^save\b/)) {
+                        btn.style.display = 'none';
+                    }
+                });
+                document.querySelectorAll('[onclick*="delete"], [onclick*="Delete"], [onclick*="remove"], [onclick*="Remove"]').forEach(function(el) {
+                    el.style.display = 'none';
+                });
+                document.querySelectorAll('form').forEach(function(form) {
+                    var action = (form.getAttribute('action') || '');
+                    if (action && !action.includes('/login') && !action.includes('/change-password')) {
+                        form.querySelectorAll('input:not([type="hidden"]), textarea, select').forEach(function(input) {
+                            if (input.type !== 'submit' && input.type !== 'button') {
+                                input.setAttribute('readonly', true);
+                                if (input.tagName === 'SELECT') {
+                                    input.style.pointerEvents = 'none';
+                                }
+                            }
+                        });
+                    }
+                });
+            });
+        }
     </script>
     {% block scripts %}{% endblock %}
 </body>
