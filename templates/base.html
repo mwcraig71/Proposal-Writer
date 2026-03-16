@@ -113,49 +113,6 @@
             document.getElementById('mobile-menu').classList.toggle('hidden');
         });
         const IS_VIEWER = {{ is_viewer|tojson }};
-        if (IS_VIEWER) {
-            document.addEventListener('DOMContentLoaded', function() {
-                document.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(function(btn) {
-                    if (!btn.closest('#mobile-menu') && !btn.closest('nav')) {
-                        btn.style.display = 'none';
-                    }
-                });
-                document.querySelectorAll('a').forEach(function(link) {
-                    var text = (link.textContent || '').trim().toLowerCase();
-                    var href = (link.getAttribute('href') || '').toLowerCase();
-                    if (href.includes('/add') || href.includes('/upload') || href.includes('/scrape') ||
-                        text.match(/^add\b|^upload\b|^import\b|^create\b|^new\b/)) {
-                        link.style.display = 'none';
-                    }
-                });
-                document.querySelectorAll('button').forEach(function(btn) {
-                    var text = (btn.textContent || '').trim().toLowerCase();
-                    if (btn.type !== 'button' && !btn.closest('nav') && !btn.closest('#mobile-menu')) return;
-                    var icon = btn.querySelector('i');
-                    var iconClass = icon ? icon.className : '';
-                    if (iconClass.includes('fa-trash') || iconClass.includes('fa-edit') ||
-                        text.match(/^delete\b|^remove\b|^save\b/)) {
-                        btn.style.display = 'none';
-                    }
-                });
-                document.querySelectorAll('[onclick*="delete"], [onclick*="Delete"], [onclick*="remove"], [onclick*="Remove"]').forEach(function(el) {
-                    el.style.display = 'none';
-                });
-                document.querySelectorAll('form').forEach(function(form) {
-                    var action = (form.getAttribute('action') || '');
-                    if (action && !action.includes('/login') && !action.includes('/change-password')) {
-                        form.querySelectorAll('input:not([type="hidden"]), textarea, select').forEach(function(input) {
-                            if (input.type !== 'submit' && input.type !== 'button') {
-                                input.setAttribute('readonly', true);
-                                if (input.tagName === 'SELECT') {
-                                    input.style.pointerEvents = 'none';
-                                }
-                            }
-                        });
-                    }
-                });
-            });
-        }
     </script>
     {% block scripts %}{% endblock %}
 </body>
