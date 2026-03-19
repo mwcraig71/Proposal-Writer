@@ -1923,48 +1923,56 @@ const personnelSummaryData = [
     {% endfor %}
 ];
 
-let summaryRankedList = [];
-
 function openPersonnelSummaryModal() {
-    summaryRankedList = personnelSummaryData.map((p, i) => ({ ...p, rank: i + 1 }));
-    renderRankedList();
+    renderWeightedList();
     document.getElementById('personnelSummaryWordCount').value = 2500;
     document.getElementById('personnelSummaryWordLabel').textContent = '~2,500 words';
     document.getElementById('personnelSummaryResult').classList.add('hidden');
     document.getElementById('personnelSummaryError').classList.add('hidden');
     document.getElementById('personnelSummarySaved').classList.add('hidden');
     document.getElementById('personnelSummaryModal').classList.remove('hidden');
+    updateWeightPreview();
 }
 
 function closePersonnelSummaryModal() {
     document.getElementById('personnelSummaryModal').classList.add('hidden');
 }
 
-function renderRankedList() {
+function renderWeightedList() {
     const container = document.getElementById('personnelRankedList');
     container.innerHTML = '';
-    summaryRankedList.forEach((person, idx) => {
+    personnelSummaryData.forEach((person, idx) => {
         const div = document.createElement('div');
         div.className = 'flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2';
         div.innerHTML = `
-            <span class="w-6 h-6 rounded-full bg-purple-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">${idx + 1}</span>
             <div class="flex-1 min-w-0">
                 <div class="font-medium text-gray-800 text-sm truncate">${escHtml(person.name)}</div>
                 <div class="text-xs text-gray-500 truncate">${escHtml(person.title)}${person.role ? ' · ' + escHtml(person.role) : ''}</div>
             </div>
-            <div class="flex gap-1">
-                <button onclick="movePersonnelRank(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} class="px-2 py-1 text-xs rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-30 disabled:cursor-not-allowed"><i class="fas fa-chevron-up"></i></button>
-                <button onclick="movePersonnelRank(${idx}, 1)" ${idx === summaryRankedList.length - 1 ? 'disabled' : ''} class="px-2 py-1 text-xs rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-30 disabled:cursor-not-allowed"><i class="fas fa-chevron-down"></i></button>
+            <div class="flex items-center gap-2 flex-shrink-0">
+                <label class="text-xs text-gray-500">Weight</label>
+                <input type="number" id="weight_${idx}" min="1" max="20" value="10"
+                       class="w-14 text-center border border-gray-300 rounded px-1 py-0.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-purple-400"
+                       oninput="updateWeightPreview()">
+                <span id="pct_${idx}" class="text-xs text-purple-600 font-medium w-10 text-right"></span>
             </div>`;
         container.appendChild(div);
     });
 }
 
-function movePersonnelRank(idx, dir) {
-    const newIdx = idx + dir;
-    if (newIdx < 0 || newIdx >= summaryRankedList.length) return;
-    [summaryRankedList[idx], summaryRankedList[newIdx]] = [summaryRankedList[newIdx], summaryRankedList[idx]];
-    renderRankedList();
+function updateWeightPreview() {
+    const total = personnelSummaryData.reduce((sum, _, idx) => {
+        const el = document.getElementById('weight_' + idx);
+        return sum + Math.max(1, Math.min(20, parseInt(el ? el.value : 10) || 1));
+    }, 0);
+    personnelSummaryData.forEach((_, idx) => {
+        const el = document.getElementById('weight_' + idx);
+        const pctEl = document.getElementById('pct_' + idx);
+        if (el && pctEl) {
+            const w = Math.max(1, Math.min(20, parseInt(el.value) || 1));
+            pctEl.textContent = Math.round(w / total * 100) + '%';
+        }
+    });
 }
 
 function escHtml(str) {
@@ -1996,7 +2004,10 @@ async function generatePersonnelSummary() {
 
     try {
         const payload = {
-            employees: summaryRankedList.map((p, i) => ({ id: p.id, rank: i + 1 })),
+            employees: personnelSummaryData.map((p, idx) => {
+                const w = parseInt(document.getElementById('weight_' + idx)?.value) || 10;
+                return { id: p.id, weight: Math.max(1, Math.min(20, w)) };
+            }),
             word_count: wordCount
         };
         const resp = await fetch('/api/proposals/{{ proposal.id }}/personnel-summary', {
@@ -2074,7 +2085,7 @@ async function savePersonnelSummary() {
         <div class="flex items-center justify-between px-6 py-4 border-b flex-shrink-0">
             <div>
                 <h3 class="text-lg font-semibold text-gray-800"><i class="fas fa-robot text-purple-600 mr-2"></i>AI Personnel Summary</h3>
-                <p class="text-xs text-gray-500 mt-0.5">Generate a condensed team qualifications narrative saved as a proposal intelligence source</p>
+                <p class="text-xs text-gray-500 mt-0.5">Generate compressed per-person resume summaries, weighted by importance, saved as a proposal intelligence source</p>
             </div>
             <button onclick="closePersonnelSummaryModal()" class="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
         </div>
@@ -2085,9 +2096,10 @@ async function savePersonnelSummary() {
             <!-- Ranked personnel list -->
             <div>
                 <div class="flex items-center justify-between mb-2">
-                    <label class="text-sm font-medium text-gray-700">Personnel — use ↑/↓ to rank by importance</label>
-                    <span class="text-xs text-gray-400">Rank 1 gets the most emphasis</span>
+                    <label class="text-sm font-medium text-gray-700">Personnel — assign a weight (1–20) to each person</label>
+                    <span class="text-xs text-gray-400">Higher weight = more words allocated</span>
                 </div>
+                <p class="text-xs text-gray-500 mb-2">Each person's share of the total word count = their weight ÷ sum of all weights</p>
                 <div id="personnelRankedList" class="space-y-2"></div>
             </div>
 

@@ -4669,10 +4669,13 @@ def api_personnel_summary_generate(proposal_id):
     if invalid:
         return jsonify({'error': f'Employee IDs not selected for this proposal: {invalid}'}), 400
 
+    total_weight = sum(max(1, min(20, int(e.get('weight', 10)))) for e in employee_entries)
+
     sections = []
-    for idx, entry in enumerate(employee_entries):
+    for entry in employee_entries:
         emp_id = int(entry.get('id', 0))
-        rank = idx + 1
+        weight = max(1, min(20, int(entry.get('weight', 10))))
+        allocated_words = max(50, round(weight / total_weight * word_count))
         emp = Employee.query.get(emp_id)
         if not emp:
             continue
@@ -4702,50 +4705,56 @@ def api_personnel_summary_generate(proposal_id):
                 line += f": {desc[:300]}"
             exp_lines.append(line)
 
-        section = f"[RANK {rank}] {emp.name}"
+        raw_data = f"Name: {emp.name}"
         if emp.title:
-            section += f", {emp.title}"
+            raw_data += f"\nTitle: {emp.title}"
         if contract_role:
-            section += f" — Contract Role: {contract_role}"
+            raw_data += f"\nRole on this contract: {contract_role}"
         if years_total or years_firm:
-            section += f"\nExperience: {years_total} years total, {years_firm} years with firm"
+            raw_data += f"\nYears of experience: {years_total} total, {years_firm} with firm"
         if bio_text:
-            section += f"\nBio: {bio_text[:600]}"
+            raw_data += f"\nBio: {bio_text[:600]}"
         if emp.education:
-            section += f"\nEducation: {emp.education[:300]}"
+            raw_data += f"\nEducation: {emp.education[:300]}"
         if emp.registrations:
-            section += f"\nRegistrations/Licenses: {emp.registrations[:300]}"
+            raw_data += f"\nRegistrations/Licenses: {emp.registrations[:300]}"
         if emp.training:
-            section += f"\nTraining/Certifications: {emp.training[:300]}"
+            raw_data += f"\nTraining/Certifications: {emp.training[:300]}"
         if emp.other_qualifications:
-            section += f"\nOther Qualifications: {emp.other_qualifications[:300]}"
+            raw_data += f"\nOther Qualifications: {emp.other_qualifications[:300]}"
         if exp_lines:
-            section += f"\nRelevant Project Experience:\n" + "\n".join(exp_lines)
+            raw_data += f"\nProject Experience:\n" + "\n".join(exp_lines)
 
-        sections.append(section)
+        sections.append({'name': emp.name, 'allocated_words': allocated_words, 'raw_data': raw_data})
 
     if not sections:
         return jsonify({'error': 'No valid employees found for this proposal.'}), 400
 
-    personnel_block = "\n\n".join(sections)
-    prompt = f"""You are a senior A&E proposal writer preparing a team qualifications summary for a government contract proposal.
+    person_blocks = []
+    for s in sections:
+        person_blocks.append(
+            f"--- {s['name']} | TARGET: ~{s['allocated_words']} words ---\n{s['raw_data']}"
+        )
+    personnel_block = "\n\n".join(person_blocks)
 
-The following key personnel have been selected for this proposal. Personnel are listed in order of importance (Rank 1 = most important — give them greater depth and emphasis in the summary).
+    prompt = f"""You are compressing staff resume data into concise, information-dense qualification summaries for use as AI context in a government proposal.
 
-TARGET WORD COUNT: approximately {word_count} words
+TOTAL TARGET: approximately {word_count} words across all staff.
 
-Write a professional, cohesive narrative summary of the team's combined qualifications. The summary should:
-- Read as a unified team qualifications overview, not as individual bullet lists
-- Emphasize collective strengths, complementary expertise, and team synergy
-- Highlight the most important personnel (higher ranks) with more depth
-- Be written in third-person professional tone suitable for an SF330 or technical proposal
-- Avoid generic filler; be specific about credentials, experience, and relevant capabilities
-- Do NOT include headers or section dividers — write continuous prose
+Each person below has a word target. Write each person's section to hit their target as closely as possible — no more, no less. Allocate space according to the target, not your own judgment.
 
-PERSONNEL DATA:
+OUTPUT FORMAT — follow exactly:
+- Start each person's section with their name on its own line (no dashes, no "---", just the name as a heading)
+- Immediately follow with their compressed qualification summary — no preamble, no "In summary", no introductory sentences
+- Include all key facts: title/role, years of experience, education, registrations/licenses, certifications, relevant project experience
+- Write in tight third-person professional prose — no bullet points, no headers within a section
+- Do NOT add any overall introduction, conclusion, transition sentences, or filler between sections
+- Sections are separated only by a blank line
+
+STAFF DATA:
 {personnel_block}
 
-Write the summary now, targeting approximately {word_count} words:"""
+Write the compressed summaries now:"""
 
     try:
         summary = ai_generate(prompt)
