@@ -4646,6 +4646,145 @@ PROPOSAL DOCUMENT:
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/proposals/<int:proposal_id>/personnel-summary', methods=['POST'])
+def api_personnel_summary_generate(proposal_id):
+    """Generate an AI summary of selected personnel resumes for a proposal."""
+    from models import Proposal, ProposalSelectedEmployee, Employee, EmployeeProjectExperience
+    from gemini_service import ai_generate
+
+    proposal = Proposal.query.get_or_404(proposal_id)
+    data = request.get_json() or {}
+
+    employee_entries = data.get('employees', [])
+    word_count = int(data.get('word_count', 2500))
+    word_count = max(500, min(10000, word_count))
+
+    if not employee_entries:
+        return jsonify({'error': 'No employees provided.'}), 400
+
+    valid_ids = {pse.employee_id for pse in ProposalSelectedEmployee.query.filter_by(proposal_id=proposal_id).all()}
+
+    sections = []
+    for idx, entry in enumerate(employee_entries):
+        emp_id = int(entry.get('id', 0))
+        rank = idx + 1
+        if emp_id not in valid_ids:
+            continue
+        emp = Employee.query.get(emp_id)
+        if not emp:
+            continue
+
+        bio_text = ''
+        if emp.alternate_bios:
+            bio_text = emp.alternate_bios[0].bio or ''
+        if not bio_text:
+            bio_text = emp.bio or ''
+
+        pse = ProposalSelectedEmployee.query.filter_by(proposal_id=proposal_id, employee_id=emp_id).first()
+        contract_role = pse.role_in_contract if pse else ''
+
+        years_total = emp.years_experience_total or ''
+        years_firm = emp.years_experience_firm or ''
+
+        exp_items = EmployeeProjectExperience.query.filter_by(employee_id=emp_id).order_by(
+            EmployeeProjectExperience.resume_order.asc().nullslast()
+        ).limit(5).all()
+        exp_lines = []
+        for ex in exp_items:
+            desc = ex.active_description or ex.brief_description or ''
+            line = f"  - {ex.project_title}"
+            if ex.role_performed:
+                line += f" (Role: {ex.role_performed})"
+            if desc:
+                line += f": {desc[:300]}"
+            exp_lines.append(line)
+
+        section = f"[RANK {rank}] {emp.name}"
+        if emp.title:
+            section += f", {emp.title}"
+        if contract_role:
+            section += f" — Contract Role: {contract_role}"
+        if years_total or years_firm:
+            section += f"\nExperience: {years_total} years total, {years_firm} years with firm"
+        if bio_text:
+            section += f"\nBio: {bio_text[:600]}"
+        if emp.education:
+            section += f"\nEducation: {emp.education[:300]}"
+        if emp.registrations:
+            section += f"\nRegistrations/Licenses: {emp.registrations[:300]}"
+        if emp.training:
+            section += f"\nTraining/Certifications: {emp.training[:300]}"
+        if emp.other_qualifications:
+            section += f"\nOther Qualifications: {emp.other_qualifications[:300]}"
+        if exp_lines:
+            section += f"\nRelevant Project Experience:\n" + "\n".join(exp_lines)
+
+        sections.append(section)
+
+    if not sections:
+        return jsonify({'error': 'No valid employees found for this proposal.'}), 400
+
+    personnel_block = "\n\n".join(sections)
+    prompt = f"""You are a senior A&E proposal writer preparing a team qualifications summary for a government contract proposal.
+
+The following key personnel have been selected for this proposal. Personnel are listed in order of importance (Rank 1 = most important — give them greater depth and emphasis in the summary).
+
+TARGET WORD COUNT: approximately {word_count} words
+
+Write a professional, cohesive narrative summary of the team's combined qualifications. The summary should:
+- Read as a unified team qualifications overview, not as individual bullet lists
+- Emphasize collective strengths, complementary expertise, and team synergy
+- Highlight the most important personnel (higher ranks) with more depth
+- Be written in third-person professional tone suitable for an SF330 or technical proposal
+- Avoid generic filler; be specific about credentials, experience, and relevant capabilities
+- Do NOT include headers or section dividers — write continuous prose
+
+PERSONNEL DATA:
+{personnel_block}
+
+Write the summary now, targeting approximately {word_count} words:"""
+
+    try:
+        summary = ai_generate(prompt)
+        return jsonify({'summary': summary})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/proposals/<int:proposal_id>/personnel-summary/save', methods=['POST'])
+def api_personnel_summary_save(proposal_id):
+    """Save the AI-generated personnel summary as a Proposal Intelligence document."""
+    from models import Proposal, ProposalIntelligence
+
+    proposal = Proposal.query.get_or_404(proposal_id)
+    data = request.get_json() or {}
+    summary_text = data.get('summary', '').strip()
+
+    if not summary_text:
+        return jsonify({'error': 'No summary text provided.'}), 400
+
+    existing = ProposalIntelligence.query.filter_by(
+        proposal_id=proposal_id, filename='Personnel Summary'
+    ).first()
+    if existing:
+        db.session.delete(existing)
+        db.session.flush()
+
+    intel_doc = ProposalIntelligence(
+        proposal_id=proposal_id,
+        filename='Personnel Summary',
+        description='AI-generated team qualifications summary',
+        extracted_text=summary_text,
+        file_content=summary_text.encode('utf-8'),
+        file_size=len(summary_text.encode('utf-8')),
+        content_type='text/plain'
+    )
+    db.session.add(intel_doc)
+    db.session.commit()
+
+    return jsonify({'success': True, 'id': intel_doc.id})
+
+
 @app.route('/proposals/<int:id>/reference/<int:ref_id>/download')
 def download_reference(id, ref_id):
     """Download a reference document"""
