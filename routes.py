@@ -4664,12 +4664,15 @@ def api_personnel_summary_generate(proposal_id):
 
     valid_ids = {pse.employee_id for pse in ProposalSelectedEmployee.query.filter_by(proposal_id=proposal_id).all()}
 
+    submitted_ids = [int(e.get('id', 0)) for e in employee_entries]
+    invalid = [eid for eid in submitted_ids if eid not in valid_ids]
+    if invalid:
+        return jsonify({'error': f'Employee IDs not selected for this proposal: {invalid}'}), 400
+
     sections = []
     for idx, entry in enumerate(employee_entries):
         emp_id = int(entry.get('id', 0))
         rank = idx + 1
-        if emp_id not in valid_ids:
-            continue
         emp = Employee.query.get(emp_id)
         if not emp:
             continue
@@ -4763,20 +4766,18 @@ def api_personnel_summary_save(proposal_id):
     if not summary_text:
         return jsonify({'error': 'No summary text provided.'}), 400
 
-    existing = ProposalIntelligence.query.filter_by(
+    existing_rows = ProposalIntelligence.query.filter_by(
         proposal_id=proposal_id, filename='Personnel Summary'
-    ).first()
-    if existing:
-        db.session.delete(existing)
-        db.session.flush()
+    ).all()
+    for row in existing_rows:
+        db.session.delete(row)
+    db.session.flush()
 
     intel_doc = ProposalIntelligence(
         proposal_id=proposal_id,
         filename='Personnel Summary',
         description='AI-generated team qualifications summary',
         extracted_text=summary_text,
-        file_content=summary_text.encode('utf-8'),
-        file_size=len(summary_text.encode('utf-8')),
         content_type='text/plain'
     )
     db.session.add(intel_doc)

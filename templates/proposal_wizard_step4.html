@@ -2048,14 +2048,19 @@ async function savePersonnelSummary() {
         const data = await resp.json();
         if (data.success) {
             savedEl.classList.remove('hidden');
+            setTimeout(() => {
+                closePersonnelSummaryModal();
+                location.reload();
+            }, 1800);
         } else {
             errEl.textContent = 'Save failed: ' + (data.error || 'Unknown error');
             errEl.classList.remove('hidden');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-save mr-1"></i>Save to Intelligence';
         }
     } catch (e) {
         errEl.textContent = 'Save failed: ' + e.message;
         errEl.classList.remove('hidden');
-    } finally {
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-save mr-1"></i>Save to Intelligence';
     }
@@ -2080,7 +2085,7 @@ async function savePersonnelSummary() {
             <!-- Ranked personnel list -->
             <div>
                 <div class="flex items-center justify-between mb-2">
-                    <label class="text-sm font-medium text-gray-700">Personnel — drag to rank by importance</label>
+                    <label class="text-sm font-medium text-gray-700">Personnel — use ↑/↓ to rank by importance</label>
                     <span class="text-xs text-gray-400">Rank 1 gets the most emphasis</span>
                 </div>
                 <div id="personnelRankedList" class="space-y-2"></div>
