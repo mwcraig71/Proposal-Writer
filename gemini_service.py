@@ -4,6 +4,7 @@ from typing import Optional
 from google import genai
 from google.genai import types
 from openai import OpenAI
+import anthropic
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception
 
 
@@ -38,6 +39,15 @@ openai_client = OpenAI(
     base_url=AI_INTEGRATIONS_OPENAI_BASE_URL
 )
 
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
+anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY) if ANTHROPIC_API_KEY else None
+
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
+openrouter_client = OpenAI(
+    api_key=OPENROUTER_API_KEY or "placeholder",
+    base_url="https://openrouter.ai/api/v1",
+) if OPENROUTER_API_KEY else None
+
 AVAILABLE_MODELS = {
     "gemini": [
         {"id": "gemini-2.5-flash", "name": "Gemini 2.5 Flash", "description": "Fast and efficient"},
@@ -56,7 +66,17 @@ AVAILABLE_MODELS = {
         {"id": "o4-mini", "name": "o4-mini", "description": "Reasoning model for complex tasks"},
         {"id": "o3", "name": "o3", "description": "Deep reasoning model"},
         {"id": "o3-mini", "name": "o3-mini", "description": "Compact reasoning model"},
-    ]
+    ],
+    "claude": [
+        {"id": "claude-opus-4-5", "name": "Claude Opus 4.5", "description": "Most capable Claude model"},
+        {"id": "claude-sonnet-4-5", "name": "Claude Sonnet 4.5", "description": "Balanced performance and speed"},
+        {"id": "claude-haiku-3-5", "name": "Claude Haiku 3.5", "description": "Fast and cost-effective"},
+        {"id": "claude-opus-4-0", "name": "Claude Opus 4", "description": "Previous generation Opus"},
+        {"id": "claude-sonnet-4-0", "name": "Claude Sonnet 4", "description": "Previous generation Sonnet"},
+    ],
+    "openrouter": [
+        {"id": "__custom__", "name": "Custom Model ID", "description": "Enter any OpenRouter model ID"},
+    ],
 }
 
 DEFAULT_PROVIDER = "gemini"
@@ -68,8 +88,12 @@ def get_ai_settings():
         from models import AISettings
         provider = AISettings.get_value('ai_provider', DEFAULT_PROVIDER)
         model = AISettings.get_value('ai_model', DEFAULT_MODEL)
-        if provider not in ('gemini', 'openai'):
+        if provider not in ('gemini', 'openai', 'claude', 'openrouter'):
             provider = DEFAULT_PROVIDER
+        if provider == 'openrouter':
+            custom_model = AISettings.get_value('openrouter_model_id', '')
+            model = custom_model or 'meta-llama/llama-3.3-70b-instruct:free'
+            return provider, model
         valid_ids = [m['id'] for m in AVAILABLE_MODELS.get(provider, [])]
         if model not in valid_ids and valid_ids:
             model = valid_ids[0]
@@ -80,9 +104,13 @@ def get_ai_settings():
 
 def ai_generate(prompt: str, json_mode: bool = False) -> str:
     provider, model = get_ai_settings()
-    
+
     if provider == 'openai':
         return _openai_generate(prompt, model, json_mode)
+    elif provider == 'claude':
+        return _claude_generate(prompt, model, json_mode)
+    elif provider == 'openrouter':
+        return _openrouter_generate(prompt, model, json_mode)
     else:
         return _gemini_generate(prompt, model, json_mode)
 
@@ -109,8 +137,37 @@ def _openai_generate(prompt: str, model: str, json_mode: bool = False) -> str:
     }
     if json_mode:
         kwargs["response_format"] = {"type": "json_object"}
-    
+
     response = openai_client.chat.completions.create(**kwargs)
+    return response.choices[0].message.content or ""
+
+
+def _claude_generate(prompt: str, model: str, json_mode: bool = False) -> str:
+    if not anthropic_client:
+        raise RuntimeError("Anthropic API key not configured. Please add ANTHROPIC_API_KEY in Settings > Secrets.")
+    system = "You are a helpful assistant. Return only valid JSON with no markdown formatting." if json_mode else None
+    kwargs = {
+        "model": model,
+        "max_tokens": 8192,
+        "messages": [{"role": "user", "content": prompt}],
+    }
+    if system:
+        kwargs["system"] = system
+    response = anthropic_client.messages.create(**kwargs)
+    return response.content[0].text or ""
+
+
+def _openrouter_generate(prompt: str, model: str, json_mode: bool = False) -> str:
+    if not openrouter_client:
+        raise RuntimeError("OpenRouter API key not configured. Please add OPENROUTER_API_KEY in Settings > Secrets.")
+    kwargs = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "max_tokens": 8192,
+    }
+    if json_mode:
+        kwargs["response_format"] = {"type": "json_object"}
+    response = openrouter_client.chat.completions.create(**kwargs)
     return response.choices[0].message.content or ""
 
 

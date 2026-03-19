@@ -73,25 +73,46 @@
         
         <div class="mb-6">
             <label class="block text-sm font-medium text-gray-700 mb-2">AI Provider</label>
-            <div class="flex gap-4">
-                <label class="flex items-center gap-2 px-4 py-3 border rounded-lg cursor-pointer transition hover:bg-gray-50 {{ 'border-blue-500 bg-blue-50 ring-2 ring-blue-200' if ai_provider == 'gemini' else 'border-gray-300' }}" id="provider-label-gemini">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <label class="flex items-center gap-2 px-4 py-3 border rounded-lg cursor-pointer transition hover:bg-gray-50" id="provider-label-gemini">
                     <input type="radio" name="ai_provider" value="gemini" {{ 'checked' if ai_provider == 'gemini' }} onchange="updateModelDropdown()" class="text-blue-600">
                     <i class="fas fa-gem text-blue-500"></i>
-                    <span class="font-medium">Google Gemini</span>
+                    <span class="font-medium text-sm">Google Gemini</span>
                 </label>
-                <label class="flex items-center gap-2 px-4 py-3 border rounded-lg cursor-pointer transition hover:bg-gray-50 {{ 'border-green-500 bg-green-50 ring-2 ring-green-200' if ai_provider == 'openai' else 'border-gray-300' }}" id="provider-label-openai">
+                <label class="flex items-center gap-2 px-4 py-3 border rounded-lg cursor-pointer transition hover:bg-gray-50" id="provider-label-openai">
                     <input type="radio" name="ai_provider" value="openai" {{ 'checked' if ai_provider == 'openai' }} onchange="updateModelDropdown()" class="text-green-600">
                     <i class="fas fa-brain text-green-500"></i>
-                    <span class="font-medium">OpenAI</span>
+                    <span class="font-medium text-sm">OpenAI</span>
+                </label>
+                <label class="flex items-center gap-2 px-4 py-3 border rounded-lg cursor-pointer transition hover:bg-gray-50" id="provider-label-claude">
+                    <input type="radio" name="ai_provider" value="claude" {{ 'checked' if ai_provider == 'claude' }} onchange="updateModelDropdown()" class="text-orange-600">
+                    <i class="fas fa-circle-nodes text-orange-500"></i>
+                    <span class="font-medium text-sm">Claude</span>
+                </label>
+                <label class="flex items-center gap-2 px-4 py-3 border rounded-lg cursor-pointer transition hover:bg-gray-50" id="provider-label-openrouter">
+                    <input type="radio" name="ai_provider" value="openrouter" {{ 'checked' if ai_provider == 'openrouter' }} onchange="updateModelDropdown()" class="text-purple-600">
+                    <i class="fas fa-route text-purple-500"></i>
+                    <span class="font-medium text-sm">OpenRouter</span>
                 </label>
             </div>
         </div>
-        
-        <div class="mb-6">
+
+        <div class="mb-6" id="model-dropdown-section">
             <label class="block text-sm font-medium text-gray-700 mb-2">AI Model</label>
             <select name="ai_model" id="ai-model-select" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white">
             </select>
             <p class="text-xs text-gray-500 mt-1" id="model-description"></p>
+        </div>
+
+        <div class="mb-6" id="openrouter-model-section" style="display:none;">
+            <label class="block text-sm font-medium text-gray-700 mb-2">OpenRouter Model ID</label>
+            <input type="text" name="openrouter_model_id" id="openrouter-model-id"
+                   value="{{ openrouter_model_id }}"
+                   placeholder="e.g. meta-llama/llama-3.3-70b-instruct:free"
+                   class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 font-mono text-sm">
+            <p class="text-xs text-gray-500 mt-1">
+                Enter any model ID from <a href="https://openrouter.ai/models" target="_blank" class="text-purple-600 underline hover:text-purple-800">openrouter.ai/models</a>. Requires <code class="bg-gray-100 px-1 rounded">OPENROUTER_API_KEY</code> secret.
+            </p>
         </div>
 
         <hr class="my-6 border-gray-200">
@@ -232,30 +253,42 @@
     <script>
     const availableModels = {{ available_models | tojson }};
     const currentModel = {{ ai_model | tojson }};
-    
+
+    const providerStyles = {
+        gemini:     { border: 'border-blue-500',   bg: 'bg-blue-50',   ring: 'ring-blue-200' },
+        openai:     { border: 'border-green-500',  bg: 'bg-green-50',  ring: 'ring-green-200' },
+        claude:     { border: 'border-orange-500', bg: 'bg-orange-50', ring: 'ring-orange-200' },
+        openrouter: { border: 'border-purple-500', bg: 'bg-purple-50', ring: 'ring-purple-200' },
+    };
+
     function updateModelDropdown() {
         const provider = document.querySelector('input[name="ai_provider"]:checked').value;
         const select = document.getElementById('ai-model-select');
-        const descEl = document.getElementById('model-description');
-        
-        select.innerHTML = '';
-        const models = availableModels[provider] || [];
-        models.forEach(m => {
-            const opt = document.createElement('option');
-            opt.value = m.id;
-            opt.textContent = m.name + ' — ' + m.description;
-            if (m.id === currentModel) opt.selected = true;
-            select.appendChild(opt);
-        });
-        
-        if (!select.value && models.length > 0) {
-            select.selectedIndex = 0;
+        const dropdownSection = document.getElementById('model-dropdown-section');
+        const openrouterSection = document.getElementById('openrouter-model-section');
+
+        if (provider === 'openrouter') {
+            dropdownSection.style.display = 'none';
+            openrouterSection.style.display = '';
+        } else {
+            dropdownSection.style.display = '';
+            openrouterSection.style.display = 'none';
+            select.innerHTML = '';
+            const models = availableModels[provider] || [];
+            models.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m.id;
+                opt.textContent = m.name + ' — ' + m.description;
+                if (m.id === currentModel) opt.selected = true;
+                select.appendChild(opt);
+            });
+            if (!select.value && models.length > 0) select.selectedIndex = 0;
+            updateModelDescription();
         }
-        
-        updateModelDescription();
+
         updateProviderStyles();
     }
-    
+
     function updateModelDescription() {
         const provider = document.querySelector('input[name="ai_provider"]:checked').value;
         const select = document.getElementById('ai-model-select');
@@ -264,18 +297,21 @@
         const selected = models.find(m => m.id === select.value);
         descEl.textContent = selected ? selected.description : '';
     }
-    
+
     function updateProviderStyles() {
         const provider = document.querySelector('input[name="ai_provider"]:checked').value;
-        const geminiLabel = document.getElementById('provider-label-gemini');
-        const openaiLabel = document.getElementById('provider-label-openai');
-        
-        geminiLabel.className = 'flex items-center gap-2 px-4 py-3 border rounded-lg cursor-pointer transition hover:bg-gray-50 ' + 
-            (provider === 'gemini' ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200' : 'border-gray-300');
-        openaiLabel.className = 'flex items-center gap-2 px-4 py-3 border rounded-lg cursor-pointer transition hover:bg-gray-50 ' + 
-            (provider === 'openai' ? 'border-green-500 bg-green-50 ring-2 ring-green-200' : 'border-gray-300');
+        ['gemini', 'openai', 'claude', 'openrouter'].forEach(p => {
+            const label = document.getElementById('provider-label-' + p);
+            if (!label) return;
+            const s = providerStyles[p];
+            if (p === provider) {
+                label.className = `flex items-center gap-2 px-4 py-3 border rounded-lg cursor-pointer transition hover:bg-gray-50 ${s.border} ${s.bg} ring-2 ${s.ring}`;
+            } else {
+                label.className = 'flex items-center gap-2 px-4 py-3 border rounded-lg cursor-pointer transition hover:bg-gray-50 border-gray-300';
+            }
+        });
     }
-    
+
     document.getElementById('ai-model-select').addEventListener('change', updateModelDescription);
     updateModelDropdown();
     </script>

@@ -6558,6 +6558,7 @@ def settings():
     ai_writing_sample = AISettings.get_value('ai_writing_sample', '')
     ai_provider = AISettings.get_value('ai_provider', 'gemini')
     ai_model = AISettings.get_value('ai_model', 'gemini-2.5-flash')
+    openrouter_model_id = AISettings.get_value('openrouter_model_id', '')
     from gemini_service import AVAILABLE_MODELS
     
     # Check if a custom template exists in object storage
@@ -6623,6 +6624,7 @@ def settings():
                            orgchart_include_middle_name=orgchart_include_middle_name,
                            resume_include_middle_name=resume_include_middle_name,
                            ai_provider=ai_provider, ai_model=ai_model, available_models=AVAILABLE_MODELS,
+                           openrouter_model_id=openrouter_model_id,
                            has_custom_template=has_custom_template, has_company_template=has_company_template,
                            has_resume_template=has_resume_template, has_sf330_resume_template=has_sf330_resume_template,
                            has_section_g_template=has_section_g_template)
@@ -6638,7 +6640,8 @@ def save_settings():
     ai_industry_words = request.form.get('ai_industry_words', '')
     ai_provider = request.form.get('ai_provider', 'gemini')
     ai_model = request.form.get('ai_model', 'gemini-2.5-flash')
-    
+    openrouter_model_id = request.form.get('openrouter_model_id', '').strip()
+
     AISettings.set_value('ai_writing_style', ai_style)
     AISettings.set_value('ai_writing_tone', ai_tone)
     AISettings.set_value('ai_writing_sample', ai_writing_sample)
@@ -6653,6 +6656,7 @@ def save_settings():
     AISettings.set_value('resume_include_middle_name', 'true' if request.form.get('resume_include_middle_name') == 'on' else 'false')
     AISettings.set_value('ai_provider', ai_provider)
     AISettings.set_value('ai_model', ai_model)
+    AISettings.set_value('openrouter_model_id', openrouter_model_id)
     
     flash('AI settings saved successfully!', 'success')
     return redirect(url_for('settings'))
