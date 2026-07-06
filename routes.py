@@ -5,6 +5,7 @@ from flask import render_template, request, jsonify, redirect, url_for, flash, s
 from werkzeug.utils import secure_filename
 from main import app
 from database import db
+from sqlalchemy.orm import joinedload, selectinload
 from models import (
     User,
     Firm, Employee, Project, EmployeeProjectLink, Proposal,
@@ -27,6 +28,19 @@ import io
 
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'pdf', 'docx', 'doc', 'xlsx', 'xls', 'txt'}
+
+
+def _prefetch_links(employee_ids, project_ids):
+    """Fetch all EmployeeProjectLink rows for the given employees/projects in one
+    query and return them keyed by (employee_id, project_id). Replaces the old
+    one-query-per-cell pattern used to build Section G matrices."""
+    if not employee_ids or not project_ids:
+        return {}
+    links = EmployeeProjectLink.query.filter(
+        EmployeeProjectLink.employee_id.in_(list(employee_ids)),
+        EmployeeProjectLink.project_id.in_(list(project_ids))
+    ).all()
+    return {(l.employee_id, l.project_id): l for l in links}
 
 
 def _is_api_request():
@@ -220,11 +234,11 @@ def index():
     today = date.today()
     six_months_from_now = today + timedelta(days=180)
     
-    expired_certs = Certification.query.filter(
+    expired_certs = Certification.query.options(joinedload(Certification.employee)).filter(
         Certification.expiration_date < today
     ).order_by(Certification.expiration_date.desc()).all()
     
-    expiring_certs = Certification.query.filter(
+    expiring_certs = Certification.query.options(joinedload(Certification.employee)).filter(
         Certification.expiration_date >= today,
         Certification.expiration_date <= six_months_from_now
     ).order_by(Certification.expiration_date.asc()).all()
@@ -2425,9 +2439,9 @@ def organize_projects_hierarchically(project_list):
 def projects():
     show_archived = request.args.get('show_archived', '0') == '1'
     if show_archived:
-        all_projects = Project.query.order_by(Project.title).all()
+        all_projects = Project.query.options(joinedload(Project.firm)).order_by(Project.title).all()
     else:
-        all_projects = Project.query.filter(Project.archived != True).order_by(Project.title).all()
+        all_projects = Project.query.options(joinedload(Project.firm)).filter(Project.archived != True).order_by(Project.title).all()
     firms = Firm.query.order_by(Firm.name).all()
     
     hierarchical_projects = organize_projects_hierarchically(all_projects)
@@ -3679,7 +3693,7 @@ def proposals():
     status_filter = request.args.get('status', '')
     show_archived = request.args.get('show_archived', '0') == '1'
     
-    query = Proposal.query
+    query = Proposal.query.options(joinedload(Proposal.firm))
     if not show_archived:
         query = query.filter(Proposal.archived != True)
     
@@ -4281,17 +4295,13 @@ def download_section_g(id):
     
     projects = [psp.project for psp in selected_projects]
     
+    link_map = _prefetch_links([p.employee_id for p in selected_employees], [p.project_id for p in selected_projects])
     emp_project_matrix = {}
     for pse in selected_employees:
-        emp_projects = set()
-        for psp in selected_projects:
-            link = EmployeeProjectLink.query.filter_by(
-                employee_id=pse.employee_id,
-                project_id=psp.project_id
-            ).first()
-            if link:
-                emp_projects.add(psp.project_id)
-        emp_project_matrix[pse.employee_id] = emp_projects
+        emp_project_matrix[pse.employee_id] = {
+            psp.project_id for psp in selected_projects
+            if (pse.employee_id, psp.project_id) in link_map
+        }
     
     template_doc = None
     try:
@@ -4945,6 +4955,7 @@ def generate_proposal_outline(id):
         selected_projs = proposal.selected_projects
         if selected_emps and selected_projs:
             lines = []
+            link_map = _prefetch_links([p.employee_id for p in selected_emps], [p.project_id for p in selected_projs])
             for pse in selected_emps:
                 emp = pse.employee
                 if emp:
@@ -4952,7 +4963,7 @@ def generate_proposal_outline(id):
                     for psp in selected_projs:
                         proj = psp.project
                         if proj:
-                            link = EmployeeProjectLink.query.filter_by(employee_id=emp.id, project_id=proj.id).first()
+                            link = link_map.get((emp.id, proj.id))
                             if link:
                                 emp_proj_lines.append(f"  * {proj.title}: {link.role_on_project or 'Participated'}")
                     if emp_proj_lines:
@@ -5312,6 +5323,7 @@ def generate_cover_letter(id):
         selected_projs = proposal.selected_projects
         if selected_emps and selected_projs:
             lines = []
+            link_map = _prefetch_links([p.employee_id for p in selected_emps], [p.project_id for p in selected_projs])
             for pse in selected_emps:
                 emp = pse.employee
                 if emp:
@@ -5319,7 +5331,7 @@ def generate_cover_letter(id):
                     for psp in selected_projs:
                         proj = psp.project
                         if proj:
-                            link = EmployeeProjectLink.query.filter_by(employee_id=emp.id, project_id=proj.id).first()
+                            link = link_map.get((emp.id, proj.id))
                             if link:
                                 emp_proj_lines.append(f"  * {proj.title}: {link.role_on_project or 'Participated'}")
                     if emp_proj_lines:
@@ -7614,7 +7626,7 @@ def search_contacts():
 @app.route('/certifications')
 def certifications():
     from datetime import date
-    employees = Employee.query.order_by(Employee.name).all()
+    employees = Employee.query.options(selectinload(Employee.certifications)).order_by(Employee.name).all()
     return render_template('certifications.html', employees=employees, today=date.today())
 
 
@@ -10317,6 +10329,7 @@ UEI: {firm.uei or 'N/A'}
         if (include_all or 'section_g' in included_sections) and selected_employees and selected_projects:
             matrix_info = "SECTION G MATRIX (Personnel-Project Participation & Roles):\n"
             has_entries = False
+            link_map = _prefetch_links([p.employee_id for p in selected_employees], [p.project_id for p in selected_projects])
             for pse in selected_employees:
                 emp = pse.employee
                 if emp:
@@ -10324,7 +10337,7 @@ UEI: {firm.uei or 'N/A'}
                     for psp in selected_projects:
                         proj = psp.project
                         if proj:
-                            link = EmployeeProjectLink.query.filter_by(employee_id=emp.id, project_id=proj.id).first()
+                            link = link_map.get((emp.id, proj.id))
                             if link:
                                 emp_projects.append(f"  * {proj.title}: {link.role_on_project or 'Participated'}")
                     if emp_projects:
@@ -10562,6 +10575,7 @@ UEI: {firm.uei or 'N/A'}
                     
                     if pse.relevant_projects:
                         personnel_info += "Block 19 Selected Projects (for SF330 Resume):\n"
+                        _b19_link_map = _prefetch_links([emp.id], [rp.project_id for rp in pse.relevant_projects if rp.project_id])
                         for rp in pse.relevant_projects:
                             proj = rp.project
                             if proj:
@@ -10571,7 +10585,7 @@ UEI: {firm.uei or 'N/A'}
                                 if proj.year_completed_professional:
                                     personnel_info += f" | {proj.year_completed_professional}"
                                 personnel_info += "\n"
-                                link = EmployeeProjectLink.query.filter_by(employee_id=emp.id, project_id=proj.id).first()
+                                link = _b19_link_map.get((emp.id, proj.id))
                                 if link and link.role_on_project:
                                     personnel_info += f"    Role: {link.role_on_project}\n"
                                 if proj.brief_description:
@@ -10609,6 +10623,7 @@ UEI: {firm.uei or 'N/A'}
         if (include_all or 'section_g' in included_sections) and selected_employees and selected_projects:
             matrix_info = "SECTION G MATRIX (Personnel-Project Participation & Roles):\n"
             has_entries = False
+            link_map = _prefetch_links([p.employee_id for p in selected_employees], [p.project_id for p in selected_projects])
             for pse in selected_employees:
                 emp = pse.employee
                 if emp:
@@ -10616,7 +10631,7 @@ UEI: {firm.uei or 'N/A'}
                     for psp in selected_projects:
                         proj = psp.project
                         if proj:
-                            link = EmployeeProjectLink.query.filter_by(employee_id=emp.id, project_id=proj.id).first()
+                            link = link_map.get((emp.id, proj.id))
                             if link:
                                 emp_projects.append(f"  * {proj.title}: {link.role_on_project or 'Participated'}")
                     if emp_projects:

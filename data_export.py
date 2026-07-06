@@ -22,10 +22,11 @@ def serialize_value(value):
 
 
 def serialize_model(obj, exclude_fields=None):
-    exclude_fields = exclude_fields or []
-    exclude_fields.extend(['_sa_instance_state'])
+    exclude_fields = set(exclude_fields or [])
+    exclude_fields.add('_sa_instance_state')
     data = {}
-    for key in obj.__dict__:
+    # Iterate mapped columns (not __dict__) so deferred columns are still exported
+    for key in obj.__mapper__.columns.keys():
         if key not in exclude_fields and not key.startswith('_'):
             data[key] = serialize_value(getattr(obj, key))
     return data

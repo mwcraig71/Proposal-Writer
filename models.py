@@ -1,5 +1,6 @@
 from datetime import datetime
 from database import db
+from sqlalchemy.orm import deferred
 from werkzeug.security import generate_password_hash, check_password_hash
 
 
@@ -72,7 +73,7 @@ class Firm(db.Model):
     point_of_contact_title = db.Column(db.String(255))
     bio = db.Column(db.Text)
     is_branch = db.Column(db.Boolean, default=False)
-    parent_firm_id = db.Column(db.Integer, db.ForeignKey('firms.id'), nullable=True)
+    parent_firm_id = db.Column(db.Integer, db.ForeignKey('firms.id'), nullable=True, index=True)
     google_drive_folder_url = db.Column(db.String(500))
     brand_color = db.Column(db.String(20))
     abbreviation = db.Column(db.String(10))
@@ -105,7 +106,7 @@ class FirmAddress(db.Model):
     __tablename__ = 'firm_addresses'
     
     id = db.Column(db.Integer, primary_key=True)
-    firm_id = db.Column(db.Integer, db.ForeignKey('firms.id'), nullable=False)
+    firm_id = db.Column(db.Integer, db.ForeignKey('firms.id'), nullable=False, index=True)
     label = db.Column(db.String(100))
     street_address = db.Column(db.String(255))
     city = db.Column(db.String(100))
@@ -120,7 +121,7 @@ class FirmContact(db.Model):
     __tablename__ = 'firm_contacts'
     
     id = db.Column(db.Integer, primary_key=True)
-    firm_id = db.Column(db.Integer, db.ForeignKey('firms.id'), nullable=False)
+    firm_id = db.Column(db.Integer, db.ForeignKey('firms.id'), nullable=False, index=True)
     label = db.Column(db.String(100))
     name = db.Column(db.String(255))
     title = db.Column(db.String(255))
@@ -135,7 +136,7 @@ class Employee(db.Model):
     __tablename__ = 'employees'
     
     id = db.Column(db.Integer, primary_key=True)
-    firm_id = db.Column(db.Integer, db.ForeignKey('firms.id'), nullable=True)
+    firm_id = db.Column(db.Integer, db.ForeignKey('firms.id'), nullable=True, index=True)
     name = db.Column(db.String(255), nullable=False)
     first_name = db.Column(db.String(100))
     middle_name = db.Column(db.String(100))
@@ -155,7 +156,7 @@ class Employee(db.Model):
     other_qualifications = db.Column(db.Text)
     city = db.Column(db.String(100))
     state = db.Column(db.String(50))
-    archived = db.Column(db.Boolean, default=False, nullable=False, server_default='false')
+    archived = db.Column(db.Boolean, default=False, nullable=False, server_default='false', index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -178,7 +179,7 @@ class EmployeeAlternateBio(db.Model):
     __tablename__ = 'employee_alternate_bios'
     
     id = db.Column(db.Integer, primary_key=True)
-    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False)
+    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False, index=True)
     label = db.Column(db.String(255), nullable=False)
     bio = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -192,9 +193,9 @@ class EmployeeProjectExperience(db.Model):
     __tablename__ = 'employee_project_experiences'
     
     id = db.Column(db.Integer, primary_key=True)
-    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False)
-    linked_project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=True)
-    selected_alt_description_id = db.Column(db.Integer, db.ForeignKey('experience_alternate_descriptions.id'), nullable=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False, index=True)
+    linked_project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=True, index=True)
+    selected_alt_description_id = db.Column(db.Integer, db.ForeignKey('experience_alternate_descriptions.id'), nullable=True, index=True)
     project_title = db.Column(db.String(500), nullable=False)
     location = db.Column(db.String(255))
     owner_name = db.Column(db.String(255))
@@ -234,7 +235,7 @@ class ExperienceAlternateDescription(db.Model):
     __tablename__ = 'experience_alternate_descriptions'
     
     id = db.Column(db.Integer, primary_key=True)
-    experience_id = db.Column(db.Integer, db.ForeignKey('employee_project_experiences.id'), nullable=False)
+    experience_id = db.Column(db.Integer, db.ForeignKey('employee_project_experiences.id'), nullable=False, index=True)
     label = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -247,7 +248,7 @@ class Project(db.Model):
     __tablename__ = 'projects'
     
     id = db.Column(db.Integer, primary_key=True)
-    firm_id = db.Column(db.Integer, db.ForeignKey('firms.id'), nullable=True)
+    firm_id = db.Column(db.Integer, db.ForeignKey('firms.id'), nullable=True, index=True)
     title = db.Column(db.String(500), nullable=False)
     location = db.Column(db.String(255))
     year_completed_professional = db.Column(db.String(50))
@@ -256,7 +257,7 @@ class Project(db.Model):
     owner_contact_name = db.Column(db.String(255))
     owner_contact_phone = db.Column(db.String(50))
     owner_contact_email = db.Column(db.String(255))
-    owner_contact_id = db.Column(db.Integer, db.ForeignKey('client_contacts.id'), nullable=True)
+    owner_contact_id = db.Column(db.Integer, db.ForeignKey('client_contacts.id'), nullable=True, index=True)
     project_cost = db.Column(db.String(255))
     project_delivery_method = db.Column(db.String(255))
     brief_description = db.Column(db.Text)
@@ -264,8 +265,8 @@ class Project(db.Model):
     is_with_other_firm = db.Column(db.Boolean, default=False)
     other_firm_name = db.Column(db.String(255))
     project_type = db.Column(db.String(50), default='contract')
-    parent_contract_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=True)
-    archived = db.Column(db.Boolean, default=False, nullable=False, server_default='false')
+    parent_contract_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=True, index=True)
+    archived = db.Column(db.Boolean, default=False, nullable=False, server_default='false', index=True)
     tags = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -281,7 +282,7 @@ class ProjectAlternateDescription(db.Model):
     __tablename__ = 'project_alternate_descriptions'
     
     id = db.Column(db.Integer, primary_key=True)
-    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=False)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=False, index=True)
     label = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -295,7 +296,7 @@ class FirmAlternateDescription(db.Model):
     __tablename__ = 'firm_alternate_descriptions'
     
     id = db.Column(db.Integer, primary_key=True)
-    firm_id = db.Column(db.Integer, db.ForeignKey('firms.id'), nullable=False)
+    firm_id = db.Column(db.Integer, db.ForeignKey('firms.id'), nullable=False, index=True)
     label = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -308,8 +309,8 @@ class EmployeeProjectLink(db.Model):
     __tablename__ = 'employee_project_links'
     
     id = db.Column(db.Integer, primary_key=True)
-    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False)
-    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=False)
+    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False, index=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=False, index=True)
     role_on_project = db.Column(db.String(255))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
@@ -320,8 +321,8 @@ class ProjectFirmInvolvement(db.Model):
     __tablename__ = 'project_firm_involvements'
     
     id = db.Column(db.Integer, primary_key=True)
-    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=False)
-    firm_id = db.Column(db.Integer, db.ForeignKey('firms.id'), nullable=False)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=False, index=True)
+    firm_id = db.Column(db.Integer, db.ForeignKey('firms.id'), nullable=False, index=True)
     role = db.Column(db.String(255))
 
 
@@ -335,13 +336,13 @@ class Proposal(db.Model):
     contract_location = db.Column(db.String(255))
     public_notice_date = db.Column(db.String(100))
     solicitation_number = db.Column(db.String(255))
-    firm_id = db.Column(db.Integer, db.ForeignKey('firms.id'), nullable=True)
-    firm_address_id = db.Column(db.Integer, db.ForeignKey('firm_addresses.id'), nullable=True)
-    firm_contact_id = db.Column(db.Integer, db.ForeignKey('firm_contacts.id'), nullable=True)
-    firm_bio_alternate_id = db.Column(db.Integer, db.ForeignKey('firm_alternate_descriptions.id'), nullable=True)
+    firm_id = db.Column(db.Integer, db.ForeignKey('firms.id'), nullable=True, index=True)
+    firm_address_id = db.Column(db.Integer, db.ForeignKey('firm_addresses.id'), nullable=True, index=True)
+    firm_contact_id = db.Column(db.Integer, db.ForeignKey('firm_contacts.id'), nullable=True, index=True)
+    firm_bio_alternate_id = db.Column(db.Integer, db.ForeignKey('firm_alternate_descriptions.id'), nullable=True, index=True)
     rfp_filename = db.Column(db.String(500))
-    rfp_content = db.Column(db.LargeBinary)
-    rfp_text = db.Column(db.Text)
+    rfp_content = deferred(db.Column(db.LargeBinary))
+    rfp_text = deferred(db.Column(db.Text))
     win_theme = db.Column(db.Text)  # Key messages and strategy for winning
     proposal_outline = db.Column(db.Text)  # AI-generated proposal outline based on RFP and data
     proposal_outline_instructions = db.Column(db.Text)  # Custom instructions used for outline
@@ -349,11 +350,11 @@ class Proposal(db.Model):
     written_sections = db.Column(db.Text)
     org_chart_data = db.Column(db.Text)  # JSON string storing org chart nodes and edges
     org_chart_notes = db.Column(db.Text)  # Global notes for the org chart
-    saved_org_chart_id = db.Column(db.Integer, db.ForeignKey('saved_org_charts.id'), nullable=True)
+    saved_org_chart_id = db.Column(db.Integer, db.ForeignKey('saved_org_charts.id'), nullable=True, index=True)
     final_pdf_filename = db.Column(db.String(500))
     final_word_filename = db.Column(db.String(500))
     status = db.Column(db.String(50), default='draft')
-    archived = db.Column(db.Boolean, default=False, nullable=False, server_default='false')
+    archived = db.Column(db.Boolean, default=False, nullable=False, server_default='false', index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -373,8 +374,8 @@ class ProposalSubconsultant(db.Model):
     __tablename__ = 'proposal_subconsultants'
     
     id = db.Column(db.Integer, primary_key=True)
-    proposal_id = db.Column(db.Integer, db.ForeignKey('proposals.id'), nullable=False)
-    firm_id = db.Column(db.Integer, db.ForeignKey('firms.id'), nullable=False)
+    proposal_id = db.Column(db.Integer, db.ForeignKey('proposals.id'), nullable=False, index=True)
+    firm_id = db.Column(db.Integer, db.ForeignKey('firms.id'), nullable=False, index=True)
     role = db.Column(db.String(500))
     percent_of_work = db.Column(db.Float, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -388,7 +389,7 @@ class ProposalDataSourceWeight(db.Model):
     __tablename__ = 'proposal_data_source_weights'
     
     id = db.Column(db.Integer, primary_key=True)
-    proposal_id = db.Column(db.Integer, db.ForeignKey('proposals.id'), nullable=False)
+    proposal_id = db.Column(db.Integer, db.ForeignKey('proposals.id'), nullable=False, index=True)
     source_key = db.Column(db.String(100), nullable=False)
     weight = db.Column(db.Integer, default=10)
     
@@ -399,7 +400,7 @@ class ProposalReview(db.Model):
     __tablename__ = 'proposal_reviews'
     
     id = db.Column(db.Integer, primary_key=True)
-    proposal_id = db.Column(db.Integer, db.ForeignKey('proposals.id'), nullable=False)
+    proposal_id = db.Column(db.Integer, db.ForeignKey('proposals.id'), nullable=False, index=True)
     review_type = db.Column(db.String(50), nullable=False)
     review_content = db.Column(db.Text)
     review_filename = db.Column(db.String(500))
@@ -411,8 +412,8 @@ class ProposalSelectedEmployee(db.Model):
     __tablename__ = 'proposal_selected_employees'
     
     id = db.Column(db.Integer, primary_key=True)
-    proposal_id = db.Column(db.Integer, db.ForeignKey('proposals.id'), nullable=False)
-    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False)
+    proposal_id = db.Column(db.Integer, db.ForeignKey('proposals.id'), nullable=False, index=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False, index=True)
     role_in_contract = db.Column(db.String(255))
     display_order = db.Column(db.Integer, default=0)
     
@@ -426,9 +427,9 @@ class ProposalEmployeeRelevantProject(db.Model):
     __tablename__ = 'proposal_employee_relevant_projects'
     
     id = db.Column(db.Integer, primary_key=True)
-    proposal_selected_employee_id = db.Column(db.Integer, db.ForeignKey('proposal_selected_employees.id'), nullable=False)
-    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=True)
-    experience_id = db.Column(db.Integer, db.ForeignKey('employee_project_experiences.id'), nullable=True)
+    proposal_selected_employee_id = db.Column(db.Integer, db.ForeignKey('proposal_selected_employees.id'), nullable=False, index=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=True, index=True)
+    experience_id = db.Column(db.Integer, db.ForeignKey('employee_project_experiences.id'), nullable=True, index=True)
     display_order = db.Column(db.Integer, default=0)
     
     project = db.relationship('Project')
@@ -439,11 +440,11 @@ class ProposalSelectedProject(db.Model):
     __tablename__ = 'proposal_selected_projects'
     
     id = db.Column(db.Integer, primary_key=True)
-    proposal_id = db.Column(db.Integer, db.ForeignKey('proposals.id'), nullable=False)
-    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=False)
+    proposal_id = db.Column(db.Integer, db.ForeignKey('proposals.id'), nullable=False, index=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=False, index=True)
     display_order = db.Column(db.Integer, default=0)
     custom_writeup = db.Column(db.Text)
-    alternate_description_id = db.Column(db.Integer, db.ForeignKey('project_alternate_descriptions.id'), nullable=True)
+    alternate_description_id = db.Column(db.Integer, db.ForeignKey('project_alternate_descriptions.id'), nullable=True, index=True)
     
     project = db.relationship('Project')
     alternate_description = db.relationship('ProjectAlternateDescription')
@@ -456,18 +457,18 @@ class Certification(db.Model):
     __tablename__ = 'certifications'
     
     id = db.Column(db.Integer, primary_key=True)
-    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False)
+    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False, index=True)
     cert_type = db.Column(db.String(100), nullable=False)  # 'training', 'license', 'certification'
     category = db.Column(db.String(100))  # 'NHI', 'Safety', 'SPRAT', 'Drone', 'PE License'
     name = db.Column(db.String(255), nullable=False)  # e.g., 'NHI-130055', 'OSHA-10', 'PE'
     state = db.Column(db.String(50))  # For PE licenses
     level = db.Column(db.String(50))  # For SPRAT levels
     status = db.Column(db.String(50))  # 'completed', 'active', 'expired', 'yes', 'registered'
-    expiration_date = db.Column(db.Date)
+    expiration_date = db.Column(db.Date, index=True)
     issue_date = db.Column(db.Date)
     license_number = db.Column(db.String(100))
     pdf_filename = db.Column(db.String(500))
-    pdf_content = db.Column(db.LargeBinary)
+    pdf_content = deferred(db.Column(db.LargeBinary))
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -524,7 +525,7 @@ class EmployeePhoto(db.Model):
     __tablename__ = 'employee_photos'
     
     id = db.Column(db.Integer, primary_key=True)
-    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False)
+    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False, index=True)
     filename = db.Column(db.String(500), nullable=False)
     storage_path = db.Column(db.String(500), nullable=False)
     caption = db.Column(db.String(500))
@@ -542,7 +543,7 @@ class ProjectPhoto(db.Model):
     __tablename__ = 'project_photos'
     
     id = db.Column(db.Integer, primary_key=True)
-    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=False)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=False, index=True)
     filename = db.Column(db.String(500), nullable=False)
     storage_path = db.Column(db.String(500), nullable=False)
     caption = db.Column(db.String(500))
@@ -559,7 +560,7 @@ class FirmPhoto(db.Model):
     __tablename__ = 'firm_photos'
     
     id = db.Column(db.Integer, primary_key=True)
-    firm_id = db.Column(db.Integer, db.ForeignKey('firms.id'), nullable=False)
+    firm_id = db.Column(db.Integer, db.ForeignKey('firms.id'), nullable=False, index=True)
     filename = db.Column(db.String(500), nullable=False)
     storage_path = db.Column(db.String(500), nullable=False)
     caption = db.Column(db.String(500))
@@ -576,7 +577,7 @@ class FirmDocument(db.Model):
     __tablename__ = 'firm_documents'
     
     id = db.Column(db.Integer, primary_key=True)
-    firm_id = db.Column(db.Integer, db.ForeignKey('firms.id'), nullable=False)
+    firm_id = db.Column(db.Integer, db.ForeignKey('firms.id'), nullable=False, index=True)
     filename = db.Column(db.String(500), nullable=False)
     storage_path = db.Column(db.String(500), nullable=False)
     description = db.Column(db.String(500))
@@ -593,7 +594,7 @@ class EmployeeDocument(db.Model):
     __tablename__ = 'employee_documents'
     
     id = db.Column(db.Integer, primary_key=True)
-    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False)
+    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False, index=True)
     filename = db.Column(db.String(500), nullable=False)
     storage_path = db.Column(db.String(500), nullable=False)
     description = db.Column(db.String(500))
@@ -610,7 +611,7 @@ class ProjectDocument(db.Model):
     __tablename__ = 'project_documents'
     
     id = db.Column(db.Integer, primary_key=True)
-    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=False)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=False, index=True)
     filename = db.Column(db.String(500), nullable=False)
     storage_path = db.Column(db.String(500), nullable=False)
     description = db.Column(db.String(500))
@@ -638,8 +639,8 @@ class ProposalSelectedFirmPhoto(db.Model):
     __tablename__ = 'proposal_selected_firm_photos'
     
     id = db.Column(db.Integer, primary_key=True)
-    proposal_id = db.Column(db.Integer, db.ForeignKey('proposals.id'), nullable=False)
-    firm_photo_id = db.Column(db.Integer, db.ForeignKey('firm_photos.id'), nullable=False)
+    proposal_id = db.Column(db.Integer, db.ForeignKey('proposals.id'), nullable=False, index=True)
+    firm_photo_id = db.Column(db.Integer, db.ForeignKey('firm_photos.id'), nullable=False, index=True)
     display_order = db.Column(db.Integer, default=0)
     
     proposal = db.relationship('Proposal', backref=db.backref('selected_firm_photos', lazy=True, cascade='all, delete-orphan'))
@@ -675,8 +676,8 @@ class ProposalSelectedMarketingPhoto(db.Model):
     __tablename__ = 'proposal_selected_marketing_photos'
     
     id = db.Column(db.Integer, primary_key=True)
-    proposal_id = db.Column(db.Integer, db.ForeignKey('proposals.id'), nullable=False)
-    marketing_photo_id = db.Column(db.Integer, db.ForeignKey('marketing_photos.id'), nullable=False)
+    proposal_id = db.Column(db.Integer, db.ForeignKey('proposals.id'), nullable=False, index=True)
+    marketing_photo_id = db.Column(db.Integer, db.ForeignKey('marketing_photos.id'), nullable=False, index=True)
     display_order = db.Column(db.Integer, default=0)
     
     proposal = db.relationship('Proposal', backref=db.backref('selected_marketing_photos', lazy=True, cascade='all, delete-orphan'))
@@ -688,9 +689,9 @@ class ProposalReference(db.Model):
     __tablename__ = 'proposal_references'
     
     id = db.Column(db.Integer, primary_key=True)
-    proposal_id = db.Column(db.Integer, db.ForeignKey('proposals.id'), nullable=False)
+    proposal_id = db.Column(db.Integer, db.ForeignKey('proposals.id'), nullable=False, index=True)
     filename = db.Column(db.String(500), nullable=False)
-    file_content = db.Column(db.LargeBinary)
+    file_content = deferred(db.Column(db.LargeBinary))
     extracted_text = db.Column(db.Text)
     file_size = db.Column(db.Integer)
     content_type = db.Column(db.String(100))
@@ -704,9 +705,9 @@ class ProposalIntelligence(db.Model):
     __tablename__ = 'proposal_intelligence'
     
     id = db.Column(db.Integer, primary_key=True)
-    proposal_id = db.Column(db.Integer, db.ForeignKey('proposals.id'), nullable=False)
+    proposal_id = db.Column(db.Integer, db.ForeignKey('proposals.id'), nullable=False, index=True)
     filename = db.Column(db.String(500), nullable=False)
-    file_content = db.Column(db.LargeBinary)
+    file_content = deferred(db.Column(db.LargeBinary))
     extracted_text = db.Column(db.Text)
     description = db.Column(db.String(500))  # Brief description of what this document contains
     file_size = db.Column(db.Integer)
@@ -721,7 +722,7 @@ class ProposalSavedResponse(db.Model):
     __tablename__ = 'proposal_saved_responses'
     
     id = db.Column(db.Integer, primary_key=True)
-    proposal_id = db.Column(db.Integer, db.ForeignKey('proposals.id'), nullable=False)
+    proposal_id = db.Column(db.Integer, db.ForeignKey('proposals.id'), nullable=False, index=True)
     prompt = db.Column(db.Text)
     response = db.Column(db.Text, nullable=False)
     label = db.Column(db.String(255))
@@ -763,8 +764,8 @@ class ProposalLinkedResponse(db.Model):
     __tablename__ = 'proposal_linked_responses'
     
     id = db.Column(db.Integer, primary_key=True)
-    proposal_id = db.Column(db.Integer, db.ForeignKey('proposals.id'), nullable=False)
-    response_id = db.Column(db.Integer, db.ForeignKey('responses.id'), nullable=False)
+    proposal_id = db.Column(db.Integer, db.ForeignKey('proposals.id'), nullable=False, index=True)
+    response_id = db.Column(db.Integer, db.ForeignKey('responses.id'), nullable=False, index=True)
     display_order = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
@@ -779,7 +780,7 @@ class Reference(db.Model):
     __tablename__ = 'references'
     
     id = db.Column(db.Integer, primary_key=True)
-    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=True, index=True)
     project = db.relationship('Project', backref='references')
     client = db.Column(db.String(255))
     agency = db.Column(db.String(255))
@@ -826,7 +827,7 @@ class ReferenceQuote(db.Model):
     __tablename__ = 'reference_quotes'
     
     id = db.Column(db.Integer, primary_key=True)
-    reference_id = db.Column(db.Integer, db.ForeignKey('references.id'), nullable=False)
+    reference_id = db.Column(db.Integer, db.ForeignKey('references.id'), nullable=False, index=True)
     quote_text = db.Column(db.Text, nullable=False)
     author = db.Column(db.String(255))
     client = db.Column(db.String(255))
@@ -840,8 +841,8 @@ class ProposalLinkedReference(db.Model):
     __tablename__ = 'proposal_linked_references'
     
     id = db.Column(db.Integer, primary_key=True)
-    proposal_id = db.Column(db.Integer, db.ForeignKey('proposals.id'), nullable=False)
-    reference_id = db.Column(db.Integer, db.ForeignKey('references.id'), nullable=False)
+    proposal_id = db.Column(db.Integer, db.ForeignKey('proposals.id'), nullable=False, index=True)
+    reference_id = db.Column(db.Integer, db.ForeignKey('references.id'), nullable=False, index=True)
     display_order = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
@@ -855,8 +856,8 @@ class ProjectLinkedReference(db.Model):
     __tablename__ = 'project_linked_references'
     
     id = db.Column(db.Integer, primary_key=True)
-    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=False)
-    reference_id = db.Column(db.Integer, db.ForeignKey('references.id'), nullable=False)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=False, index=True)
+    reference_id = db.Column(db.Integer, db.ForeignKey('references.id'), nullable=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     project = db.relationship('Project', backref=db.backref('linked_references', lazy=True, cascade='all, delete-orphan'))
@@ -869,8 +870,8 @@ class EmployeeLinkedReference(db.Model):
     __tablename__ = 'employee_linked_references'
     
     id = db.Column(db.Integer, primary_key=True)
-    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False)
-    reference_id = db.Column(db.Integer, db.ForeignKey('references.id'), nullable=False)
+    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False, index=True)
+    reference_id = db.Column(db.Integer, db.ForeignKey('references.id'), nullable=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     employee = db.relationship('Employee', backref=db.backref('linked_references', lazy=True, cascade='all, delete-orphan'))
@@ -888,8 +889,8 @@ class ResumeGraphic(db.Model):
     payload = db.Column(db.Text, nullable=False)  # JSON data with pairs/badges/staff, sizePreset, width, fontScale
     tags = db.Column(db.String(500))
     notes = db.Column(db.Text)
-    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=True)
-    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=True, index=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=True, index=True)
     include_in_resume = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

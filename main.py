@@ -5,6 +5,8 @@ from database import db
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET") or "dev-secret-key-change-in-production"
+if not os.environ.get("SESSION_SECRET"):
+    print("WARNING: SESSION_SECRET not set; using insecure development secret key.")
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 120,
@@ -33,6 +35,20 @@ with app.app_context():
     import models
     db.create_all()
 
+    # create_all() does not add new indexes to existing tables, so create any
+    # missing ones explicitly (idempotent).
+    try:
+        from sqlalchemy import inspect as _sa_inspect
+        _insp = _sa_inspect(db.engine)
+        for _table in db.metadata.tables.values():
+            _existing = {ix['name'] for ix in _insp.get_indexes(_table.name)}
+            for _index in _table.indexes:
+                if _index.name not in _existing:
+                    _index.create(db.engine)
+                    print(f"Created index {_index.name} on {_table.name}")
+    except Exception as _idx_err:
+        print(f"Index check skipped: {_idx_err}")
+
     from models import User
     if User.query.count() == 0:
         admin_password = os.environ.get('APP_PASSWORD', 'admin')
@@ -50,9 +66,14 @@ with app.app_context():
 @app.errorhandler(500)
 def handle_500_error(e):
     import traceback
-    error_trace = traceback.format_exc()
-    print(f"500 Error: {e}")
-    print(f"Traceback: {error_trace}")
+    original = getattr(e, 'original_exception', None)
+    if original is not None:
+        error_trace = ''.join(traceback.format_exception(type(original), original, original.__traceback__))
+    else:
+        error_trace = traceback.format_exc()
+    app.logger.error("500 Error: %s\n%s", e, error_trace)
+    if not app.debug:
+        error_trace = 'Details have been logged on the server.'
     from flask import render_template_string, request as flask_request
     return render_template_string('''
         <!DOCTYPE html>
@@ -77,4 +98,5 @@ def shutdown_session(exception=None):
 from routes import *
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    debug_mode = os.environ.get("FLASK_DEBUG", "0") == "1"
+    app.run(host="0.0.0.0", port=5000, debug=debug_mode)
